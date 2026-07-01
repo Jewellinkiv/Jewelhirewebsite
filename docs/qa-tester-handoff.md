@@ -113,7 +113,7 @@ Relevant artifacts:
 - Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T11-23-13-218Z/`
 - Tester handoff audit: `docs/qa-runs/tester-handoff-2026-07-01T03-54-42-388Z/`
 - Signup policy audit: `docs/qa-runs/signup-policy-2026-07-01T07-11-01-215Z/`
-- Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T06-53-32-362Z/`
+- Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T11-41-20-128Z/`
 - Manual smoke handoff audit: `docs/qa-runs/manual-smoke-handoff-2026-07-01T11-23-44-371Z/`
 
 Current local `gcloud` credentials need interactive reauthentication before Secret Manager-backed audits, Cloud Run revision checks, Cloud Run config exposure audits, and Cloud Run Postmark env-gate checks can be rerun. The live browser smoke and non-secret manual smoke handoff audit passed on 2026-07-01 without provider side effects.

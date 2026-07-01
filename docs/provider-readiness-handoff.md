@@ -19,8 +19,8 @@ npm run qa:provider-handoff
 Latest safe evidence:
 
 - Postmark safety: `docs/qa-runs/postmark-safety-2026-07-01T04-29-16-192Z/`
-- Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T06-35-08-144Z/`
-- Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T06-53-32-362Z/`
+- Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T11-23-13-218Z/`
+- Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T11-41-20-128Z/`
 
 Current local `gcloud` credentials need interactive reauthentication before the Postmark safety audit can refresh Cloud Run email-gate metadata. The static adapter/doc checks pass before that Cloud Run lookup.
 
