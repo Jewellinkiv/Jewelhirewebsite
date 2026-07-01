@@ -16,6 +16,7 @@ JewelHire currently keeps billing safe for live users by exposing billing reads 
 - The store-owner billing route can prefill a safe promotion-code value for Stripe checkout.
 - No live checkout session is created by QA.
 - No live webhook is accepted by QA.
+- Latest audit passed on 2026-07-01 with zero failures, zero blockers, and zero warnings. Artifact: `docs/qa-runs/billing-readiness-2026-07-01T06-35-08-144Z/`.
 
 ## Remaining Launch Work
 

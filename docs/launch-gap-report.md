@@ -49,7 +49,7 @@ Results:
 - Browser Phase 1 smoke passed locally with role-scoped store/admin staging sessions.
 - Notification readiness passed with a send adapter present, seven expected triggers wired, zero blockers, and zero warnings.
 - Postmark safety passed with live sends disabled during the default QA loop.
-- Billing readiness passed, including Stripe webhook and auth-boundary checks.
+- Billing readiness passed, including Stripe webhook, reconciliation, discount/promotion support, and live auth-boundary checks.
 - Provider handoff audit passed; dashboard verification checklist is documented.
 - Signup policy audit passed; public self-serve signup is disabled for this build.
 - Manual browser smoke handoff audit passed; role checklist and evidence template are documented.
@@ -59,6 +59,7 @@ Results:
 - Latest live security artifact: `docs/qa-runs/security-release-2026-07-01T05-23-00-528Z/security-release-report.md`.
 - Latest invalid-input artifact: `docs/qa-runs/invalid-input-2026-07-01T05-46-04-892Z/invalid-input-report.md`.
 - Latest notification readiness artifact: `docs/qa-runs/notification-readiness-2026-07-01T06-17-36-290Z/notification-readiness-report.md`.
+- Latest billing readiness artifact: `docs/qa-runs/billing-readiness-2026-07-01T06-35-08-144Z/billing-readiness-report.md`.
 - Cloud Run revision re-check with `gcloud run services describe` is currently blocked by local `gcloud` reauthentication; hosted HTTP/browser smoke remains passing.
 - Secret Manager-backed handoff audit re-run is also blocked until `gcloud auth login` is refreshed; the non-secret manual smoke handoff audit still passes.
 

@@ -103,7 +103,7 @@ Relevant artifacts:
 - Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T03-33-35-385Z/`
 - Config exposure: `docs/qa-runs/config-exposure-2026-07-01T03-33-35-385Z/`
 - Notification readiness: `docs/qa-runs/notification-readiness-2026-07-01T06-17-36-290Z/`
-- Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T03-30-07-525Z/`
+- Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T06-35-08-144Z/`
 - Tester handoff audit: `docs/qa-runs/tester-handoff-2026-07-01T03-54-42-388Z/`
 - Signup policy audit: `docs/qa-runs/signup-policy-2026-07-01T04-11-57-370Z/`
 - Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T04-30-36-960Z/`

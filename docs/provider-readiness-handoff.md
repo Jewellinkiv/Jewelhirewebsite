@@ -19,7 +19,7 @@ npm run qa:provider-handoff
 Latest safe evidence:
 
 - Postmark safety: `docs/qa-runs/postmark-safety-2026-07-01T04-29-16-192Z/`
-- Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T04-29-16-191Z/`
+- Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T06-35-08-144Z/`
 
 ## Postmark Dashboard Checklist
 
