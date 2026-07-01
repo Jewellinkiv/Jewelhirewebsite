@@ -67,6 +67,7 @@ Results:
 - Latest manual smoke handoff artifact: `docs/qa-runs/manual-smoke-handoff-2026-07-01T08-05-46-684Z/manual-smoke-handoff-report.md`.
 - Cloud Run revision re-check with `gcloud run services describe` is currently blocked by local `gcloud` reauthentication; hosted HTTP/browser smoke remains passing.
 - Config exposure audit re-run is currently blocked by the same local `gcloud` reauthentication because it reads Cloud Run env mount metadata; prior config artifact remains available until auth is refreshed.
+- Postmark safety re-run passes static adapter/doc checks, then is blocked by the same local `gcloud` reauthentication while reading Cloud Run Postmark env mount metadata; prior Postmark safety artifact remains available until auth is refreshed.
 - Secret Manager-backed handoff audit re-run is also blocked until `gcloud auth login` is refreshed; the non-secret manual smoke handoff audit still passes.
 
 ## Remaining Launch Gaps

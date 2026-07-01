@@ -22,6 +22,8 @@ Latest safe evidence:
 - Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T06-35-08-144Z/`
 - Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T06-53-32-362Z/`
 
+Current local `gcloud` credentials need interactive reauthentication before the Postmark safety audit can refresh Cloud Run email-gate metadata. The static adapter/doc checks pass before that Cloud Run lookup.
+
 ## Postmark Dashboard Checklist
 
 Verify in Postmark without sending live customer email:
