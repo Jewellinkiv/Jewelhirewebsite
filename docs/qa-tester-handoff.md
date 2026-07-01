@@ -73,7 +73,7 @@ Detailed manual checklist: `docs/manual-browser-smoke-handoff.md`
 
 ## Automation Evidence
 
-Latest local and production checks passed:
+Latest checks with passing evidence and no current `gcloud` dependency:
 
 ```bash
 npm run build
@@ -84,14 +84,19 @@ npm run qa:security:live
 npm run qa:invalid-input
 npm run qa:browser
 npm run qa:notifications
-npm run qa:postmark
 npm run qa:billing
-npm run qa:config
-npm run qa:handoff
 npm run qa:signup-policy
 npm run qa:provider-handoff
 npm run qa:manual-smoke-handoff
-npm run db:readiness
+```
+
+Cloud-backed checks with prior passing artifacts, pending local `gcloud` reauthentication before rerun:
+
+```bash
+npm run qa:config
+npm run qa:postmark
+npm run qa:auth -- --expect-firebase
+npm run qa:handoff
 ```
 
 Relevant artifacts:

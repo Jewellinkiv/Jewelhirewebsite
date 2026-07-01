@@ -115,19 +115,26 @@ Provider handoff: `docs/provider-readiness-handoff.md`
 Manual smoke handoff: `docs/manual-browser-smoke-handoff.md`
 Cloud reauth runbook: `docs/cloud-reauth-runbook.md`
 
-Run after launch credentials are created:
+Safe to rerun without local `gcloud` reauthentication:
 
 ```bash
 npm run qa:auth -- --skip-cloud-setup
 npm run qa:live
 npm run qa:security:live
 npm run qa:notifications
-npm run qa:postmark
 npm run qa:billing
-npm run qa:handoff
 npm run qa:signup-policy
 npm run qa:provider-handoff
 npm run qa:manual-smoke-handoff
+```
+
+Run after local `gcloud` reauthentication:
+
+```bash
+npm run qa:config
+npm run qa:postmark
+npm run qa:auth -- --expect-firebase
+npm run qa:handoff
 ```
 
 Manual browser smoke:
