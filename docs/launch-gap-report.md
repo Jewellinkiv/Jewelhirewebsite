@@ -42,7 +42,7 @@ Results:
 
 - Build passed.
 - Dependency audit passed with 0 vulnerabilities at `moderate` threshold.
-- Auth readiness passed, including live standard email/password form detection.
+- Auth readiness passed, including live standard email/password form detection, Google fallback visibility, invalid Firebase token rejection, and invalid password redirect behavior.
 - Live browser QA passed against `https://app.jewelhire.com` with 15 checks, 0 failures, and 0 warnings.
 - Live security release audit passed against `https://app.jewelhire.com`, including security headers, locked private APIs, invalid Firebase token rejection, and secret-exposure checks.
 - Invalid-input and abuse audit passed against `https://app.jewelhire.com`, including malformed application, auth failure, unsigned webhook, and unauthenticated billing mutation probes with no 5xx responses.
@@ -55,6 +55,7 @@ Results:
 - Manual browser smoke handoff audit passed; role checklist and evidence template are documented.
 - Invalid password attempts redirect back to `https://app.jewelhire.com/login`.
 - Database migration status shows `0001_phase1_core.sql`, `0002_applicant_notification_prefs.sql`, and `0003_password_credentials.sql` applied.
+- Latest auth readiness artifact: `docs/qa-runs/auth-readiness-2026-07-01T07-29-00-620Z/auth-readiness-report.md`.
 - Latest live QA artifact: `docs/qa-runs/live-2026-07-01T05-06-15-175Z/report.md`.
 - Latest live security artifact: `docs/qa-runs/security-release-2026-07-01T05-23-00-528Z/security-release-report.md`.
 - Latest invalid-input artifact: `docs/qa-runs/invalid-input-2026-07-01T05-46-04-892Z/invalid-input-report.md`.

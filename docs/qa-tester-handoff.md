@@ -100,7 +100,7 @@ Relevant artifacts:
 - Live security release audit: `docs/qa-runs/security-release-2026-07-01T05-23-00-528Z/`
 - Invalid-input and abuse audit: `docs/qa-runs/invalid-input-2026-07-01T05-46-04-892Z/`
 - Browser smoke: `docs/qa-runs/2026-07-01T03-28-48-061Z/`
-- Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T03-33-35-385Z/`
+- Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T07-29-00-620Z/`
 - Config exposure: `docs/qa-runs/config-exposure-2026-07-01T03-33-35-385Z/`
 - Notification readiness: `docs/qa-runs/notification-readiness-2026-07-01T06-17-36-290Z/`
 - Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T06-35-08-144Z/`
