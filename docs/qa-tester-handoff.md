@@ -77,6 +77,7 @@ Latest local and production checks passed:
 
 ```bash
 npm run build
+npm audit --audit-level=moderate
 npm run qa:auth -- --skip-cloud-setup
 npm run qa:live
 npm run qa:security:live

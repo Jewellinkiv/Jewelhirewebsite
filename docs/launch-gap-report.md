@@ -21,6 +21,7 @@ Commands run on 2026-07-01:
 
 ```bash
 npm run build
+npm audit --audit-level=moderate
 npm run qa:auth -- --skip-cloud-setup
 npm run qa:live
 npm run qa:security:live
@@ -40,6 +41,7 @@ gcloud run services describe jewelhire --project jewelhire-prod-20260626 --regio
 Results:
 
 - Build passed.
+- Dependency audit passed with 0 vulnerabilities at `moderate` threshold.
 - Auth readiness passed, including live standard email/password form detection.
 - Live browser QA passed against `https://app.jewelhire.com` with 15 checks, 0 failures, and 0 warnings.
 - Live security release audit passed against `https://app.jewelhire.com`, including security headers, locked private APIs, invalid Firebase token rejection, and secret-exposure checks.
