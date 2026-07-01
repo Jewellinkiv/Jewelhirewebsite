@@ -10,7 +10,7 @@ Updated: 2026-07-01
 
 - Hosted app: `https://app.jewelhire.com`
 - Login path: `https://app.jewelhire.com/login`
-- Code baseline validated: `a2a91cd Add manual smoke handoff`
+- Code/evidence baseline validated: `f86f1a1 Add cloud reauth verification runbook`
 - Database: PlanetScale Postgres via Secret Manager secret `jewelhire-database-url`
 
 Do not test from `/Users/williamiv/Documents/Jewelhire`; that repo was removed and is not the launch source of truth.
