@@ -24,6 +24,7 @@ npm run build
 npm run qa:auth -- --skip-cloud-setup
 npm run qa:live
 npm run qa:security:live
+npm run qa:invalid-input
 npm run qa:browser
 npm run qa:notifications
 npm run qa:postmark
@@ -42,6 +43,7 @@ Results:
 - Auth readiness passed, including live standard email/password form detection.
 - Live browser QA passed against `https://app.jewelhire.com` with 15 checks, 0 failures, and 0 warnings.
 - Live security release audit passed against `https://app.jewelhire.com`, including security headers, locked private APIs, invalid Firebase token rejection, and secret-exposure checks.
+- Invalid-input and abuse audit passed against `https://app.jewelhire.com`, including malformed application, auth failure, unsigned webhook, and unauthenticated billing mutation probes with no 5xx responses.
 - Browser Phase 1 smoke passed locally with role-scoped store/admin staging sessions.
 - Notification readiness passed with a send adapter present and zero blockers.
 - Postmark safety passed with live sends disabled during the default QA loop.
@@ -53,6 +55,7 @@ Results:
 - Database migration status shows `0001_phase1_core.sql`, `0002_applicant_notification_prefs.sql`, and `0003_password_credentials.sql` applied.
 - Latest live QA artifact: `docs/qa-runs/live-2026-07-01T05-06-15-175Z/report.md`.
 - Latest live security artifact: `docs/qa-runs/security-release-2026-07-01T05-23-00-528Z/security-release-report.md`.
+- Latest invalid-input artifact: `docs/qa-runs/invalid-input-2026-07-01T05-46-04-892Z/invalid-input-report.md`.
 - Cloud Run revision re-check with `gcloud run services describe` is currently blocked by local `gcloud` reauthentication; hosted HTTP/browser smoke remains passing.
 - Secret Manager-backed handoff audit re-run is also blocked until `gcloud auth login` is refreshed; the non-secret manual smoke handoff audit still passes.
 

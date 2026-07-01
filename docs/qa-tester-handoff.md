@@ -80,6 +80,7 @@ npm run build
 npm run qa:auth -- --skip-cloud-setup
 npm run qa:live
 npm run qa:security:live
+npm run qa:invalid-input
 npm run qa:browser
 npm run qa:notifications
 npm run qa:postmark
@@ -96,6 +97,7 @@ Relevant artifacts:
 
 - Live browser QA: `docs/qa-runs/live-2026-07-01T05-06-15-175Z/`
 - Live security release audit: `docs/qa-runs/security-release-2026-07-01T05-23-00-528Z/`
+- Invalid-input and abuse audit: `docs/qa-runs/invalid-input-2026-07-01T05-46-04-892Z/`
 - Browser smoke: `docs/qa-runs/2026-07-01T03-28-48-061Z/`
 - Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T03-33-35-385Z/`
 - Config exposure: `docs/qa-runs/config-exposure-2026-07-01T03-33-35-385Z/`
