@@ -10,7 +10,7 @@ Updated: 2026-07-01
 
 - Hosted app: `https://app.jewelhire.com`
 - Login path: `https://app.jewelhire.com/login`
-- Source commit: `9edfc23 Add QA tester handoff`
+- Code baseline validated: `a2a91cd Add manual smoke handoff`
 - Database: PlanetScale Postgres via Secret Manager secret `jewelhire-database-url`
 
 Do not test from `/Users/williamiv/Documents/Jewelhire`; that repo was removed and is not the launch source of truth.
@@ -78,6 +78,7 @@ Latest local and production checks passed:
 ```bash
 npm run build
 npm run qa:auth -- --skip-cloud-setup
+npm run qa:live
 npm run qa:browser
 npm run qa:notifications
 npm run qa:postmark
@@ -92,6 +93,7 @@ npm run db:readiness
 
 Relevant artifacts:
 
+- Live browser QA: `docs/qa-runs/live-2026-07-01T05-06-15-175Z/`
 - Browser smoke: `docs/qa-runs/2026-07-01T03-28-48-061Z/`
 - Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T03-33-35-385Z/`
 - Config exposure: `docs/qa-runs/config-exposure-2026-07-01T03-33-35-385Z/`
@@ -101,6 +103,8 @@ Relevant artifacts:
 - Signup policy audit: `docs/qa-runs/signup-policy-2026-07-01T04-11-57-370Z/`
 - Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T04-30-36-960Z/`
 - Manual smoke handoff audit: `docs/qa-runs/manual-smoke-handoff-2026-07-01T04-48-06-889Z/`
+
+Current local `gcloud` credentials need interactive reauthentication before Secret Manager-backed audits can be rerun. The live browser smoke and non-secret manual smoke handoff audit passed on 2026-07-01 without provider side effects.
 
 ## Pass Criteria
 
