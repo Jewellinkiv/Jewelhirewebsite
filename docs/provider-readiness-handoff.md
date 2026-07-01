@@ -20,6 +20,7 @@ Latest safe evidence:
 
 - Postmark safety: `docs/qa-runs/postmark-safety-2026-07-01T04-29-16-192Z/`
 - Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T06-35-08-144Z/`
+- Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T06-53-32-362Z/`
 
 ## Postmark Dashboard Checklist
 
