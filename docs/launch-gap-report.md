@@ -59,7 +59,7 @@ Results:
 - Latest local browser smoke artifact: `docs/qa-runs/2026-07-01T07-47-03-711Z/browser-smoke-report.md`.
 - Latest live QA artifact: `docs/qa-runs/live-2026-07-01T08-23-02-193Z/report.md`.
 - Latest live security artifact: `docs/qa-runs/security-release-2026-07-01T08-41-03-153Z/security-release-report.md`.
-- Latest invalid-input artifact: `docs/qa-runs/invalid-input-2026-07-01T05-46-04-892Z/invalid-input-report.md`.
+- Latest invalid-input artifact: `docs/qa-runs/invalid-input-2026-07-01T08-59-12-641Z/invalid-input-report.md`.
 - Latest notification readiness artifact: `docs/qa-runs/notification-readiness-2026-07-01T06-17-36-290Z/notification-readiness-report.md`.
 - Latest billing readiness artifact: `docs/qa-runs/billing-readiness-2026-07-01T06-35-08-144Z/billing-readiness-report.md`.
 - Latest provider handoff artifact: `docs/qa-runs/provider-handoff-2026-07-01T06-53-32-362Z/provider-handoff-report.md`.
