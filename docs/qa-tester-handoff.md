@@ -90,6 +90,8 @@ npm run qa:provider-handoff
 npm run qa:manual-smoke-handoff
 ```
 
+Latest local build rerun passed on 2026-07-01 with TypeScript compilation.
+
 Cloud-backed checks with prior passing artifacts, pending local `gcloud` reauthentication before rerun:
 
 ```bash

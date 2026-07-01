@@ -40,7 +40,7 @@ gcloud run services describe jewelhire --project jewelhire-prod-20260626 --regio
 
 Results:
 
-- Build passed.
+- Build passed; latest local rerun compiled successfully with TypeScript on 2026-07-01.
 - Dependency audit passed with 0 vulnerabilities at `moderate` threshold.
 - Auth readiness passed, including live standard email/password form detection, Google fallback visibility, invalid Firebase token rejection, and invalid password redirect behavior.
 - Live browser QA passed against `https://app.jewelhire.com` with 15 checks, 0 failures, and 0 warnings.
