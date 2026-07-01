@@ -13,6 +13,7 @@ JewelHire has a Postmark-backed notification adapter, but live email sends remai
 - Reconciled Stripe billing, subscription, checkout, and invoice webhooks send billing-contact notification statuses through the adapter.
 - Training assignment creation and first completion send learner notification statuses through the adapter.
 - `npm run qa:notifications` is static and safe; it does not send email.
+- Latest audit passed on 2026-07-01 with seven expected triggers wired, zero blockers, and zero warnings. Artifact: `docs/qa-runs/notification-readiness-2026-07-01T06-17-36-290Z/`.
 
 ## Remaining Notification Work
 

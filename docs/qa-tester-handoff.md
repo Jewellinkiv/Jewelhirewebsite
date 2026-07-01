@@ -102,7 +102,7 @@ Relevant artifacts:
 - Browser smoke: `docs/qa-runs/2026-07-01T03-28-48-061Z/`
 - Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T03-33-35-385Z/`
 - Config exposure: `docs/qa-runs/config-exposure-2026-07-01T03-33-35-385Z/`
-- Notification readiness: `docs/qa-runs/notification-readiness-2026-07-01T03-30-07-525Z/`
+- Notification readiness: `docs/qa-runs/notification-readiness-2026-07-01T06-17-36-290Z/`
 - Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T03-30-07-525Z/`
 - Tester handoff audit: `docs/qa-runs/tester-handoff-2026-07-01T03-54-42-388Z/`
 - Signup policy audit: `docs/qa-runs/signup-policy-2026-07-01T04-11-57-370Z/`
