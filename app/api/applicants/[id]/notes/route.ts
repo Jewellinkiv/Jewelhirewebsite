@@ -20,7 +20,7 @@ export const GET = withApiErrorHandling(async function GET(_request: Request, pr
     return NextResponse.json({ items: await listPostgresApplicantNotes(scope.applicationId) });
   }
 
-  return NextResponse.json({ items: getApplicantStore().listScopedApplicantNotes(params.id) });
+  return NextResponse.json({ items: await getApplicantStore().listScopedApplicantNotes(params.id) });
 });
 
 export const POST = withApiErrorHandling(async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
@@ -45,7 +45,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
     return NextResponse.json({ note }, { status: 201 });
   }
 
-  const note = getApplicantStore().addScopedApplicantNote({ applicantId: params.id, body: text, noteType });
+  const note = await getApplicantStore().addScopedApplicantNote({ applicantId: params.id, body: text, noteType });
   if (!note) return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
   return NextResponse.json({ note }, { status: 201 });
 });

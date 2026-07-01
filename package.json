@@ -14,6 +14,7 @@
     "db:migrate:apply": "node scripts/run-migrations.mjs apply",
     "db:seed:status": "node scripts/run-seeds.mjs status",
     "db:seed:apply": "node scripts/run-seeds.mjs apply",
+    "ops:password-credential": "node scripts/ops-password-credential.mjs",
     "db:readiness": "node scripts/check-database-readiness.mjs",
     "smoke:phase1": "node scripts/smoke-phase1-api.mjs --mode=local",
     "smoke:phase1:postgres": "node scripts/smoke-phase1-api.mjs --mode=postgres",

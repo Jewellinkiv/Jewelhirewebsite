@@ -24,13 +24,47 @@ export default async function LoginPage(props: { searchParams?: Promise<{ next?:
         </div>
         <h1 className="text-[26px] leading-tight font-extrabold text-head m-0">Sign in to JewelHire</h1>
         <p className="text-[14px] text-muted leading-relaxed mt-3 mb-6">
-          Use the Google account your store or JewelHire admin added to the workspace.
+          Use your JewelHire email and password, or continue with a Google account your store added to the workspace.
         </p>
         {searchParams?.error && (
           <div className="rounded-md border border-[#f2c2c2] bg-[#fff4f4] px-3 py-2 text-[13px] text-[#a32d2d] mb-4">
-            {searchParams.error === "unauthorized" ? "That Google account is not active in JewelHire yet." : "We could not complete sign in. Try again."}
+            {errorMessage(searchParams.error)}
           </div>
         )}
+        <form action="/api/auth/password/session" method="post" className="space-y-3 mb-5" data-testid="password-login-form">
+          <input type="hidden" name="next" value={next} />
+          <label className="block">
+            <span className="block text-[12px] font-semibold text-muted mb-1">Email</span>
+            <input
+              autoComplete="email"
+              className="w-full rounded-md border border-line bg-white px-3 py-2.5 text-[14px] text-head outline-none focus:border-brand"
+              data-testid="password-login-email"
+              name="email"
+              placeholder="you@store.com"
+              required
+              type="email"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-[12px] font-semibold text-muted mb-1">Password</span>
+            <input
+              autoComplete="current-password"
+              className="w-full rounded-md border border-line bg-white px-3 py-2.5 text-[14px] text-head outline-none focus:border-brand"
+              data-testid="password-login-password"
+              name="password"
+              placeholder="Your password"
+              required
+              type="password"
+            />
+          </label>
+          <button className="btn-grad w-full inline-flex items-center justify-center px-5 py-3 text-[14px]" data-testid="password-login-submit" type="submit">
+            Sign in with email
+          </button>
+        </form>
+        <div className="relative my-5 text-center text-[12px] text-muted">
+          <span className="bg-white px-3 relative z-10">or</span>
+          <span className="absolute left-0 right-0 top-1/2 h-px bg-line" aria-hidden="true" />
+        </div>
         {firebaseConfigured && <FirebaseGoogleButton next={next} config={firebaseConfig} />}
         {configured && (
           <a href={googleHref} className={`${firebaseConfigured ? "mt-3 " : ""}btn-grad w-full inline-flex items-center justify-center px-5 py-3 text-[14px] no-underline`}>
@@ -45,4 +79,17 @@ export default async function LoginPage(props: { searchParams?: Promise<{ next?:
       </section>
     </main>
   );
+}
+
+function errorMessage(error: string) {
+  switch (error) {
+    case "unauthorized":
+      return "That Google account is not active in JewelHire yet.";
+    case "password":
+      return "That email and password could not be verified.";
+    case "password_config":
+      return "Email/password login is not configured for this environment yet.";
+    default:
+      return "We could not complete sign in. Try again.";
+  }
 }

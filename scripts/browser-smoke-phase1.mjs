@@ -18,6 +18,7 @@ const mode = args.get("mode") || process.env.JEWELHIRE_BROWSER_SMOKE_MODE || "lo
 const startServer = args.has("start-server");
 const port = Number(args.get("port") || process.env.JEWELHIRE_BROWSER_SMOKE_PORT || 3003);
 const baseUrl = (args.get("base") || process.env.JEWELHIRE_BROWSER_BASE_URL || `http://localhost:${port}`).replace(/\/$/, "");
+const sessionOverrideAvailable = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::|\/|$)/i.test(baseUrl);
 const headed = args.has("headed");
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const artifactDir = path.resolve(rootDir, args.get("artifacts") || `docs/qa-runs/${timestamp}`);
@@ -407,6 +408,7 @@ async function loadRoute(page, route, label, viewport) {
 
 async function routeSmoke(page) {
   for (const group of routeGroups) {
+    await page.setExtraHTTPHeaders(group.label === "admin" ? adminHeaders() : group.label === "store" ? storeHeaders() : {});
     for (const route of group.routes) {
       await loadRoute(page, route, group.label, desktop);
       await loadRoute(page, route, group.label, mobile);
@@ -456,12 +458,19 @@ async function storeInterviewFlow(page) {
 async function adminCompanyFlow(page) {
   const suffix = Date.now().toString(36);
   await page.setViewportSize(desktop);
+  await page.setExtraHTTPHeaders(adminHeaders());
   await page.goto(`${baseUrl}/admin/companies`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /New company/i }).click();
   await fillField(page, "Company name", `Browser Jewelers ${suffix}`);
   await fillField(page, "Owner name", "Browser Owner");
+  const createCompanyResponse = page.waitForResponse(
+    (response) => response.url().includes("/api/admin/companies") && response.request().method() === "POST",
+    { timeout: 25000 },
+  );
   await page.getByRole("button", { name: /Create company/i }).click();
-  await page.getByText(new RegExp(`Browser Jewelers ${suffix} created`, "i")).waitFor({ timeout: 20000 });
+  const response = await createCompanyResponse;
+  if (!response.ok()) throw new Error(`Admin company create returned ${response.status()}`);
+  await page.getByRole("link", { name: new RegExp(`Browser Jewelers ${suffix}`, "i") }).waitFor({ timeout: 20000 });
   await screenshot(page, "flow-admin-new-company");
   console.log("ok flow admin new company");
 }
@@ -514,11 +523,11 @@ async function expectOk(response, label) {
 }
 
 function storeHeaders() {
-  return mode === "postgres" ? { "x-jewelhire-session": "sissys" } : {};
+  return sessionOverrideAvailable ? { "x-jewelhire-session": "sissys" } : {};
 }
 
 function adminHeaders() {
-  return mode === "postgres" ? { "x-jewelhire-session": "admin" } : {};
+  return sessionOverrideAvailable ? { "x-jewelhire-session": "admin" } : {};
 }
 
 function applicationSummaryId(item) {
@@ -581,16 +590,17 @@ async function workflowApiChecks(request) {
     }),
     "applicant note create",
   );
-  if (!createdNote.note?.id) throw new Error("Applicant note create did not return a note id");
+  const createdNoteId = createdNote.note?.id || createdNote.id;
+  if (!createdNoteId) throw new Error(`Applicant note create did not return a note id: ${JSON.stringify(createdNote).slice(0, 240)}`);
   const listedNotes = await expectOk(
     await request.get(`${baseUrl}/api/applicants/${applicationId}/notes`, { headers: storeHeaders() }),
     "applicant notes list",
   );
-  if (!listedNotes.items?.some((note) => note.id === createdNote.note.id)) {
+  if (!listedNotes.items?.some((note) => note.id === createdNoteId)) {
     throw new Error("Applicant notes list did not include the created note");
   }
   await expectOk(
-    await request.delete(`${baseUrl}/api/notes/${createdNote.note.id}`, { headers: storeHeaders() }),
+    await request.delete(`${baseUrl}/api/notes/${createdNoteId}`, { headers: storeHeaders() }),
     "applicant note delete",
   );
 

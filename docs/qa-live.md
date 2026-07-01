@@ -29,11 +29,21 @@ node scripts/qa-live.mjs --base=https://app.jewelhire.com
 
 1. Root redirects to `/login`.
 2. `/login` is public and renders the JewelHire sign-in experience.
-3. Public application pages load.
-4. `/api/me` and private store APIs reject unauthenticated requests.
-5. Google OAuth start redirects to Google.
-6. Firebase session endpoint rejects invalid tokens in the security audit.
-7. Desktop and mobile screenshots render without console errors.
+   - Must include standard email/password login.
+   - Google/Firebase remain fallback sign-in methods.
+3. Invalid email/password attempts reject safely and stay on `app.jewelhire.com`.
+4. Public application pages load.
+5. `/api/me` and private store APIs reject unauthenticated requests.
+6. Google OAuth start redirects to Google.
+7. Firebase session endpoint rejects invalid tokens in the security audit.
+8. Desktop and mobile screenshots render without console errors.
+
+Current production state as of 2026-07-01:
+
+- Cloud Run revision `jewelhire-00040-x7v` is live at 100% traffic after database password rotation.
+- `npm run qa:auth -- --skip-cloud-setup` passes against `https://app.jewelhire.com`.
+- `npm run qa:browser` passes locally with role-scoped store/admin browser smoke.
+- Smoke credentials for admin, store owner, manager, and applicant are in Secret Manager secret `jewelhire-smoke-test-credentials`.
 
 ## Related Release Checks
 
@@ -46,7 +56,7 @@ npm run build
 npm audit --audit-level=moderate
 ```
 
-`npm run qa:auth -- --expect-firebase` verifies both the JewelHire Firebase login code path and the Firebase/GCP setup behind it without printing config values.
+`npm run qa:auth -- --expect-firebase` verifies standard email/password login markup, the JewelHire Firebase login code path, and the Firebase/GCP setup behind it without printing config values.
 `npm run qa:notifications` is static and safe. It inventories notification promises, expected email trigger points, and whether a real send adapter exists. It does not send email.
 `npm run qa:billing` is also safe. It checks billing auth boundaries and Stripe readiness without creating checkout sessions, charges, discounts, or webhooks.
 

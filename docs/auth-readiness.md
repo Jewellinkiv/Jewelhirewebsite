@@ -4,8 +4,36 @@ JewelHire supports two Google sign-in paths:
 
 - Server-side Google OAuth: `/api/auth/google/start` and `/api/auth/google/callback`.
 - Firebase Google Auth: client Firebase popup plus `/api/auth/firebase/session`.
+- Standard email/password auth: `/api/auth/password/session`, backed by `password_credentials`.
 
 Both paths resolve the Google email into the JewelHire Postgres user/store scope before setting the `jewelhire_session` cookie.
+Email/password auth resolves the same active JewelHire user and sets the same `jewelhire_session` cookie after verifying a salted scrypt password hash.
+
+## Standard Email/Password Login
+
+`/login` must render email and password fields before Google fallback.
+
+Setup:
+
+```bash
+npm run db:migrate:apply
+DATABASE_URL=<postgres> JEWELHIRE_OPERATOR_PASSWORD=<temporary-12+-character-password> npm run ops:password-credential -- --email owner@example.com
+```
+
+Rules:
+
+- Password hashes live in `password_credentials`, not in `users`.
+- Temporary passwords come from `JEWELHIRE_OPERATOR_PASSWORD`; do not pass them as command-line arguments.
+- Password login uses the same active user/store authorization lookup as Google and Firebase login.
+- Hosted `app.jewelhire.com/login` is not launch-ready unless it includes `Sign in with email`.
+- Invalid password redirects must stay on the public `app.jewelhire.com` host, not Cloud Run's internal request host.
+
+Current production state as of 2026-07-01:
+
+- Cloud Run revision `jewelhire-00040-x7v` is serving 100% traffic after database password rotation.
+- `0003_password_credentials.sql` is applied.
+- `npm run qa:auth -- --skip-cloud-setup` passes against `https://app.jewelhire.com`.
+- Smoke credentials for admin, store owner, manager, and applicant are stored in Secret Manager secret `jewelhire-smoke-test-credentials`.
 
 ## Firebase Required Config
 

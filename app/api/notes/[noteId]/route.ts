@@ -19,7 +19,7 @@ export const DELETE = withApiErrorHandling(async function DELETE(_request: Reque
     return NextResponse.json({ note });
   }
 
-  const note = getApplicantStore().deleteApplicantNote(params.noteId);
+  const note = await getApplicantStore().deleteApplicantNote(params.noteId);
   if (!note) return NextResponse.json({ error: "Note not found" }, { status: 404 });
   return NextResponse.json({ note });
 });

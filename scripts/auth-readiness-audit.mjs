@@ -135,12 +135,16 @@ async function main() {
   record("firebase verifier exists", fileIncludes("lib/server/firebase-auth.ts", ["verifyFirebaseIdToken", "securetoken@system.gserviceaccount.com"]));
   record("firebase session route exists", fileIncludes("app/api/auth/firebase/session/route.ts", ["verifyFirebaseIdToken", "SESSION_COOKIE"]));
   record("login renders firebase button component", fileIncludes("app/(auth)/login/page.tsx", ["FirebaseGoogleButton", "firebaseClientConfig"]));
+  record("login renders standard email password form", fileIncludes("app/(auth)/login/page.tsx", ["password-login-form", "/api/auth/password/session", "Sign in with email"]));
+  record("password credential storage exists", fileIncludes("db/migrations/0003_password_credentials.sql", ["password_credentials", "password_hash"]));
+  record("password session route exists", fileIncludes("app/api/auth/password/session/route.ts", ["loginWithPassword", "SESSION_COOKIE"]));
   await auditFirebaseSetup();
 
   const login = await fetch(`${BASE}/login`, { redirect: "manual" });
   const loginText = await login.text();
   record("live login loads", login.status === 200, { status: login.status });
   record("live login has Google sign-in", /Continue with Google|Continue with Firebase Google/i.test(loginText));
+  record("live login has standard email password form", /password-login-form|Sign in with email/i.test(loginText));
   record("live firebase login visible when expected", EXPECT_FIREBASE ? loginText.includes("Continue with Firebase Google") : true, {
     expected: EXPECT_FIREBASE,
     visible: loginText.includes("Continue with Firebase Google"),
@@ -155,6 +159,18 @@ async function main() {
   const invalidBody = await readBody(invalidFirebase);
   record("firebase invalid token rejected", invalidFirebase.status === 401 && invalidBody?.error?.code === "invalid_firebase_token", {
     status: invalidFirebase.status,
+  });
+
+  const invalidPassword = await fetch(`${BASE}/api/auth/password/session`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ email: "not-a-real-user@example.com", password: "wrong-password", next: "/" }),
+    redirect: "manual",
+  });
+  const invalidPasswordLocation = invalidPassword.headers.get("location") || "";
+  record("password invalid credentials rejected on public app host", invalidPassword.status === 303 && invalidPasswordLocation.startsWith(`${BASE}/login`), {
+    status: invalidPassword.status,
+    location: invalidPasswordLocation ? invalidPasswordLocation.replace(/error=[^&]+/, "error=[redacted]") : "",
   });
 
   const failures = checks.filter((check) => !check.pass);
