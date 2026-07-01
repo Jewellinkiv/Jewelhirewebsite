@@ -78,6 +78,8 @@ Configured smoke identities:
 
 ## Browser QA Smoke
 
+Tester handoff: `docs/qa-tester-handoff.md`
+
 Run after launch credentials are created:
 
 ```bash
