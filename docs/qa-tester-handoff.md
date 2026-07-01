@@ -80,6 +80,7 @@ npm run qa:notifications
 npm run qa:billing
 npm run qa:config
 npm run qa:handoff
+npm run qa:signup-policy
 npm run db:readiness
 ```
 
@@ -91,6 +92,7 @@ Relevant artifacts:
 - Notification readiness: `docs/qa-runs/notification-readiness-2026-07-01T03-30-07-525Z/`
 - Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T03-30-07-525Z/`
 - Tester handoff audit: `docs/qa-runs/tester-handoff-2026-07-01T03-54-42-388Z/`
+- Signup policy audit: `docs/qa-runs/signup-policy-2026-07-01T04-11-57-370Z/`
 
 ## Pass Criteria
 

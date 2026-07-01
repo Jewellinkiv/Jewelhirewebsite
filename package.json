@@ -34,6 +34,7 @@
     "qa:postmark": "node scripts/postmark-safety-audit.mjs",
     "qa:roles": "node scripts/role-readiness-audit.mjs",
     "qa:security:live": "node scripts/security-release-audit.mjs",
+    "qa:signup-policy": "node scripts/signup-policy-audit.mjs",
     "qa:live": "node scripts/qa-live.mjs",
     "qa:live:headed": "node scripts/qa-live.mjs --headed"
   },

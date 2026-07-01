@@ -26,6 +26,7 @@ npm run qa:browser
 npm run qa:notifications
 npm run qa:billing
 npm run qa:handoff
+npm run qa:signup-policy
 npm run db:migrate:status
 gcloud run services describe jewelhire --project jewelhire-prod-20260626 --region us-central1 --format='value(status.latestReadyRevisionName,status.traffic[0].percent)'
 ```
@@ -37,13 +38,14 @@ Results:
 - Browser Phase 1 smoke passed locally with role-scoped store/admin staging sessions.
 - Notification readiness passed with a send adapter present and zero blockers.
 - Billing readiness passed, including Stripe webhook and auth-boundary checks.
+- Signup policy audit passed; public self-serve signup is disabled for this build.
 - Invalid password attempts redirect back to `https://app.jewelhire.com/login`.
 - Database migration status shows `0001_phase1_core.sql`, `0002_applicant_notification_prefs.sql`, and `0003_password_credentials.sql` applied.
 
 ## Remaining Launch Gaps
 
 1. Rotate smoke/test passwords before handing them to external testers if broader access is needed.
-2. Decide whether launch signup remains invite/admin-created only or adds a public self-serve signup flow.
+2. Decide whether a future release adds public self-serve signup. Current launch stance is invite/admin-created accounts only.
 3. Run manual browser smoke with real testers using the Secret Manager smoke credentials.
 4. Confirm Postmark sender/domain and Stripe products/webhooks in provider dashboards before accepting live customer traffic.
 
@@ -90,6 +92,7 @@ npm run qa:security:live
 npm run qa:notifications
 npm run qa:billing
 npm run qa:handoff
+npm run qa:signup-policy
 ```
 
 Manual browser smoke:
