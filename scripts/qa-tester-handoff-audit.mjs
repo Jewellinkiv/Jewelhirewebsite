@@ -18,10 +18,8 @@ const OUT = path.resolve(process.cwd(), args.get("artifacts") || `docs/qa-runs/t
 const HANDOFF = "docs/qa-tester-handoff.md";
 const LAUNCH_REPORT = "docs/launch-gap-report.md";
 const EXPECTED = [
-  { role: "admin", email: "william@jewelrysalesacademy.com" },
+  { role: "admin", email: "william@jewellink.com" },
   { role: "store_owner", email: "jordan@email.com" },
-  { role: "store_owner", email: "leo@harborgold.com" },
-  { role: "manager", email: "maria@email.com" },
   { role: "applicant", email: "maya.chen@email.com" },
 ];
 

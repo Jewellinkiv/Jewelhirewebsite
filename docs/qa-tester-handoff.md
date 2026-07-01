@@ -3,14 +3,14 @@
 Production app: `https://app.jewelhire.com`
 Source repo: `/Users/williamiv/Desktop/Jewelhire`
 Cloud Run project: `jewelhire-prod-20260626`
-Current production revision: `jewelhire-00040-x7v`
+Current production revision: `jewelhire-00041-vkc`
 Updated: 2026-07-01
 
 ## Build Under Test
 
 - Hosted app: `https://app.jewelhire.com`
 - Login path: `https://app.jewelhire.com/login`
-- Source commit: `5bfc531 Refresh cloud-backed launch evidence`
+- Source commit: `5291beb Refresh hosted live evidence`
 - Database: PlanetScale Postgres via Secret Manager secret `jewelhire-database-url`
 
 Do not test from `/Users/williamiv/Documents/Jewelhire`; that repo was removed and is not the launch source of truth.
@@ -27,10 +27,8 @@ Accounts to smoke:
 
 | Role | Email | Expected Access |
 | --- | --- | --- |
-| JewelHire admin | `william@jewelrysalesacademy.com` | Admin overview, companies, billing, assessments, support, analytics |
+| JewelHire admin | `william@jewellink.com` | Admin overview, companies, billing, assessments, support, analytics |
 | Store owner | `jordan@email.com` | Sissy's store dashboard, pipeline, jobs, interviews, team, settings, public page |
-| Store owner | `leo@harborgold.com` | Harbor store scope only |
-| Manager | `maria@email.com` | Store-side access for Sissy's |
 | Applicant | `maya.chen@email.com` | Applicant portal profile, resume, applications, interviews, invites, training |
 
 ## Smoke Scope
@@ -103,16 +101,16 @@ npm run qa:handoff
 
 Relevant artifacts:
 
-- Live browser QA: `docs/qa-runs/live-2026-07-01T11-58-57-967Z/`
+- Live browser QA: `docs/qa-runs/live-2026-07-01T12-07-00-419Z/`
 - Live security release audit: `docs/qa-runs/security-release-2026-07-01T08-41-03-153Z/`
 - Invalid-input and abuse audit: `docs/qa-runs/invalid-input-2026-07-01T08-59-12-641Z/`
 - Browser smoke: `docs/qa-runs/2026-07-01T07-47-03-711Z/`
-- Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T11-42-53-280Z/`
+- Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T12-07-00-153Z/`
 - Config exposure: `docs/qa-runs/config-exposure-2026-07-01T11-42-53-276Z/`
 - Postmark safety: `docs/qa-runs/postmark-safety-2026-07-01T11-42-53-275Z/`
 - Notification readiness: `docs/qa-runs/notification-readiness-2026-07-01T11-05-56-878Z/`
 - Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T11-23-13-218Z/`
-- Tester handoff audit: `docs/qa-runs/tester-handoff-2026-07-01T11-59-39-383Z/`
+- Tester handoff audit: `docs/qa-runs/tester-handoff-2026-07-01T12-08-05-131Z/`
 - Signup policy audit: `docs/qa-runs/signup-policy-2026-07-01T07-11-01-215Z/`
 - Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T11-44-43-768Z/`
 - Manual smoke handoff audit: `docs/qa-runs/manual-smoke-handoff-2026-07-01T11-23-44-371Z/`

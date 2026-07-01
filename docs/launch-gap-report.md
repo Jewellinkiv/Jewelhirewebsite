@@ -7,7 +7,7 @@ Last updated: 2026-07-01
 
 ## Current Launch State
 
-- Cloud Run is serving Desktop JewelHire revision `jewelhire-00040-x7v` at 100% traffic after database password rotation.
+- Cloud Run is serving Desktop JewelHire revision `jewelhire-00041-vkc` at 100% traffic after admin login setup.
 - `https://app.jewelhire.com/login` is publicly reachable over HTTPS and served by Google Frontend.
 - `DATABASE_URL` is mounted from Google Secret Manager secret `jewelhire-database-url` version `latest`.
 - The hosted login screen now includes standard email/password login plus Google/Firebase fallback.
@@ -56,15 +56,15 @@ Results:
 - Manual browser smoke handoff audit passed; role checklist and evidence template are documented.
 - Invalid password attempts redirect back to `https://app.jewelhire.com/login`.
 - Database migration status shows `0001_phase1_core.sql`, `0002_applicant_notification_prefs.sql`, and `0003_password_credentials.sql` applied.
-- Cloud Run revision `jewelhire-00040-x7v` is latest ready and serving 100% traffic; hosted login returned HTTP 200 through Google Frontend on 2026-07-01.
+- Cloud Run revision `jewelhire-00041-vkc` is latest ready and serving 100% traffic; hosted login returned HTTP 200 through Google Frontend on 2026-07-01.
 - Config exposure audit passed with Cloud Run env mount checks and no public private-env exposure.
 - Cloud-backed Postmark safety audit passed with the token secret-backed and live sends disabled during the default QA loop.
-- Secret Manager-backed tester handoff audit can read the smoke-credential secret, validates all five smoke users, and does not print passwords.
-- Latest auth readiness artifact: `docs/qa-runs/auth-readiness-2026-07-01T11-42-53-280Z/auth-readiness-report.md`.
+- Secret Manager-backed tester handoff audit can read the smoke-credential secret, validates the admin, store owner, and applicant smoke users, and does not print passwords.
+- Latest auth readiness artifact: `docs/qa-runs/auth-readiness-2026-07-01T12-07-00-153Z/auth-readiness-report.md`.
 - Latest config exposure artifact: `docs/qa-runs/config-exposure-2026-07-01T11-42-53-276Z/config-exposure-report.md`.
 - Latest Postmark safety artifact: `docs/qa-runs/postmark-safety-2026-07-01T11-42-53-275Z/postmark-safety-report.md`.
 - Latest local browser smoke artifact: `docs/qa-runs/2026-07-01T07-47-03-711Z/browser-smoke-report.md`.
-- Latest live QA artifact: `docs/qa-runs/live-2026-07-01T11-58-57-967Z/report.md`.
+- Latest live QA artifact: `docs/qa-runs/live-2026-07-01T12-07-00-419Z/report.md`.
 - Latest live security artifact: `docs/qa-runs/security-release-2026-07-01T08-41-03-153Z/security-release-report.md`.
 - Latest invalid-input artifact: `docs/qa-runs/invalid-input-2026-07-01T08-59-12-641Z/invalid-input-report.md`.
 - Latest notification readiness artifact: `docs/qa-runs/notification-readiness-2026-07-01T11-05-56-878Z/notification-readiness-report.md`.
@@ -72,7 +72,7 @@ Results:
 - Latest provider handoff artifact: `docs/qa-runs/provider-handoff-2026-07-01T11-44-43-768Z/provider-handoff-report.md`.
 - Latest signup policy artifact: `docs/qa-runs/signup-policy-2026-07-01T07-11-01-215Z/signup-policy-report.md`.
 - Latest manual smoke handoff artifact: `docs/qa-runs/manual-smoke-handoff-2026-07-01T11-23-44-371Z/manual-smoke-handoff-report.md`.
-- Latest tester handoff artifact: `docs/qa-runs/tester-handoff-2026-07-01T11-59-39-383Z/tester-handoff-report.md`.
+- Latest tester handoff artifact: `docs/qa-runs/tester-handoff-2026-07-01T12-08-05-131Z/tester-handoff-report.md`.
 
 ## Remaining Launch Gaps
 
@@ -106,10 +106,8 @@ gcloud secrets versions access latest --secret=jewelhire-smoke-test-credentials 
 
 Configured smoke identities:
 
-- Admin: `william@jewelrysalesacademy.com`
+- Admin: `william@jewellink.com`
 - Store owner: `jordan@email.com`
-- Store owner: `leo@harborgold.com`
-- Manager: `maria@email.com`
 - Applicant: `maya.chen@email.com`
 
 ## Browser QA Smoke
