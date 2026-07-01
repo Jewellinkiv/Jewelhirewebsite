@@ -111,6 +111,8 @@ Relevant artifacts:
 
 Current local `gcloud` credentials need interactive reauthentication before Secret Manager-backed audits, Cloud Run revision checks, Cloud Run config exposure audits, and Cloud Run Postmark env-gate checks can be rerun. The live browser smoke and non-secret manual smoke handoff audit passed on 2026-07-01 without provider side effects.
 
+Cloud reauth steps and post-reauth verification commands are documented in `docs/cloud-reauth-runbook.md`.
+
 ## Pass Criteria
 
 - Every role can sign in with email/password.

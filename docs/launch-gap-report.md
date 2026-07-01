@@ -76,6 +76,7 @@ Results:
 2. Decide whether a future release adds public self-serve signup. Current launch stance is invite/admin-created accounts only.
 3. Run manual browser smoke with real testers using `docs/manual-browser-smoke-handoff.md` and the Secret Manager smoke credentials.
 4. Confirm Postmark sender/domain and Stripe products/webhooks in provider dashboards before accepting live customer traffic. Use `docs/provider-readiness-handoff.md`.
+5. Refresh local `gcloud` auth, then rerun the cloud-backed verification bundle in `docs/cloud-reauth-runbook.md`.
 
 ## Password Credential Setup
 
@@ -112,6 +113,7 @@ Configured smoke identities:
 Tester handoff: `docs/qa-tester-handoff.md`
 Provider handoff: `docs/provider-readiness-handoff.md`
 Manual smoke handoff: `docs/manual-browser-smoke-handoff.md`
+Cloud reauth runbook: `docs/cloud-reauth-runbook.md`
 
 Run after launch credentials are created:
 

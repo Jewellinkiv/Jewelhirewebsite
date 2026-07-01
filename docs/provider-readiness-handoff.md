@@ -24,6 +24,8 @@ Latest safe evidence:
 
 Current local `gcloud` credentials need interactive reauthentication before the Postmark safety audit can refresh Cloud Run email-gate metadata. The static adapter/doc checks pass before that Cloud Run lookup.
 
+Cloud reauth steps and post-reauth verification commands are documented in `docs/cloud-reauth-runbook.md`.
+
 ## Postmark Dashboard Checklist
 
 Verify in Postmark without sending live customer email:
