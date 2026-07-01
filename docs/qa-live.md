@@ -42,6 +42,7 @@ Current production state as of 2026-07-01:
 
 - Cloud Run revision `jewelhire-00040-x7v` is live at 100% traffic after database password rotation.
 - `npm run qa:live` passes against `https://app.jewelhire.com` with 15 checks, 0 failures, and 0 warnings. Latest artifact: `docs/qa-runs/live-2026-07-01T05-06-15-175Z/`.
+- `npm run qa:security:live` passes against `https://app.jewelhire.com`. Latest artifact: `docs/qa-runs/security-release-2026-07-01T05-23-00-528Z/`.
 - `npm run qa:auth -- --skip-cloud-setup` passes against `https://app.jewelhire.com`.
 - `npm run qa:browser` passes locally with role-scoped store/admin browser smoke.
 - Smoke credentials for admin, store owner, manager, and applicant are in Secret Manager secret `jewelhire-smoke-test-credentials`.
