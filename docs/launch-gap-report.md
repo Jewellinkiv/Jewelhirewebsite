@@ -55,20 +55,23 @@ Results:
 - Manual browser smoke handoff audit passed; role checklist and evidence template are documented.
 - Invalid password attempts redirect back to `https://app.jewelhire.com/login`.
 - Database migration status shows `0001_phase1_core.sql`, `0002_applicant_notification_prefs.sql`, and `0003_password_credentials.sql` applied.
-- Latest auth readiness artifact: `docs/qa-runs/auth-readiness-2026-07-01T07-29-00-620Z/auth-readiness-report.md`.
+- Cloud Run revision `jewelhire-00040-x7v` is latest ready and serving 100% traffic.
+- Config exposure audit passed with Cloud Run env mount checks and no public private-env exposure.
+- Cloud-backed Postmark safety audit passed with the token secret-backed and live sends disabled during the default QA loop.
+- Secret Manager-backed tester handoff audit can read the smoke-credential secret, validates all five smoke users, and does not print passwords.
+- Latest auth readiness artifact: `docs/qa-runs/auth-readiness-2026-07-01T11-42-53-280Z/auth-readiness-report.md`.
+- Latest config exposure artifact: `docs/qa-runs/config-exposure-2026-07-01T11-42-53-276Z/config-exposure-report.md`.
+- Latest Postmark safety artifact: `docs/qa-runs/postmark-safety-2026-07-01T11-42-53-275Z/postmark-safety-report.md`.
 - Latest local browser smoke artifact: `docs/qa-runs/2026-07-01T07-47-03-711Z/browser-smoke-report.md`.
 - Latest live QA artifact: `docs/qa-runs/live-2026-07-01T08-23-02-193Z/report.md`.
 - Latest live security artifact: `docs/qa-runs/security-release-2026-07-01T08-41-03-153Z/security-release-report.md`.
 - Latest invalid-input artifact: `docs/qa-runs/invalid-input-2026-07-01T08-59-12-641Z/invalid-input-report.md`.
 - Latest notification readiness artifact: `docs/qa-runs/notification-readiness-2026-07-01T11-05-56-878Z/notification-readiness-report.md`.
 - Latest billing readiness artifact: `docs/qa-runs/billing-readiness-2026-07-01T11-23-13-218Z/billing-readiness-report.md`.
-- Latest provider handoff artifact: `docs/qa-runs/provider-handoff-2026-07-01T11-41-20-128Z/provider-handoff-report.md`.
+- Latest provider handoff artifact: `docs/qa-runs/provider-handoff-2026-07-01T11-44-43-768Z/provider-handoff-report.md`.
 - Latest signup policy artifact: `docs/qa-runs/signup-policy-2026-07-01T07-11-01-215Z/signup-policy-report.md`.
 - Latest manual smoke handoff artifact: `docs/qa-runs/manual-smoke-handoff-2026-07-01T11-23-44-371Z/manual-smoke-handoff-report.md`.
-- Cloud Run revision re-check with `gcloud run services describe` is currently blocked by local `gcloud` reauthentication; hosted HTTP/browser smoke remains passing.
-- Config exposure audit re-run is currently blocked by the same local `gcloud` reauthentication because it reads Cloud Run env mount metadata; prior config artifact remains available until auth is refreshed.
-- Postmark safety re-run passes static adapter/doc checks, then is blocked by the same local `gcloud` reauthentication while reading Cloud Run Postmark env mount metadata; prior Postmark safety artifact remains available until auth is refreshed.
-- Secret Manager-backed handoff audit re-run is also blocked until `gcloud auth login` is refreshed; the non-secret manual smoke handoff audit still passes.
+- Latest tester handoff artifact: `docs/qa-runs/tester-handoff-2026-07-01T11-44-19-645Z/tester-handoff-report.md`.
 
 ## Remaining Launch Gaps
 
@@ -76,7 +79,7 @@ Results:
 2. Decide whether a future release adds public self-serve signup. Current launch stance is invite/admin-created accounts only.
 3. Run manual browser smoke with real testers using `docs/manual-browser-smoke-handoff.md` and the Secret Manager smoke credentials.
 4. Confirm Postmark sender/domain and Stripe products/webhooks in provider dashboards before accepting live customer traffic. Use `docs/provider-readiness-handoff.md`.
-5. Refresh local `gcloud` auth, then rerun the cloud-backed verification bundle in `docs/cloud-reauth-runbook.md`.
+5. Rerun the cloud-backed verification bundle in `docs/cloud-reauth-runbook.md` after any deploy, secret rotation, or provider config change.
 
 ## Password Credential Setup
 
@@ -115,7 +118,7 @@ Provider handoff: `docs/provider-readiness-handoff.md`
 Manual smoke handoff: `docs/manual-browser-smoke-handoff.md`
 Cloud reauth runbook: `docs/cloud-reauth-runbook.md`
 
-Safe to rerun without local `gcloud` reauthentication:
+Safe to rerun without local `gcloud` access:
 
 ```bash
 npm run qa:auth -- --skip-cloud-setup
@@ -128,7 +131,7 @@ npm run qa:provider-handoff
 npm run qa:manual-smoke-handoff
 ```
 
-Run after local `gcloud` reauthentication:
+Run with active local `gcloud` access:
 
 ```bash
 npm run qa:config

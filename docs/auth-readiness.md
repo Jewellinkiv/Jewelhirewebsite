@@ -32,7 +32,7 @@ Current production state as of 2026-07-01:
 
 - Cloud Run revision `jewelhire-00040-x7v` is serving 100% traffic after database password rotation.
 - `0003_password_credentials.sql` is applied.
-- `npm run qa:auth -- --skip-cloud-setup` passes against `https://app.jewelhire.com`. Latest artifact: `docs/qa-runs/auth-readiness-2026-07-01T07-29-00-620Z/`.
+- `npm run qa:auth -- --expect-firebase` passes against `https://app.jewelhire.com` with Cloud Run and Firebase setup checks. Latest artifact: `docs/qa-runs/auth-readiness-2026-07-01T11-42-53-280Z/`.
 - Smoke credentials for admin, store owner, manager, and applicant are stored in Secret Manager secret `jewelhire-smoke-test-credentials`.
 
 ## Firebase Required Config

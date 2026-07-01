@@ -10,7 +10,7 @@ Updated: 2026-07-01
 
 - Hosted app: `https://app.jewelhire.com`
 - Login path: `https://app.jewelhire.com/login`
-- Code/evidence baseline validated: `f86f1a1 Add cloud reauth verification runbook`
+- Source commit: `de7637b Refresh provider handoff evidence`
 - Database: PlanetScale Postgres via Secret Manager secret `jewelhire-database-url`
 
 Do not test from `/Users/williamiv/Documents/Jewelhire`; that repo was removed and is not the launch source of truth.
@@ -92,7 +92,7 @@ npm run qa:manual-smoke-handoff
 
 Latest local build rerun passed on 2026-07-01 with TypeScript compilation.
 
-Cloud-backed checks with prior passing artifacts, pending local `gcloud` reauthentication before rerun:
+Cloud-backed checks with passing evidence and active local `gcloud` access:
 
 ```bash
 npm run qa:config
@@ -107,16 +107,17 @@ Relevant artifacts:
 - Live security release audit: `docs/qa-runs/security-release-2026-07-01T08-41-03-153Z/`
 - Invalid-input and abuse audit: `docs/qa-runs/invalid-input-2026-07-01T08-59-12-641Z/`
 - Browser smoke: `docs/qa-runs/2026-07-01T07-47-03-711Z/`
-- Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T07-29-00-620Z/`
-- Config exposure: `docs/qa-runs/config-exposure-2026-07-01T03-33-35-385Z/`
+- Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T11-42-53-280Z/`
+- Config exposure: `docs/qa-runs/config-exposure-2026-07-01T11-42-53-276Z/`
+- Postmark safety: `docs/qa-runs/postmark-safety-2026-07-01T11-42-53-275Z/`
 - Notification readiness: `docs/qa-runs/notification-readiness-2026-07-01T11-05-56-878Z/`
 - Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T11-23-13-218Z/`
-- Tester handoff audit: `docs/qa-runs/tester-handoff-2026-07-01T03-54-42-388Z/`
+- Tester handoff audit: `docs/qa-runs/tester-handoff-2026-07-01T11-44-19-645Z/`
 - Signup policy audit: `docs/qa-runs/signup-policy-2026-07-01T07-11-01-215Z/`
-- Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T11-41-20-128Z/`
+- Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T11-44-43-768Z/`
 - Manual smoke handoff audit: `docs/qa-runs/manual-smoke-handoff-2026-07-01T11-23-44-371Z/`
 
-Current local `gcloud` credentials need interactive reauthentication before Secret Manager-backed audits, Cloud Run revision checks, Cloud Run config exposure audits, and Cloud Run Postmark env-gate checks can be rerun. The live browser smoke and non-secret manual smoke handoff audit passed on 2026-07-01 without provider side effects.
+Local `gcloud` access was refreshed on 2026-07-01, and Secret Manager-backed audits, Cloud Run revision checks, Cloud Run config exposure audits, and Cloud Run Postmark env-gate checks can now be rerun. If access expires again, use `docs/cloud-reauth-runbook.md`.
 
 Cloud reauth steps and post-reauth verification commands are documented in `docs/cloud-reauth-runbook.md`.
 
