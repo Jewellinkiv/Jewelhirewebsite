@@ -32,6 +32,7 @@
     "qa:loop": "node scripts/qa-loop.mjs",
     "qa:notifications": "node scripts/notification-readiness-audit.mjs",
     "qa:postmark": "node scripts/postmark-safety-audit.mjs",
+    "qa:provider-handoff": "node scripts/provider-handoff-audit.mjs",
     "qa:roles": "node scripts/role-readiness-audit.mjs",
     "qa:security:live": "node scripts/security-release-audit.mjs",
     "qa:signup-policy": "node scripts/signup-policy-audit.mjs",

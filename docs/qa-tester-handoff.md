@@ -64,6 +64,7 @@ Accounts to smoke:
 
 ### Provider Readiness
 
+- Detailed checklist: `docs/provider-readiness-handoff.md`
 - Postmark: confirm sender/domain status, templates, recent event logs, and suppressions in the dashboard.
 - Stripe: confirm product/price/webhook readiness in dashboard without making live charges.
 - Live sends and live charges require explicit product-owner approval.
@@ -77,10 +78,12 @@ npm run build
 npm run qa:auth -- --skip-cloud-setup
 npm run qa:browser
 npm run qa:notifications
+npm run qa:postmark
 npm run qa:billing
 npm run qa:config
 npm run qa:handoff
 npm run qa:signup-policy
+npm run qa:provider-handoff
 npm run db:readiness
 ```
 
@@ -93,6 +96,7 @@ Relevant artifacts:
 - Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T03-30-07-525Z/`
 - Tester handoff audit: `docs/qa-runs/tester-handoff-2026-07-01T03-54-42-388Z/`
 - Signup policy audit: `docs/qa-runs/signup-policy-2026-07-01T04-11-57-370Z/`
+- Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T04-30-36-960Z/`
 
 ## Pass Criteria
 
