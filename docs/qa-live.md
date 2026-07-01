@@ -45,7 +45,7 @@ Current production state as of 2026-07-01:
 - `npm run qa:security:live` passes against `https://app.jewelhire.com`. Latest artifact: `docs/qa-runs/security-release-2026-07-01T05-23-00-528Z/`.
 - `npm run qa:invalid-input` passes against `https://app.jewelhire.com`. Latest artifact: `docs/qa-runs/invalid-input-2026-07-01T05-46-04-892Z/`.
 - `npm run qa:auth -- --skip-cloud-setup` passes against `https://app.jewelhire.com`.
-- `npm run qa:browser` passes locally with role-scoped store/admin browser smoke.
+- `npm run qa:browser` passes locally with route, role, workflow API, and privacy checks. Latest artifact: `docs/qa-runs/2026-07-01T07-47-03-711Z/`.
 - Smoke credentials for admin, store owner, manager, and applicant are in Secret Manager secret `jewelhire-smoke-test-credentials`.
 - Cloud Run CLI revision re-check currently requires local `gcloud auth login`; use live QA plus provider dashboards until CLI auth is refreshed.
 

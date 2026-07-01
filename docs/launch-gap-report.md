@@ -46,7 +46,7 @@ Results:
 - Live browser QA passed against `https://app.jewelhire.com` with 15 checks, 0 failures, and 0 warnings.
 - Live security release audit passed against `https://app.jewelhire.com`, including security headers, locked private APIs, invalid Firebase token rejection, and secret-exposure checks.
 - Invalid-input and abuse audit passed against `https://app.jewelhire.com`, including malformed application, auth failure, unsigned webhook, and unauthenticated billing mutation probes with no 5xx responses.
-- Browser Phase 1 smoke passed locally with role-scoped store/admin staging sessions.
+- Browser Phase 1 smoke passed locally with route, public apply, store interview, applicant portal, admin company, workflow API, and privacy checks.
 - Notification readiness passed with a send adapter present, seven expected triggers wired, zero blockers, and zero warnings.
 - Postmark safety passed with live sends disabled during the default QA loop.
 - Billing readiness passed, including Stripe webhook, reconciliation, discount/promotion support, and live auth-boundary checks.
@@ -56,6 +56,7 @@ Results:
 - Invalid password attempts redirect back to `https://app.jewelhire.com/login`.
 - Database migration status shows `0001_phase1_core.sql`, `0002_applicant_notification_prefs.sql`, and `0003_password_credentials.sql` applied.
 - Latest auth readiness artifact: `docs/qa-runs/auth-readiness-2026-07-01T07-29-00-620Z/auth-readiness-report.md`.
+- Latest local browser smoke artifact: `docs/qa-runs/2026-07-01T07-47-03-711Z/browser-smoke-report.md`.
 - Latest live QA artifact: `docs/qa-runs/live-2026-07-01T05-06-15-175Z/report.md`.
 - Latest live security artifact: `docs/qa-runs/security-release-2026-07-01T05-23-00-528Z/security-release-report.md`.
 - Latest invalid-input artifact: `docs/qa-runs/invalid-input-2026-07-01T05-46-04-892Z/invalid-input-report.md`.
