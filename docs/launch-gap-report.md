@@ -66,7 +66,7 @@ Results:
 - Latest Postmark safety artifact: `docs/qa-runs/postmark-safety-2026-07-01T11-42-53-275Z/postmark-safety-report.md`.
 - Latest local browser smoke artifact: `docs/qa-runs/2026-07-01T07-47-03-711Z/browser-smoke-report.md`.
 - Latest live QA artifact: `docs/qa-runs/live-2026-07-01T12-17-26-249Z/report.md`.
-- Latest live security artifact: `docs/qa-runs/security-release-2026-07-01T08-41-03-153Z/security-release-report.md`.
+- Latest live security artifact: `docs/qa-runs/security-release-2026-07-01T12-19-58-907Z/security-release-report.md`.
 - Latest invalid-input artifact: `docs/qa-runs/invalid-input-2026-07-01T08-59-12-641Z/invalid-input-report.md`.
 - Latest notification readiness artifact: `docs/qa-runs/notification-readiness-2026-07-01T11-05-56-878Z/notification-readiness-report.md`.
 - Latest billing readiness artifact: `docs/qa-runs/billing-readiness-2026-07-01T11-23-13-218Z/billing-readiness-report.md`.
