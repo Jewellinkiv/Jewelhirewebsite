@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: theme("colors.page");
+  color: theme("colors.body");
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* JewelLink brand button utilities (see docs/brand.md) */
+.btn-grad {
+  background-image: linear-gradient(135deg, #123fb9, #2f7dff);
+  color: #fff;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.btn-grad:hover {
+  filter: brightness(1.06);
+}
+.btn-outline {
+  background: #fff;
+  color: #123fb9;
+  border: 1px solid #123fb9;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.btn-outline:hover {
+  background: #eff4ff;
+}
+/* heavier headings to match JewelLink's bold display style */
+h1 {
+  letter-spacing: -0.01em;
+}
+
+/* thin scrollbars for the operational shell */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d3dceb;
+  border-radius: 6px;
+}

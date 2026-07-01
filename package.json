@@ -1,0 +1,59 @@
+{
+  "name": "jewelhire",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start -p ${PORT:-3000}",
+    "lint": "next lint",
+    "db:migrate:status": "node scripts/run-migrations.mjs status",
+    "db:migrate:apply": "node scripts/run-migrations.mjs apply",
+    "db:seed:status": "node scripts/run-seeds.mjs status",
+    "db:seed:apply": "node scripts/run-seeds.mjs apply",
+    "db:readiness": "node scripts/check-database-readiness.mjs",
+    "smoke:phase1": "node scripts/smoke-phase1-api.mjs --mode=local",
+    "smoke:phase1:postgres": "node scripts/smoke-phase1-api.mjs --mode=postgres",
+    "postgres:staging:validate": "node scripts/run-postgres-staging-validation.mjs",
+    "qa:browser": "node scripts/browser-smoke-phase1.mjs --start-server --mode=local --port=3003",
+    "qa:browser:postgres": "node scripts/browser-smoke-phase1.mjs --start-server --mode=postgres --port=3003",
+    "qa:browser:headed": "node scripts/browser-smoke-phase1.mjs --start-server --mode=postgres --port=3003 --headed",
+    "qa:frontend-polish": "node scripts/frontend-polish-evidence.mjs",
+    "qa:access-control": "node scripts/access-control-audit.mjs",
+    "qa:auth": "node scripts/auth-readiness-audit.mjs",
+    "qa:billing": "node scripts/billing-readiness-audit.mjs",
+    "qa:config": "node scripts/config-exposure-audit.mjs",
+    "qa:invalid-input": "node scripts/invalid-input-audit.mjs",
+    "qa:loop": "node scripts/qa-loop.mjs",
+    "qa:notifications": "node scripts/notification-readiness-audit.mjs",
+    "qa:postmark": "node scripts/postmark-safety-audit.mjs",
+    "qa:roles": "node scripts/role-readiness-audit.mjs",
+    "qa:security:live": "node scripts/security-release-audit.mjs",
+    "qa:live": "node scripts/qa-live.mjs",
+    "qa:live:headed": "node scripts/qa-live.mjs --headed"
+  },
+  "dependencies": {
+    "@types/pg": "^8.20.0",
+    "firebase": "^12.15.0",
+    "next": "^16.2.9",
+    "pg": "^8.22.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "autoprefixer": "10.4.19",
+    "playwright": "^1.61.1",
+    "postcss": "^8.5.10",
+    "tailwindcss": "3.4.7",
+    "typescript": "5.5.4"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
+  }
+}
