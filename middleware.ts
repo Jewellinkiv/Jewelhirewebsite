@@ -11,14 +11,9 @@ function sessionOverrideEnabled() {
   return process.env.NODE_ENV !== "production" || process.env.JEWELHIRE_ENABLE_SESSION_OVERRIDE === "1";
 }
 
-function devLoginEnabled() {
-  return process.env.NODE_ENV !== "production";
-}
-
 function isPublicPath(pathname: string) {
   return (
     pathname === "/login" ||
-    (devLoginEnabled() && (pathname === "/dev/login" || pathname.startsWith("/api/dev/"))) ||
     pathname.startsWith("/api/auth/") ||
     pathname === "/api/stripe/webhook" ||
     pathname.startsWith("/api/public/") ||

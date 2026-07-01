@@ -13,6 +13,8 @@ docs/qa-runs
 .env
 .env.*
 !.env.example
+app/dev
+app/api/dev
 *.pem
 *.log
 *.tsbuildinfo
