@@ -40,8 +40,8 @@ node scripts/qa-live.mjs --base=https://app.jewelhire.com
 
 Current production state as of 2026-07-01:
 
-- Cloud Run revision `jewelhire-00041-vkc` is live at 100% traffic after admin login setup.
-- `npm run qa:live` passes against `https://app.jewelhire.com` with 15 checks, 0 failures, and 0 warnings. Latest artifact: `docs/qa-runs/live-2026-07-01T12-07-00-419Z/`.
+- Cloud Run revision `jewelhire-00042-gsz` is live at 100% traffic after admin login routing fix.
+- `npm run qa:live` passes against `https://app.jewelhire.com` with 15 checks, 0 failures, and 0 warnings. Latest artifact: `docs/qa-runs/live-2026-07-01T12-17-26-249Z/`.
 - `npm run qa:security:live` passes against `https://app.jewelhire.com`. Latest artifact: `docs/qa-runs/security-release-2026-07-01T08-41-03-153Z/`.
 - `npm run qa:invalid-input` passes against `https://app.jewelhire.com`. Latest artifact: `docs/qa-runs/invalid-input-2026-07-01T08-59-12-641Z/`.
 - `npm run qa:auth -- --skip-cloud-setup` passes against `https://app.jewelhire.com`.
