@@ -64,6 +64,7 @@ Results:
 - Latest billing readiness artifact: `docs/qa-runs/billing-readiness-2026-07-01T06-35-08-144Z/billing-readiness-report.md`.
 - Latest provider handoff artifact: `docs/qa-runs/provider-handoff-2026-07-01T06-53-32-362Z/provider-handoff-report.md`.
 - Latest signup policy artifact: `docs/qa-runs/signup-policy-2026-07-01T07-11-01-215Z/signup-policy-report.md`.
+- Latest manual smoke handoff artifact: `docs/qa-runs/manual-smoke-handoff-2026-07-01T08-05-46-684Z/manual-smoke-handoff-report.md`.
 - Cloud Run revision re-check with `gcloud run services describe` is currently blocked by local `gcloud` reauthentication; hosted HTTP/browser smoke remains passing.
 - Secret Manager-backed handoff audit re-run is also blocked until `gcloud auth login` is refreshed; the non-secret manual smoke handoff audit still passes.
 

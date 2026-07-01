@@ -6,6 +6,8 @@ Updated: 2026-07-01
 
 This checklist is for human browser QA with the smoke users. Do not paste passwords into evidence. Do not make live provider-side changes, create charges, or send live email.
 
+Latest checklist audit passed on 2026-07-01 with zero failures. Artifact: `docs/qa-runs/manual-smoke-handoff-2026-07-01T08-05-46-684Z/`.
+
 ## Before Testing
 
 - Retrieve credentials from Secret Manager only:
