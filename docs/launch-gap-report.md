@@ -61,10 +61,10 @@ Results:
 - Latest live security artifact: `docs/qa-runs/security-release-2026-07-01T08-41-03-153Z/security-release-report.md`.
 - Latest invalid-input artifact: `docs/qa-runs/invalid-input-2026-07-01T08-59-12-641Z/invalid-input-report.md`.
 - Latest notification readiness artifact: `docs/qa-runs/notification-readiness-2026-07-01T11-05-56-878Z/notification-readiness-report.md`.
-- Latest billing readiness artifact: `docs/qa-runs/billing-readiness-2026-07-01T06-35-08-144Z/billing-readiness-report.md`.
+- Latest billing readiness artifact: `docs/qa-runs/billing-readiness-2026-07-01T11-23-13-218Z/billing-readiness-report.md`.
 - Latest provider handoff artifact: `docs/qa-runs/provider-handoff-2026-07-01T06-53-32-362Z/provider-handoff-report.md`.
 - Latest signup policy artifact: `docs/qa-runs/signup-policy-2026-07-01T07-11-01-215Z/signup-policy-report.md`.
-- Latest manual smoke handoff artifact: `docs/qa-runs/manual-smoke-handoff-2026-07-01T11-06-27-560Z/manual-smoke-handoff-report.md`.
+- Latest manual smoke handoff artifact: `docs/qa-runs/manual-smoke-handoff-2026-07-01T11-23-44-371Z/manual-smoke-handoff-report.md`.
 - Cloud Run revision re-check with `gcloud run services describe` is currently blocked by local `gcloud` reauthentication; hosted HTTP/browser smoke remains passing.
 - Config exposure audit re-run is currently blocked by the same local `gcloud` reauthentication because it reads Cloud Run env mount metadata; prior config artifact remains available until auth is refreshed.
 - Postmark safety re-run passes static adapter/doc checks, then is blocked by the same local `gcloud` reauthentication while reading Cloud Run Postmark env mount metadata; prior Postmark safety artifact remains available until auth is refreshed.
