@@ -29,6 +29,7 @@ npm run qa:billing
 npm run qa:handoff
 npm run qa:signup-policy
 npm run qa:provider-handoff
+npm run qa:manual-smoke-handoff
 npm run db:migrate:status
 gcloud run services describe jewelhire --project jewelhire-prod-20260626 --region us-central1 --format='value(status.latestReadyRevisionName,status.traffic[0].percent)'
 ```
@@ -43,6 +44,7 @@ Results:
 - Billing readiness passed, including Stripe webhook and auth-boundary checks.
 - Provider handoff audit passed; dashboard verification checklist is documented.
 - Signup policy audit passed; public self-serve signup is disabled for this build.
+- Manual browser smoke handoff audit passed; role checklist and evidence template are documented.
 - Invalid password attempts redirect back to `https://app.jewelhire.com/login`.
 - Database migration status shows `0001_phase1_core.sql`, `0002_applicant_notification_prefs.sql`, and `0003_password_credentials.sql` applied.
 
@@ -50,7 +52,7 @@ Results:
 
 1. Rotate smoke/test passwords before handing them to external testers if broader access is needed.
 2. Decide whether a future release adds public self-serve signup. Current launch stance is invite/admin-created accounts only.
-3. Run manual browser smoke with real testers using the Secret Manager smoke credentials.
+3. Run manual browser smoke with real testers using `docs/manual-browser-smoke-handoff.md` and the Secret Manager smoke credentials.
 4. Confirm Postmark sender/domain and Stripe products/webhooks in provider dashboards before accepting live customer traffic. Use `docs/provider-readiness-handoff.md`.
 
 ## Password Credential Setup
@@ -87,6 +89,7 @@ Configured smoke identities:
 
 Tester handoff: `docs/qa-tester-handoff.md`
 Provider handoff: `docs/provider-readiness-handoff.md`
+Manual smoke handoff: `docs/manual-browser-smoke-handoff.md`
 
 Run after launch credentials are created:
 
@@ -100,6 +103,7 @@ npm run qa:billing
 npm run qa:handoff
 npm run qa:signup-policy
 npm run qa:provider-handoff
+npm run qa:manual-smoke-handoff
 ```
 
 Manual browser smoke:

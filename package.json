@@ -30,6 +30,7 @@
     "qa:config": "node scripts/config-exposure-audit.mjs",
     "qa:invalid-input": "node scripts/invalid-input-audit.mjs",
     "qa:loop": "node scripts/qa-loop.mjs",
+    "qa:manual-smoke-handoff": "node scripts/manual-smoke-handoff-audit.mjs",
     "qa:notifications": "node scripts/notification-readiness-audit.mjs",
     "qa:postmark": "node scripts/postmark-safety-audit.mjs",
     "qa:provider-handoff": "node scripts/provider-handoff-audit.mjs",

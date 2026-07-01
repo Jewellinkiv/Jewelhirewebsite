@@ -35,6 +35,8 @@ Accounts to smoke:
 
 ## Smoke Scope
 
+Detailed manual checklist: `docs/manual-browser-smoke-handoff.md`
+
 ### Login
 
 - Visit `/login`.
@@ -84,6 +86,7 @@ npm run qa:config
 npm run qa:handoff
 npm run qa:signup-policy
 npm run qa:provider-handoff
+npm run qa:manual-smoke-handoff
 npm run db:readiness
 ```
 
@@ -97,6 +100,7 @@ Relevant artifacts:
 - Tester handoff audit: `docs/qa-runs/tester-handoff-2026-07-01T03-54-42-388Z/`
 - Signup policy audit: `docs/qa-runs/signup-policy-2026-07-01T04-11-57-370Z/`
 - Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T04-30-36-960Z/`
+- Manual smoke handoff audit: `docs/qa-runs/manual-smoke-handoff-2026-07-01T04-48-06-889Z/`
 
 ## Pass Criteria
 
