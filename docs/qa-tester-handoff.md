@@ -97,7 +97,7 @@ npm run db:readiness
 Relevant artifacts:
 
 - Live browser QA: `docs/qa-runs/live-2026-07-01T08-23-02-193Z/`
-- Live security release audit: `docs/qa-runs/security-release-2026-07-01T05-23-00-528Z/`
+- Live security release audit: `docs/qa-runs/security-release-2026-07-01T08-41-03-153Z/`
 - Invalid-input and abuse audit: `docs/qa-runs/invalid-input-2026-07-01T05-46-04-892Z/`
 - Browser smoke: `docs/qa-runs/2026-07-01T07-47-03-711Z/`
 - Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T07-29-00-620Z/`
