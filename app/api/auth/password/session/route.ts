@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
 import { createSessionToken, SESSION_COOKIE } from "@/lib/server/auth";
 import { loginWithPassword } from "@/lib/server/password-auth";
+import type { AuthSession } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
 
 function safeNext(value: unknown) {
   return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+}
+
+function destinationForSession(next: string, session: AuthSession) {
+  const safe = safeNext(next);
+  if (safe !== "/") return safe;
+  if (session.role === "admin") return "/admin";
+  if (session.role === "associate") return "/portal";
+  return "/";
 }
 
 function appBaseUrl(request: Request) {
@@ -39,7 +48,7 @@ export async function POST(request: Request) {
     return redirectToLogin(request, next, result.code === "config" ? "password_config" : "password");
   }
 
-  const response = NextResponse.redirect(new URL(safeNext(next), appBaseUrl(request)), { status: 303 });
+  const response = NextResponse.redirect(new URL(destinationForSession(next, result.session), appBaseUrl(request)), { status: 303 });
   response.cookies.set(SESSION_COOKIE, createSessionToken(result.session), {
     httpOnly: true,
     sameSite: "lax",

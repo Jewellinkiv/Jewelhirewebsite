@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/common";
 import { Radar } from "@/components/ui";
 import { TEAM_MIX, FLOOR_TYPE } from "@/lib/data";
@@ -50,6 +51,8 @@ function dashboardKpis(raw: {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
+  const [routeChecked, setRouteChecked] = useState(false);
   const [dashboard, setDashboard] = useState(fallbackDashboard);
   const floor = dashboard.floor;
   const untested = floor.total - floor.tested;
@@ -63,6 +66,30 @@ export default function Dashboard() {
   const pts = t
     .map((v, i) => `${(i / (t.length - 1)) * 240},${36 - (v / max) * 30}`)
     .join(" ");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me")
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((session) => {
+        if (cancelled) return;
+        if (session.role === "admin") {
+          router.replace("/admin");
+          return;
+        }
+        if (session.role === "associate") {
+          router.replace("/portal");
+          return;
+        }
+        setRouteChecked(true);
+      })
+      .catch(() => {
+        if (!cancelled) setRouteChecked(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +119,10 @@ export default function Dashboard() {
       cancelled = true;
     };
   }, []);
+
+  if (!routeChecked) {
+    return null;
+  }
 
   return (
     <div>

@@ -2,11 +2,20 @@ import { NextResponse } from "next/server";
 import { createSessionToken, findSessionForGoogleUser, SESSION_COOKIE } from "@/lib/server/auth";
 import { verifyFirebaseIdToken } from "@/lib/server/firebase-auth";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
+import type { AuthSession } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
 
 function safeNext(value: unknown) {
   return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+}
+
+function destinationForSession(next: unknown, session: AuthSession) {
+  const safe = safeNext(next);
+  if (safe !== "/") return safe;
+  if (session.role === "admin") return "/admin";
+  if (session.role === "associate") return "/portal";
+  return "/";
 }
 
 export const POST = withApiErrorHandling(async function POST(request: Request) {
@@ -25,7 +34,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request) {
     return NextResponse.json({ error: { code: "unauthorized", message: "That Google account is not active in JewelHire yet." } }, { status: 403 });
   }
 
-  const response = NextResponse.json({ ok: true, next: safeNext(body.next) });
+  const response = NextResponse.json({ ok: true, next: destinationForSession(body.next, session) });
   response.cookies.set(SESSION_COOKIE, createSessionToken(session), {
     httpOnly: true,
     sameSite: "lax",

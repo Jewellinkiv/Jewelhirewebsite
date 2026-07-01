@@ -6,6 +6,7 @@ import {
   OAUTH_STATE_COOKIE,
   SESSION_COOKIE,
 } from "@/lib/server/auth";
+import type { AuthSession } from "@/lib/server/auth";
 
 type GoogleTokenResponse = {
   access_token?: string;
@@ -27,6 +28,18 @@ function redirectToLogin(request: Request, error: string) {
   const login = new URL("/login", appBaseUrl(request));
   login.searchParams.set("error", error);
   return NextResponse.redirect(login);
+}
+
+function safeNext(value: string) {
+  return value.startsWith("/") && !value.startsWith("//") ? value : "/";
+}
+
+function destinationForSession(next: string, session: AuthSession) {
+  const safe = safeNext(next);
+  if (safe !== "/") return safe;
+  if (session.role === "admin") return "/admin";
+  if (session.role === "associate") return "/portal";
+  return "/";
 }
 
 export async function GET(request: Request) {
@@ -63,7 +76,7 @@ export async function GET(request: Request) {
   const session = await findSessionForGoogleUser({ email: profile.email, name: profile.name });
   if (!session) return redirectToLogin(request, "unauthorized");
 
-  const destination = new URL(nextCookie.startsWith("/") ? nextCookie : "/", appBaseUrl(request));
+  const destination = new URL(destinationForSession(nextCookie, session), appBaseUrl(request));
   const response = NextResponse.redirect(destination);
   const secure = process.env.NODE_ENV === "production";
   response.cookies.set(SESSION_COOKIE, createSessionToken(session), { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 60 * 60 * 24 * 7 });
