@@ -10,7 +10,7 @@ Updated: 2026-07-01
 
 - Hosted app: `https://app.jewelhire.com`
 - Login path: `https://app.jewelhire.com/login`
-- Source commit: `d568cde Add password auth and launch QA smoke`
+- Source commit: `9edfc23 Add QA tester handoff`
 - Database: PlanetScale Postgres via Secret Manager secret `jewelhire-database-url`
 
 Do not test from `/Users/williamiv/Documents/Jewelhire`; that repo was removed and is not the launch source of truth.
@@ -79,6 +79,7 @@ npm run qa:browser
 npm run qa:notifications
 npm run qa:billing
 npm run qa:config
+npm run qa:handoff
 npm run db:readiness
 ```
 
@@ -89,6 +90,7 @@ Relevant artifacts:
 - Config exposure: `docs/qa-runs/config-exposure-2026-07-01T03-33-35-385Z/`
 - Notification readiness: `docs/qa-runs/notification-readiness-2026-07-01T03-30-07-525Z/`
 - Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T03-30-07-525Z/`
+- Tester handoff audit: `docs/qa-runs/tester-handoff-2026-07-01T03-54-42-388Z/`
 
 ## Pass Criteria
 

@@ -25,6 +25,7 @@ npm run qa:auth -- --skip-cloud-setup
 npm run qa:browser
 npm run qa:notifications
 npm run qa:billing
+npm run qa:handoff
 npm run db:migrate:status
 gcloud run services describe jewelhire --project jewelhire-prod-20260626 --region us-central1 --format='value(status.latestReadyRevisionName,status.traffic[0].percent)'
 ```
@@ -88,6 +89,7 @@ npm run qa:live
 npm run qa:security:live
 npm run qa:notifications
 npm run qa:billing
+npm run qa:handoff
 ```
 
 Manual browser smoke:

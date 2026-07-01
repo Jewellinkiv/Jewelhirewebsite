@@ -23,6 +23,7 @@
     "qa:browser:postgres": "node scripts/browser-smoke-phase1.mjs --start-server --mode=postgres --port=3003",
     "qa:browser:headed": "node scripts/browser-smoke-phase1.mjs --start-server --mode=postgres --port=3003 --headed",
     "qa:frontend-polish": "node scripts/frontend-polish-evidence.mjs",
+    "qa:handoff": "node scripts/qa-tester-handoff-audit.mjs",
     "qa:access-control": "node scripts/access-control-audit.mjs",
     "qa:auth": "node scripts/auth-readiness-audit.mjs",
     "qa:billing": "node scripts/billing-readiness-audit.mjs",
