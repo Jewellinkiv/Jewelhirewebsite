@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Panel } from "@/components/ui";
 import { EmptyState } from "@/components/states";
+import { CourseBadge } from "@/components/CourseBadge";
 import { ASSOC_TRAINING, TrainingAssignment } from "@/lib/associate-portal";
-import { IconSchool, IconCheck, IconPlayerPlay, IconCertificate, IconChevronRight } from "@/components/icons";
+import type { EarnedBadge, PublicCourse } from "@/lib/courses";
+import { IconSchool, IconCheck, IconPlayerPlay, IconCertificate, IconChevronRight, IconDiamond } from "@/components/icons";
 
 const STATUS_STYLE: Record<string, string> = {
   "Not started": "bg-[#eef2f7] text-[#5b6472]",
@@ -15,6 +17,8 @@ const STATUS_STYLE: Record<string, string> = {
 
 export default function PortalTrainingPage() {
   const [items, setItems] = useState<TrainingAssignment[]>(ASSOC_TRAINING);
+  const [badges, setBadges] = useState<EarnedBadge[]>([]);
+  const [courses, setCourses] = useState<PublicCourse[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,6 +30,15 @@ export default function PortalTrainingPage() {
       .catch(() => {
         if (!cancelled) setItems(ASSOC_TRAINING);
       });
+    // Earned course badges + the courses available to browse by default.
+    fetch("/api/applicant/badges")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((b) => !cancelled && setBadges(b.items || []))
+      .catch(() => undefined);
+    fetch("/api/catalog/courses")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((c) => !cancelled && setCourses(c.items || []))
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -92,6 +105,35 @@ export default function PortalTrainingPage() {
           </div>
         </Panel>
       ))}
+
+      {badges.length > 0 && (
+        <Panel title={`Badges earned (${badges.length})`} icon={<IconCertificate size={16} />} className="mb-[18px]">
+          <div className="p-5 flex flex-wrap gap-6">
+            {badges.map((b) => (
+              <CourseBadge key={b.courseId} label={b.badgeLabel} color={b.badgeColor} earnedOn={b.earnedOn} />
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      <Panel title="Available courses" icon={<IconSchool size={16} />} className="mb-[18px]">
+        {courses.length === 0 ? (
+          <div className="px-4 py-8 text-center text-muted text-[13px]">No courses available to browse yet.</div>
+        ) : (
+          <div className="divide-y divide-[#eef1f6]">
+            {courses.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 px-4 py-3.5">
+                <span className="w-9 h-9 rounded-md bg-[#e8f1ff] text-primary flex items-center justify-center"><IconDiamond size={16} /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13.5px] font-semibold text-head">{c.title}</div>
+                  <div className="text-[12px] text-muted">{c.moduleCount} module{c.moduleCount === 1 ? "" : "s"} · earn the {c.badgeLabel} badge</div>
+                </div>
+                <Link href={`/course/${c.id}`} className="btn-outline inline-flex items-center gap-1 px-3 py-1.5 text-[12.5px] no-underline">Start <IconChevronRight size={14} /></Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
 
       <Panel title={`Credentials earned (${credentials.length})`} icon={<IconCertificate size={16} />}>
         {credentials.length > 0 ? (

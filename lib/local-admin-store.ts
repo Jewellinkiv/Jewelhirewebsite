@@ -1,4 +1,10 @@
 import { AUDIT_LOG, AdminCompany, AdminCompanyUser, COMPANIES, CompanyStatus, INVOICES, PLANS, PlanTier, adminMetrics } from "./admin";
+import { LEGACY_ASSESSMENTS } from "@/lib/legacy";
+
+// origin distinguishes where a default came from so the admin UI can group them:
+// "builtin" = shipped with the platform, "legacy" = migrated from the old Bubble
+// system, "custom" = created by an admin in this panel.
+export type AdminAssessmentOrigin = "builtin" | "legacy" | "custom";
 
 export interface AdminAssessmentDefault {
   id: string;
@@ -8,6 +14,7 @@ export interface AdminAssessmentDefault {
   status: "Published" | "Draft";
   questions: number;
   note: string;
+  origin: AdminAssessmentOrigin;
 }
 
 export interface AdminAuditEntry {
@@ -30,44 +37,34 @@ declare global {
   var __jewelhireAdminStore: AdminState | undefined;
 }
 
+// The 3 tests migrated from the legacy Bubble admin, sourced directly from
+// LEGACY_ASSESSMENTS so the numbers/targets stay in one place.
+const LEGACY_DEFAULTS: AdminAssessmentDefault[] = LEGACY_ASSESSMENTS.map((a) => ({
+  id: slugify(a.title),
+  name: a.title,
+  kind: a.type,
+  scope: "All plans",
+  status: "Published",
+  questions: a.questionCount,
+  note: a.migrationNote,
+  origin: "legacy",
+}));
+
 const ADMIN_ASSESSMENTS: AdminAssessmentDefault[] = [
   {
     id: "gemmatch",
-    name: "GemMatch",
+    name: "JewelCert",
     kind: "Trait profile",
     scope: "All plans",
     status: "Published",
     questions: 48,
     note: "The core pick-10 profile. Default for every company.",
+    origin: "builtin",
   },
-  {
-    id: "apt-num",
-    name: "Numerical Reasoning",
-    kind: "Aptitude",
-    scope: "Growth & Pro",
-    status: "Published",
-    questions: 20,
-    note: "Legacy aptitude battery, seeded for v2.",
-  },
-  {
-    id: "know-diamond",
-    name: "Diamond Knowledge",
-    kind: "Knowledge check",
-    scope: "All plans",
-    status: "Published",
-    questions: 15,
-    note: "4Cs and grading fundamentals.",
-  },
-  {
-    id: "pers-sales",
-    name: "Sales Personality",
-    kind: "Trait profile",
-    scope: "Pro",
-    status: "Draft",
-    questions: 30,
-    note: "Extended selling-style inventory.",
-  },
+  ...LEGACY_DEFAULTS,
 ];
+
+const PROTECTED_ASSESSMENT_IDS = new Set(["gemmatch"]);
 
 const PROTECTED_COMPANY_IDS = new Set(["co-sissys", "co-harbor", "co-sterling", "co-northpoint"]);
 
@@ -229,6 +226,60 @@ export function listAdminAuditLog() {
 
 export function listAdminAssessments() {
   return state().assessments.map((assessment) => ({ ...assessment }));
+}
+
+export interface CreateAdminAssessmentInput {
+  name: string;
+  kind: AdminAssessmentDefault["kind"];
+  scope?: string;
+  status?: AdminAssessmentDefault["status"];
+  questions?: number;
+  note?: string;
+}
+
+export function createAdminAssessment(input: CreateAdminAssessmentInput) {
+  const assessments = state().assessments;
+  const base = slugify(input.name) || `assess-${Date.now().toString(36)}`;
+  const id = assessments.some((a) => a.id === base) ? `${base}-${Date.now().toString(36)}` : base;
+  const assessment: AdminAssessmentDefault = {
+    id,
+    name: input.name.trim(),
+    kind: input.kind,
+    scope: input.scope?.trim() || "All plans",
+    status: input.status ?? "Draft",
+    questions: Math.max(0, Math.round(input.questions ?? 0)),
+    note: input.note?.trim() || "",
+    origin: "custom",
+  };
+  assessments.unshift(assessment);
+  addAdminAudit("you", "Created default assessment", assessment.name, { assessmentId: assessment.id });
+  return { ...assessment };
+}
+
+export function updateAdminAssessment(
+  id: string,
+  input: Partial<Omit<AdminAssessmentDefault, "id" | "origin">>,
+) {
+  const assessment = state().assessments.find((item) => item.id === id);
+  if (!assessment) return undefined;
+  if (input.name !== undefined) assessment.name = input.name.trim();
+  if (input.kind !== undefined) assessment.kind = input.kind;
+  if (input.scope !== undefined) assessment.scope = input.scope.trim() || "All plans";
+  if (input.status !== undefined) assessment.status = input.status;
+  if (input.questions !== undefined) assessment.questions = Math.max(0, Math.round(input.questions));
+  if (input.note !== undefined) assessment.note = input.note.trim();
+  addAdminAudit("you", "Updated default assessment", assessment.name, { assessmentId: assessment.id });
+  return { ...assessment };
+}
+
+export function removeAdminAssessment(id: string) {
+  if (PROTECTED_ASSESSMENT_IDS.has(id)) return undefined;
+  const assessments = state().assessments;
+  const index = assessments.findIndex((item) => item.id === id);
+  if (index === -1) return undefined;
+  const [assessment] = assessments.splice(index, 1);
+  addAdminAudit("you", "Deleted default assessment", assessment.name, { assessmentId: assessment.id });
+  return { assessment: { ...assessment }, deleted: true };
 }
 
 export function getAdminOverview() {

@@ -45,8 +45,8 @@ function dashboardKpis(raw: {
     { key: "jobs", label: "Active job posts", value: String(raw.activeJobs ?? 0), sub: "Open for candidates", href: "/jobs" },
     { key: "applicants", label: "Applicants", value: String(raw.applicants ?? 0), sub: "Store-private pipeline", href: "/applicants" },
     { key: "hired", label: "Hired", value: String(raw.hired ?? 0), sub: "Local handoffs", href: "/pipeline" },
-    { key: "fit", label: "Avg fit", value: String(raw.avgFit ?? 0), sub: "across results", href: "/gemmatch" },
-    { key: "gemmatch", label: "GemMatch done", value: `${raw.gemmatchCompletion ?? 0}%`, sub: "completion", href: "/gemmatch" },
+    { key: "fit", label: "Avg fit", value: String(raw.avgFit ?? 0), sub: "across results", href: "/jewelcert" },
+    { key: "gemmatch", label: "JewelCert done", value: `${raw.gemmatchCompletion ?? 0}%`, sub: "completion", href: "/jewelcert" },
   ];
 }
 
@@ -54,10 +54,12 @@ export default function Dashboard() {
   const router = useRouter();
   const [routeChecked, setRouteChecked] = useState(false);
   const [dashboard, setDashboard] = useState(fallbackDashboard);
+  const [selectedLocationId, setSelectedLocationId] = useState("all");
   const floor = dashboard.floor;
   const untested = floor.total - floor.tested;
   const careers = dashboard.careers;
   const locations = dashboard.locations;
+  const visibleLocations = selectedLocationId === "all" ? locations : locations.filter((location) => location.id === selectedLocationId);
   const activity = dashboard.activity;
 
   // sparkline path (careers trend), y inverted
@@ -93,7 +95,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/stores/${STORE_ID}/dashboard`)
+    const query = selectedLocationId === "all" ? "" : `?locationId=${encodeURIComponent(selectedLocationId)}`;
+    fetch(`/api/stores/${STORE_ID}/dashboard${query}`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: {
         floor: FloorRead;
@@ -118,7 +121,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [selectedLocationId]);
 
   if (!routeChecked) {
     return null;
@@ -130,9 +133,13 @@ export default function Dashboard() {
         title="Overview"
         subtitle="Where your floor stands today, and what's coming through the door."
         action={
-          <select className="border border-line rounded-md bg-panel text-[13px] text-body px-3 py-2 outline-none focus:border-primary">
-            <option>All locations (3)</option>
-            {locations.map((l) => <option key={l.id}>{l.name}</option>)}
+          <select
+            className="border border-line rounded-md bg-panel text-[13px] text-body px-3 py-2 outline-none focus:border-primary"
+            value={selectedLocationId}
+            onChange={(event) => setSelectedLocationId(event.target.value)}
+          >
+            <option value="all">All locations ({locations.length})</option>
+            {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         }
       />
@@ -148,7 +155,7 @@ export default function Dashboard() {
               </div>
             </div>
             <span className="inline-flex items-center gap-1.5 text-[11.5px] text-muted bg-[#f1f4f9] px-2.5 py-1 rounded-md whitespace-nowrap">
-              <IconDiamond size={13} /> {floor.tested} of {floor.total} tested · {Math.round((floor.tested / floor.total) * 100)}%
+              <IconDiamond size={13} /> {floor.tested} of {floor.total} tested · {floor.total > 0 ? Math.round((floor.tested / floor.total) * 100) : 0}%
             </span>
           </div>
 
@@ -204,7 +211,7 @@ export default function Dashboard() {
           <div className="bg-panel border border-line rounded-lg p-4 h-full group-hover:border-accent transition-colors">
             <div className="text-[13px] font-semibold text-head mb-2.5">Floor by location</div>
             <div className="flex flex-col gap-2.5">
-              {locations.map((l, i) => (
+              {visibleLocations.map((l, i) => (
                 <div key={l.id} className="flex justify-between items-center text-[12.5px]">
                   <span className="text-body">{l.name} <span className="text-muted">· {l.count}</span></span>
                   <span className={`text-[11px] px-2 py-0.5 rounded-md ${i === 0 ? "bg-[#e8f1ff] text-primary" : "bg-[#f1f4f9] text-muted"}`}>{l.archetype}</span>

@@ -13,12 +13,12 @@ const STATUS_STYLE: Record<SendStatus, string> = {
   Completed: "bg-[#dff3e8] text-[#0f6e56]",
 };
 
-type GemMatchRow = (typeof GEMMATCH_SENT)[number];
+type JewelCertRow = (typeof GEMMATCH_SENT)[number];
 const STORE_ID = "store-sissys-little-rock";
 
-export default function GemMatchSentPage() {
+export default function JewelCertSentPage() {
   const [status, setStatus] = useState<SendStatus | "All">("All");
-  const [allRows, setAllRows] = useState<GemMatchRow[]>(GEMMATCH_SENT);
+  const [allRows, setAllRows] = useState<JewelCertRow[]>(GEMMATCH_SENT);
   const rows = allRows.filter((r) => status === "All" || r.status === status);
   const count = (s: SendStatus) => allRows.filter((r) => r.status === s).length;
 
@@ -32,9 +32,9 @@ export default function GemMatchSentPage() {
           sentDate: string;
           status: SendStatus;
           type?: string;
-          primary?: GemMatchRow["primary"];
+          primary?: JewelCertRow["primary"];
           fitScore?: number;
-          fitTier?: GemMatchRow["fitTier"];
+          fitTier?: JewelCertRow["fitTier"];
         }[];
       }) => {
         if (!cancelled) {
@@ -63,8 +63,8 @@ export default function GemMatchSentPage() {
   return (
     <div>
       <PageHeader
-        title="GemMatch"
-        subtitle="Applicants you've sent GemMatch to, their status, and the resulting fit."
+        title="JewelCert"
+        subtitle="Applicants you've sent JewelCert to, their status, and the resulting fit."
         action={<Link href="/send-jewelcert" className="btn-grad inline-flex items-center gap-1.5 px-4 py-2.5 text-[13px] no-underline"><IconSend size={16} /> Send JewelCert</Link>}
       />
 
@@ -80,7 +80,7 @@ export default function GemMatchSentPage() {
         <span className="text-[12.5px] text-muted ml-auto self-center">{rows.length} of {allRows.length}</span>
       </div>
 
-      <Panel title="Sent GemMatch">
+      <Panel title="Sent JewelCert">
         <div className="overflow-x-auto"><table className="w-full border-collapse">
           <thead>
             <tr>

@@ -1,0 +1,16 @@
+import { NextRequest, NextResponse } from "next/server";
+import { withApiErrorHandling } from "@/lib/server/api-errors";
+import { getPublicCourse, recordEnrollment } from "@/lib/courses";
+
+export const dynamic = "force-dynamic";
+
+export const GET = withApiErrorHandling(async function GET(
+  _request: NextRequest,
+  props: { params: Promise<{ id: string }> },
+) {
+  const params = await props.params;
+  const course = getPublicCourse(params.id);
+  if (!course) return NextResponse.json({ error: { code: "not_found", message: "Course not found." } }, { status: 404 });
+  recordEnrollment(params.id);
+  return NextResponse.json({ course });
+});

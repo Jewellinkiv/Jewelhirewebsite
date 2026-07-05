@@ -79,9 +79,17 @@ export default function PortalResumePage() {
   const [resume, setResume] = useState<Resume>(SEED_RESUME);
   const [tpl, setTpl] = useState<ResumeTemplate>(RESUME_TEMPLATES[0]);
   const [lookupEmail, setLookupEmail] = useState(SEED_RESUME.email);
+  const [badges, setBadges] = useState<{ courseId: string; badgeLabel: string; badgeColor: string }[]>([]);
   const hydrated = useRef(false);
   const set = (k: keyof Resume, v: string) => setResume((r) => ({ ...r, [k]: v }));
   const creds = useMemo(() => resume.courseCredentials.filter((c) => c.completed), [resume.courseCredentials]);
+
+  useEffect(() => {
+    fetch("/api/applicant/badges")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((b) => setBadges(b.items || []))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     fetch("/api/applicant/resume")
@@ -176,6 +184,8 @@ export default function PortalResumePage() {
                 <Section icon={<IconCertificate size={13} />} title="Credentials & skills" accent={tpl.accent}>
                   <div className="flex flex-wrap gap-1.5 mb-1.5">
                     {creds.map((c) => <span key={c.id} className="text-[10.5px] px-2 py-0.5 rounded-full" style={{ background: `${tpl.accent}1a`, color: tpl.accent }}>{c.title}</span>)}
+                    {/* Auto-earned course badges carry onto the resume. */}
+                    {badges.map((b) => <span key={b.courseId} className="text-[10.5px] px-2 py-0.5 rounded-full text-white inline-flex items-center gap-1" style={{ background: b.badgeColor }}><IconCertificate size={10} /> {b.badgeLabel}</span>)}
                   </div>
                   <div className="text-[11.5px] text-muted">{resume.skills.join(" · ")}</div>
                 </Section>

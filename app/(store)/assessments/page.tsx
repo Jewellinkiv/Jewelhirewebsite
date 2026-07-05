@@ -7,13 +7,36 @@ import { Panel } from "@/components/ui";
 import { LEGACY_ASSESSMENTS } from "@/lib/legacy";
 import { AssessmentResult, COMPLETED_RESULTS } from "@/lib/assessment-results";
 import { CustomAssessment, CUSTOM_ASSESSMENTS } from "@/lib/custom-assessments";
-import { IconPlus, IconClipboardList } from "@/components/icons";
+import { IconPlus, IconClipboardList, IconDiamond } from "@/components/icons";
+
+// A default assessment from the platform catalog (JewelCert + admin/legacy tests).
+interface DefaultAssessment {
+  id: string;
+  title: string;
+  type: string;
+  durationMinutes?: number;
+  questionCount: number;
+  owner: string;
+  status: string;
+}
+
+const DEFAULT_LIBRARY_FALLBACK: DefaultAssessment[] = [
+  { id: "gemmatch", title: "JewelCert", type: "Trait profile", durationMinutes: 3, questionCount: 48, owner: "Admin", status: "Published" },
+  ...LEGACY_ASSESSMENTS.map((a) => ({
+    id: a.title,
+    title: a.title,
+    type: a.type,
+    durationMinutes: a.durationMinutes,
+    questionCount: a.questionCount,
+    owner: "Admin",
+    status: "Published",
+  })),
+];
 
 export default function Page() {
   const [customAssessments, setCustomAssessments] = useState<CustomAssessment[]>(CUSTOM_ASSESSMENTS);
   const [completedResults, setCompletedResults] = useState<AssessmentResult[]>(COMPLETED_RESULTS);
-  const [legacyAssessments, setLegacyAssessments] = useState(LEGACY_ASSESSMENTS);
-  const totalQuestions = legacyAssessments.reduce((sum, a) => sum + a.questionCount, 0);
+  const [defaultLibrary, setDefaultLibrary] = useState<DefaultAssessment[]>(DEFAULT_LIBRARY_FALLBACK);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,13 +47,13 @@ export default function Page() {
     ])
       .then(([catalog, storeAssessments, results]) => {
         if (cancelled) return;
-        setLegacyAssessments(catalog.items.filter((item: any) => item.title && item.title !== "GemMatch"));
+        setDefaultLibrary((catalog.items || []).filter((item: DefaultAssessment) => item.title));
         setCustomAssessments(storeAssessments.items);
         setCompletedResults(results.items);
       })
       .catch(() => {
         if (!cancelled) {
-          setLegacyAssessments(LEGACY_ASSESSMENTS);
+          setDefaultLibrary(DEFAULT_LIBRARY_FALLBACK);
           setCustomAssessments(CUSTOM_ASSESSMENTS);
           setCompletedResults(COMPLETED_RESULTS);
         }
@@ -40,11 +63,14 @@ export default function Page() {
     };
   }, []);
 
+  const typeChip = (type: string) =>
+    type === "Knowledge check" ? "bg-[#e1f5ee] text-[#0f6e56]" : "bg-[#e8f1ff] text-primary";
+
   return (
     <div>
       <PageHeader
         title="Assessments"
-        subtitle="Your own assessments, the default GemMatch + admin tests, and completed results."
+        subtitle="Send the default JewelCert library, or build your own store-specific assessments."
         action={
           <Link href="/assessments/new" className="btn-grad inline-flex items-center gap-1.5 px-4 py-2.5 text-[13px] no-underline">
             <IconPlus size={16} /> Build assessment
@@ -52,8 +78,9 @@ export default function Page() {
         }
       />
 
+      {/* Group 1 — the store's own custom assessments. */}
       <Panel
-        title="Your assessments"
+        title="Your custom assessments"
         icon={<IconClipboardList size={16} />}
         className="mb-[18px]"
         action={<Link href="/assessments/new" className="text-[12.5px] text-primary no-underline">New</Link>}
@@ -64,7 +91,7 @@ export default function Page() {
           <div className="overflow-x-auto"><table className="w-full border-collapse">
             <thead>
               <tr>
-                {["Assessment", "Type", "Owner", "Questions", "Status"].map((h) => (
+                {["Assessment", "Type", "Questions", "Status"].map((h) => (
                   <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted px-4 py-2.5 border-b border-line">{h}</th>
                 ))}
               </tr>
@@ -77,10 +104,7 @@ export default function Page() {
                     <div className="text-[12px] text-muted mt-1 max-w-[420px]">{a.description}</div>
                   </td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
-                    <span className="inline-flex px-2.5 py-1 rounded-md text-[11.5px] font-semibold bg-[#e8f1ff] text-primary">{a.kind}</span>
-                  </td>
-                  <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${a.owner === "Store" ? "bg-[#efe9fd] text-[#5a44c9]" : "bg-[#eef2f7] text-[#5b6472]"}`}>{a.owner}</span>
+                    <span className={`inline-flex px-2.5 py-1 rounded-md text-[11.5px] font-semibold ${typeChip(a.kind)}`}>{a.kind}</span>
                   </td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">{a.questions.length}</td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
@@ -93,22 +117,39 @@ export default function Page() {
         )}
       </Panel>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-[18px]">
-        {[
-          { k: "Legacy tests", v: legacyAssessments.length, s: "Bubble admin inventory" },
-          { k: "Questions", v: totalQuestions, s: "Documented with scoring" },
-          { k: "Trait profiles", v: legacyAssessments.filter((a) => a.type === "Trait profile").length, s: "Candidate style/fit" },
-          { k: "Knowledge checks", v: legacyAssessments.filter((a) => a.type === "Knowledge check").length, s: "Answer-key scoring" },
-        ].map((x) => (
-          <div key={x.k} className="bg-panel border border-line rounded px-4 py-[15px]">
-            <div className="text-xs text-muted font-medium">{x.k}</div>
-            <div className="text-2xl font-semibold text-head mt-[5px] leading-none">{x.v}</div>
-            <div className="text-xs mt-[5px] text-muted">{x.s}</div>
-          </div>
-        ))}
-      </div>
+      {/* Group 2 — the platform defaults every store can send. */}
+      <Panel
+        title="Default library"
+        icon={<IconDiamond size={16} />}
+        className="mb-[18px]"
+        action={<span className="text-[11.5px] text-muted">Included with your plan · read-only</span>}
+      >
+        <div className="overflow-x-auto"><table className="w-full border-collapse">
+          <thead>
+            <tr>
+              {["Assessment", "Type", "Duration", "Questions"].map((h) => (
+                <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted px-4 py-2.5 border-b border-line">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {defaultLibrary.map((a) => (
+              <tr key={a.id} className="hover:bg-rowhover align-top">
+                <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
+                  <div className="flex items-center gap-2">{a.id === "gemmatch" && <IconDiamond size={14} className="text-primary" />}<span className="font-medium text-head">{a.title}</span></div>
+                </td>
+                <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
+                  <span className={`inline-flex px-2.5 py-1 rounded-md text-[11.5px] font-semibold ${typeChip(a.type)}`}>{a.type}</span>
+                </td>
+                <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px] text-muted">{a.durationMinutes ? `${a.durationMinutes} min` : "—"}</td>
+                <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">{a.questionCount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table></div>
+      </Panel>
 
-      <Panel title="Completed results — manager review" className="mb-[18px]">
+      <Panel title="Completed results — manager review">
         <div className="overflow-x-auto"><table className="w-full border-collapse">
           <thead>
             <tr>
@@ -140,41 +181,6 @@ export default function Page() {
                 </td>
                 <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
                   <Link href={`/assessments/${r.slug}/review/${r.candidate.id}`} className="text-primary no-underline font-medium">Review →</Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
-      </Panel>
-
-      <Panel title="Legacy aptitude tests">
-        <div className="overflow-x-auto"><table className="w-full border-collapse">
-          <thead>
-            <tr>
-              {["Assessment", "Type", "Duration", "Questions", "Targets", "Media"].map((h) => (
-                <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted px-4 py-2.5 border-b border-line">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {legacyAssessments.map((a) => (
-              <tr key={a.title} className="hover:bg-rowhover align-top">
-                <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
-                  <div className="font-medium text-head">{a.title}</div>
-                  <div className="text-[12px] text-muted mt-1 max-w-[360px]">{a.migrationNote}</div>
-                </td>
-                <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
-                  <span className={`inline-flex px-2.5 py-1 rounded-md text-[11.5px] font-semibold ${a.type === "Knowledge check" ? "bg-[#e1f5ee] text-[#0f6e56]" : "bg-[#e8f1ff] text-primary"}`}>
-                    {a.type}
-                  </span>
-                </td>
-                <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">{a.durationMinutes} min</td>
-                <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">{a.questionCount}</td>
-                <td className="px-4 py-3 border-b border-[#eef1f6] text-[12.5px] text-body max-w-[300px]">
-                  {a.targets.join(", ")}
-                </td>
-                <td className="px-4 py-3 border-b border-[#eef1f6] text-[12.5px] text-muted">
-                  {a.media.join(", ")}
                 </td>
               </tr>
             ))}

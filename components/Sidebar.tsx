@@ -15,6 +15,7 @@ import {
   IconClipboardList,
   IconIdBadge2,
   IconPlayerPlay,
+  IconSchool,
   IconSettings,
 } from "@/components/icons";
 
@@ -35,11 +36,12 @@ export const STORE_NAV: NavGroup[] = [
     ],
   },
   {
-    group: "GemMatch",
+    group: "JewelCert",
     items: [
-      { label: "Sent & results", href: "/gemmatch", icon: <IconDiamond size={18} /> },
+      { label: "Sent & results", href: "/jewelcert", icon: <IconDiamond size={18} /> },
       { label: "Team map", href: "/team-map", icon: <IconUsersGroup size={18} /> },
       { label: "Assessments", href: "/assessments", icon: <IconClipboardList size={18} /> },
+      { label: "Courses", href: "/courses", icon: <IconSchool size={18} /> },
     ],
   },
   {
@@ -55,7 +57,7 @@ export const STORE_NAV: NavGroup[] = [
 export function Sidebar() {
   const path = usePathname();
   const isActive = (href: string) =>
-    href === "/" ? path === "/" : path.startsWith(href);
+    href === "/" ? path === "/" : path === href || path.startsWith(href + "/");
 
   return (
     <aside className="w-[226px] bg-panel border-r border-line sticky top-0 h-screen hidden lg:flex flex-col">

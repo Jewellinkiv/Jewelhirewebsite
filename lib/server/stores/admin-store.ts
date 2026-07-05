@@ -6,9 +6,12 @@ import {
   getAdminCompany,
   getAdminOverview,
   getAdminSupport,
+  createAdminAssessment,
   inviteAdminCompanyUser,
   listAdminAssessments,
   listAdminCompanies,
+  removeAdminAssessment,
+  updateAdminAssessment,
   removeAdminCompany,
   removeAdminUser,
   resendAdminUserInvite,
@@ -74,6 +77,9 @@ export interface AdminStore {
   resendUserInvite(userId: string): MaybePromise<ReturnType<typeof resendAdminUserInvite>>;
   startImpersonation(companyId: string): MaybePromise<ReturnType<typeof startAdminImpersonation>>;
   listAssessments: typeof listAdminAssessments;
+  createAssessment: typeof createAdminAssessment;
+  updateAssessment: typeof updateAdminAssessment;
+  removeAssessment: typeof removeAdminAssessment;
   getOverview(): MaybePromise<ReturnType<typeof getAdminOverview>>;
   getBilling(): MaybePromise<ReturnType<typeof getAdminBilling>>;
   getAnalytics(): MaybePromise<ReturnType<typeof getAdminAnalytics>>;
@@ -105,6 +111,9 @@ const localAdminStore: AdminStore = {
   resendUserInvite: resendAdminUserInvite,
   startImpersonation: startAdminImpersonation,
   listAssessments: listAdminAssessments,
+  createAssessment: createAdminAssessment,
+  updateAssessment: updateAdminAssessment,
+  removeAssessment: removeAdminAssessment,
   getOverview: getAdminOverview,
   getBilling: getAdminBilling,
   getAnalytics: getAdminAnalytics,
@@ -129,6 +138,9 @@ const postgresAdminStore: AdminStore = {
   resendUserInvite: resendPostgresAdminUserInvite,
   startImpersonation: startPostgresAdminImpersonation,
   listAssessments: listAdminAssessments,
+  createAssessment: createAdminAssessment,
+  updateAssessment: updateAdminAssessment,
+  removeAssessment: removeAdminAssessment,
   getOverview: getPostgresAdminOverview,
   getBilling: getPostgresAdminBilling,
   getAnalytics: getPostgresAdminAnalytics,

@@ -3,14 +3,16 @@
 import { ReactNode, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconDiamond, IconLayoutDashboard, IconBriefcase, IconUsers, IconClipboardList, IconSettings, IconProgress, IconMenu, IconX } from "@/components/icons";
+import { IconDiamond, IconLayoutDashboard, IconBriefcase, IconUsers, IconClipboardList, IconSettings, IconProgress, IconSchool, IconMenu, IconX } from "@/components/icons";
 import { PortalSwitcher } from "@/components/PortalSwitcher";
+import { LogoutButton } from "@/components/LogoutButton";
 
 const NAV = [
   { label: "Overview", href: "/admin", icon: <IconLayoutDashboard size={18} /> },
   { label: "Companies", href: "/admin/companies", icon: <IconBriefcase size={18} /> },
   { label: "Billing", href: "/admin/billing", icon: <IconProgress size={18} /> },
   { label: "Assessment library", href: "/admin/assessments", icon: <IconClipboardList size={18} /> },
+  { label: "Courses", href: "/admin/courses", icon: <IconSchool size={18} /> },
   { label: "Support", href: "/admin/support", icon: <IconUsers size={18} /> },
   { label: "Analytics", href: "/admin/analytics", icon: <IconSettings size={18} /> },
 ];
@@ -35,9 +37,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="px-3 py-3 border-t border-[#1c2942] flex items-center justify-between">
-          <span className="text-[11px] text-[#6b82a8]">Internal</span>
+        <div className="px-3 py-3 border-t border-[#1c2942] flex items-center justify-between gap-2">
           <PortalSwitcher current="admin" dark />
+          <LogoutButton dark />
         </div>
       </aside>
       <div className="flex-1 min-w-0 bg-page">
@@ -49,7 +51,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <span className="w-6 h-6 rounded-[6px] bg-brand-grad flex items-center justify-center"><IconDiamond size={15} /></span>
           <span className="text-[15px] font-medium">Jewel<span className="font-extrabold">Hire</span></span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-[#7fa0d6] bg-[#16243d] px-1.5 py-0.5 rounded">Admin</span>
-          <div className="ml-auto"><PortalSwitcher current="admin" dark /></div>
+          <div className="ml-auto flex items-center gap-2">
+            <PortalSwitcher current="admin" dark />
+            <LogoutButton dark compact />
+          </div>
         </div>
         {open && (
           <nav className="lg:hidden bg-[#0b1424] border-b border-[#1c2942] px-2.5 py-2 flex flex-col gap-0.5">
@@ -58,6 +63,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 <span className={active(n.href) ? "text-[#5b9bff]" : "text-[#6b82a8]"}>{n.icon}</span>{n.label}
               </Link>
             ))}
+            <div className="px-2.5 pt-2">
+              <LogoutButton dark />
+            </div>
           </nav>
         )}
         <main className="p-[22px] max-w-[1280px] w-full">{children}</main>
