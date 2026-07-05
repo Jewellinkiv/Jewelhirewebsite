@@ -30,6 +30,14 @@ function inviteDisplayKind(kind: AssociateInvite["kind"]) {
   return kind === "GemMatch" ? "JewelCert" : kind;
 }
 
+// Standalone pick-10 -> the taker; a JewelCert bundle -> its landing page that
+// lists every component; anything else -> the generic assessment page.
+function inviteHref(invite: PortalInvite) {
+  if (invite.kind === "GemMatch") return `/jewelcert/${invite.id}`;
+  if (invite.kind === "JewelCert") return `/bundle/${invite.id}`;
+  return `/assessment/${invite.id}`;
+}
+
 function statusLabel(status: ApiInvite["status"]): AssociateInvite["status"] {
   if (status === "completed") return "Completed";
   if (status === "started") return "In progress";
@@ -105,7 +113,7 @@ export default function InvitesPage() {
                   <div className="text-[12px] text-muted">{i.role} · ~{i.estMinutes} min · sent {i.sentAt}</div>
                 </div>
                 <span className={`ml-auto text-[11px] font-medium px-2.5 py-1 rounded-full ${STATUS_STYLE[i.status]}`}>{i.status}</span>
-                <Link href={i.kind === "GemMatch" ? `/jewelcert/${i.id}` : `/assessment/${i.id}`} className="btn-grad inline-flex items-center gap-1 px-3 py-1.5 text-[12.5px] no-underline">
+                <Link href={inviteHref(i)} className="btn-grad inline-flex items-center gap-1 px-3 py-1.5 text-[12.5px] no-underline">
                   {i.status === "In progress" ? "Continue" : "Start"} <IconChevronRight size={14} />
                 </Link>
               </div>

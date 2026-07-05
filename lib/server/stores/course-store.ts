@@ -4,6 +4,7 @@
 import { selectStoreAdapter } from "@/lib/server/storage-runtime";
 import {
   completeCourse,
+  courseTitleById,
   createCourse,
   getCourseAdmin,
   getPublicCourse,
@@ -27,6 +28,7 @@ import {
   completePostgresCourse,
   createPostgresCourse,
   getPostgresCourseAdmin,
+  getPostgresCourseTitles,
   getPostgresPublicCourse,
   listPostgresCoursesAdmin,
   listPostgresEarnedBadges,
@@ -37,6 +39,15 @@ import {
   removePostgresCourse,
   updatePostgresCourse,
 } from "@/lib/server/postgres-courses";
+
+function localCourseTitles(ids: string[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const id of ids) {
+    const title = courseTitleById(id);
+    if (title) map.set(id, title);
+  }
+  return map;
+}
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -57,6 +68,7 @@ export interface CourseStore {
   completeCourse(id: string, quizAnswers: Record<string, number[]>, userId?: string): MaybePromise<CourseCompletionResult | undefined>;
   recordEnrollment(id: string, userId?: string): MaybePromise<void>;
   listEarnedBadges(userId: string): MaybePromise<EarnedBadge[]>;
+  courseTitles(ids: string[]): MaybePromise<Map<string, string>>;
 }
 
 const localCourseStore: CourseStore = {
@@ -72,6 +84,7 @@ const localCourseStore: CourseStore = {
   completeCourse,
   recordEnrollment,
   listEarnedBadges,
+  courseTitles: localCourseTitles,
 };
 
 const postgresCourseStore: CourseStore = {
@@ -87,6 +100,7 @@ const postgresCourseStore: CourseStore = {
   completeCourse: completePostgresCourse,
   recordEnrollment: recordPostgresEnrollment,
   listEarnedBadges: listPostgresEarnedBadges,
+  courseTitles: getPostgresCourseTitles,
 };
 
 export function getCourseStore(): CourseStore {

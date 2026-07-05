@@ -56,7 +56,9 @@ export default function JewelCertTestPage() {
           return;
         }
         if (match.job?.title) setRole(match.job.title);
-        setLoad(match.kind === "GemMatch" ? "ready" : "notGemmatch");
+        // Accept the standalone pick-10 (GemMatch) AND a JewelCert bundle id —
+        // the backend records the pick-10 response against either invite.
+        setLoad(match.kind === "GemMatch" || match.kind === "JewelCert" ? "ready" : "notGemmatch");
       })
       .catch(() => {
         if (!cancelled) setLoad("error");
