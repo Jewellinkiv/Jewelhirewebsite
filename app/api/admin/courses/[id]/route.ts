@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
-import { getCourseAdmin, removeCourse, updateCourse, type CourseModuleInput } from "@/lib/courses";
+import { getCourseStore } from "@/lib/server/stores/course-store";
+import type { CourseModuleInput } from "@/lib/courses";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export const GET = withApiErrorHandling(async function GET(
 ) {
   const params = await props.params;
   await requireAdminAccess("admin.courses.get");
-  const course = getCourseAdmin(params.id);
+  const course = await getCourseStore().getCourseAdmin(params.id);
   if (!course) return NextResponse.json({ error: { code: "not_found", message: "Course not found." } }, { status: 404 });
   return NextResponse.json({ course });
 });
@@ -36,7 +37,7 @@ export const PATCH = withApiErrorHandling(async function PATCH(
   if (body.status === "Published" || body.status === "Draft") patch.status = body.status;
   if (Array.isArray(body.modules)) patch.modules = body.modules;
 
-  const course = updateCourse(params.id, patch);
+  const course = await getCourseStore().updateCourse(params.id, patch);
   if (!course) return NextResponse.json({ error: { code: "not_found", message: "Course not found." } }, { status: 404 });
   return NextResponse.json({ course });
 });
@@ -47,7 +48,7 @@ export const DELETE = withApiErrorHandling(async function DELETE(
 ) {
   const params = await props.params;
   await requireAdminAccess("admin.courses.delete");
-  const result = removeCourse(params.id);
+  const result = await getCourseStore().removeCourse(params.id);
   if (!result) return NextResponse.json({ error: { code: "not_found", message: "Course not found." } }, { status: 404 });
   return NextResponse.json(result);
 });

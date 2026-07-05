@@ -212,11 +212,11 @@ function state(): CourseState {
   return globalThis.__jewelhireCourseStore;
 }
 
-function slugify(value: string) {
+export function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
 }
 
-function nowLabel() {
+export function nowLabel() {
   return new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
@@ -272,7 +272,7 @@ export interface CreateCourseInput {
   modules: CourseModuleInput[];
 }
 
-function normalizeModules(modules: CourseModuleInput[]): CourseModule[] {
+export function normalizeModules(modules: CourseModuleInput[]): CourseModule[] {
   return modules.map((m, i) => {
     const base: CourseModule = { id: `m${i + 1}`, type: m.type, title: (m.title || "").trim() || MODULE_TYPE_LABEL[m.type] };
     if (m.type === "video") base.videoUrl = m.videoUrl?.trim() || "";
@@ -352,6 +352,22 @@ export interface CourseCompletionResult {
 }
 
 // Grade any quiz answers server-side and, if everything passes, award the badge
+// Grade every quiz module against the learner's answers. Pure — shared by the
+// in-memory (local) and Postgres complete-course paths so grading never diverges.
+export function gradeCourseQuizzes(
+  modules: CourseModule[],
+  quizAnswers: Record<string, number[]>,
+): { moduleId: string; correct: number; needed: number; passed: boolean }[] {
+  return modules
+    .filter((m) => m.type === "quiz" && m.questions?.length)
+    .map((m) => {
+      const answers = quizAnswers[m.id] || [];
+      const correct = (m.questions || []).reduce((n, q, i) => n + (answers[i] === q.answerIndex ? 1 : 0), 0);
+      const needed = m.passingCount ?? (m.questions?.length || 0);
+      return { moduleId: m.id, correct, needed, passed: correct >= needed };
+    });
+}
+
 // and bump the (admin-only) completion count.
 export function completeCourse(
   id: string,
@@ -361,14 +377,7 @@ export function completeCourse(
   const course = state().courses.find((c) => c.id === id && c.status === "Published");
   if (!course) return undefined;
 
-  const quiz = course.modules
-    .filter((m) => m.type === "quiz" && m.questions?.length)
-    .map((m) => {
-      const answers = quizAnswers[m.id] || [];
-      const correct = (m.questions || []).reduce((n, q, i) => n + (answers[i] === q.answerIndex ? 1 : 0), 0);
-      const needed = m.passingCount ?? (m.questions?.length || 0);
-      return { moduleId: m.id, correct, needed, passed: correct >= needed };
-    });
+  const quiz = gradeCourseQuizzes(course.modules, quizAnswers);
 
   const passed = quiz.every((q) => q.passed);
   if (passed) {

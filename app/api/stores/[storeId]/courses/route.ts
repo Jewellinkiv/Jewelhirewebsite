@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
-import { createCourse, listStoreCourses, toStoreCourse, type CourseModuleInput } from "@/lib/courses";
+import { getCourseStore } from "@/lib/server/stores/course-store";
+import { toStoreCourse, type CourseModuleInput } from "@/lib/courses";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export const GET = withApiErrorHandling(async function GET(
 ) {
   const params = await props.params;
   const storeId = await requireStoreAccess(params.storeId, "courses.list");
-  const items = listStoreCourses(storeId);
+  const items = await getCourseStore().listStoreCourses(storeId);
   return NextResponse.json({ count: items.length, items });
 });
 
@@ -43,7 +44,7 @@ export const POST = withApiErrorHandling(async function POST(
   if (modules.length === 0) {
     return NextResponse.json({ error: { code: "invalid", message: "Add at least one module." } }, { status: 400 });
   }
-  const course = createCourse({
+  const course = await getCourseStore().createCourse({
     title,
     description: typeof body.description === "string" ? body.description : "",
     badgeLabel: typeof body.badgeLabel === "string" ? body.badgeLabel : undefined,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { getSessionContext } from "@/lib/server/access-control";
-import { completeCourse } from "@/lib/courses";
+import { getCourseStore } from "@/lib/server/stores/course-store";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,7 @@ export const POST = withApiErrorHandling(async function POST(
       : {};
   // Award the badge to the signed-in learner so it lands on their profile.
   const session = await getSessionContext();
-  const result = completeCourse(params.id, quizAnswers, session.userId);
+  const result = await getCourseStore().completeCourse(params.id, quizAnswers, session.userId);
   if (!result) return NextResponse.json({ error: { code: "not_found", message: "Course not found." } }, { status: 404 });
   return NextResponse.json(result);
 });

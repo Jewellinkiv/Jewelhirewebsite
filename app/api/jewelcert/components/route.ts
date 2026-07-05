@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { CERT_COMPONENTS, CERT_COURSES, type CertComponent, type CertCourseRef } from "@/lib/jewelcert";
 import { getSessionContext } from "@/lib/server/access-control";
 import { getAssessmentStore } from "@/lib/server/stores/assessment-store";
-import { listPublicCoursesForStore } from "@/lib/courses";
+import { getCourseStore } from "@/lib/server/stores/course-store";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ export async function GET() {
 
   // Courses a store can attach to a JewelCert: global admin courses + this
   // store's own published courses, on top of the legacy course refs.
-  const courseRefs: CertCourseRef[] = listPublicCoursesForStore(storeId).map((course) => ({
+  const courseRefs: CertCourseRef[] = (await getCourseStore().listPublicCoursesForStore(storeId)).map((course) => ({
     slug: course.id,
     title: course.title,
   }));
