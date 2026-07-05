@@ -9,7 +9,7 @@ const KINDS = ["Trait profile", "Aptitude", "Knowledge check"] as const;
 
 export const GET = withApiErrorHandling(async function GET() {
   await requireAdminAccess("admin.assessments.list");
-  const items = getAdminStore().listAssessments();
+  const items = await getAdminStore().listAssessments();
   return NextResponse.json({ count: items.length, items });
 });
 

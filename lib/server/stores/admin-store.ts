@@ -35,6 +35,12 @@ import {
   updatePostgresAdminCompany,
   updatePostgresAdminUser,
 } from "@/lib/server/postgres-phase1";
+import {
+  createPostgresAdminAssessment,
+  listPostgresAdminAssessments,
+  removePostgresAdminAssessment,
+  updatePostgresAdminAssessment,
+} from "@/lib/server/postgres-admin-assessments";
 import { selectStoreAdapter } from "@/lib/server/storage-runtime";
 
 type MaybePromise<T> = T | Promise<T>;
@@ -76,10 +82,10 @@ export interface AdminStore {
   removeUser(userId: string): MaybePromise<ReturnType<typeof removeAdminUser>>;
   resendUserInvite(userId: string): MaybePromise<ReturnType<typeof resendAdminUserInvite>>;
   startImpersonation(companyId: string): MaybePromise<ReturnType<typeof startAdminImpersonation>>;
-  listAssessments: typeof listAdminAssessments;
-  createAssessment: typeof createAdminAssessment;
-  updateAssessment: typeof updateAdminAssessment;
-  removeAssessment: typeof removeAdminAssessment;
+  listAssessments(): MaybePromise<ReturnType<typeof listAdminAssessments>>;
+  createAssessment(input: Parameters<typeof createAdminAssessment>[0]): MaybePromise<ReturnType<typeof createAdminAssessment>>;
+  updateAssessment(id: string, input: Parameters<typeof updateAdminAssessment>[1]): MaybePromise<ReturnType<typeof updateAdminAssessment>>;
+  removeAssessment(id: string): MaybePromise<ReturnType<typeof removeAdminAssessment>>;
   getOverview(): MaybePromise<ReturnType<typeof getAdminOverview>>;
   getBilling(): MaybePromise<ReturnType<typeof getAdminBilling>>;
   getAnalytics(): MaybePromise<ReturnType<typeof getAdminAnalytics>>;
@@ -137,10 +143,10 @@ const postgresAdminStore: AdminStore = {
   removeUser: removePostgresAdminUser,
   resendUserInvite: resendPostgresAdminUserInvite,
   startImpersonation: startPostgresAdminImpersonation,
-  listAssessments: listAdminAssessments,
-  createAssessment: createAdminAssessment,
-  updateAssessment: updateAdminAssessment,
-  removeAssessment: removeAdminAssessment,
+  listAssessments: listPostgresAdminAssessments,
+  createAssessment: createPostgresAdminAssessment,
+  updateAssessment: updatePostgresAdminAssessment,
+  removeAssessment: removePostgresAdminAssessment,
   getOverview: getPostgresAdminOverview,
   getBilling: getPostgresAdminBilling,
   getAnalytics: getPostgresAdminAnalytics,

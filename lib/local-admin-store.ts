@@ -38,9 +38,16 @@ declare global {
 }
 
 // The 3 tests migrated from the legacy Bubble admin, sourced directly from
-// LEGACY_ASSESSMENTS so the numbers/targets stay in one place.
+// LEGACY_ASSESSMENTS so the numbers/targets stay in one place. Stable, clean ids
+// (kept in sync with the Postgres seed in db/seeds/0003_admin_assessment_defaults).
+const LEGACY_DEFAULT_IDS: Record<string, string> = {
+  "12 Essentials: Understanding your potential": "legacy-12-essentials",
+  "Sales Personality Profiling Test": "legacy-sales-personality",
+  "Jewelry Basic Knowledge Assessment": "legacy-jewelry-knowledge",
+};
+
 const LEGACY_DEFAULTS: AdminAssessmentDefault[] = LEGACY_ASSESSMENTS.map((a) => ({
-  id: slugify(a.title),
+  id: LEGACY_DEFAULT_IDS[a.title] || slugify(a.title),
   name: a.title,
   kind: a.type,
   scope: "All plans",
@@ -85,7 +92,7 @@ function nowLabel() {
   });
 }
 
-function slugify(value: string) {
+export function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 28);
 }
 
