@@ -28,10 +28,12 @@ import {
   NoteType,
 } from "@/lib/applicant-lifecycle";
 import { ASSOC_TRAINING, TrainingAssignment } from "@/lib/associate-portal";
-import { Mix, PROFILE_ORDER, ProfileCode, PROFILES, TYPE_BY_PAIR } from "@/lib/gemmatch";
+import { ADJECTIVES, Mix, PROFILE_ORDER, ProfileCode, PROFILES, score as scoreGemMatch, TYPE_BY_PAIR } from "@/lib/gemmatch";
 import { CERT_COMPONENTS, CERT_COURSES } from "@/lib/jewelcert";
+import { listStoreAssessments } from "@/lib/local-assessment-store";
 import { SESSION } from "@/lib/session";
 import { COURSES, courseStats, getCourse } from "@/lib/training-center";
+import { courseTitleById } from "@/lib/courses";
 import { addTeamMember, getTeamComposition, listStoreTeamMembers } from "@/lib/local-team-store";
 
 export type CourseAssignmentRecord = TrainingAssignment & {
@@ -768,11 +770,15 @@ export function updateCourseAssignment(
     if (input.status === "Completed") {
       assignment.progress = 100;
       assignment.credentialed = true;
+      assignment.credentialId = assignment.credentialId || assignment.id;
     }
   }
   if (input.dueAt !== undefined) assignment.dueAt = input.dueAt || undefined;
   if (input.packageName !== undefined) assignment.package = input.packageName.trim() || assignment.package;
   assignment.lastActivityAt = nowIso();
+  if (assignment.applicationId) {
+    reconcileJewelCertCompletionForApplication(assignment.applicationId);
+  }
   return assignment;
 }
 
@@ -803,6 +809,10 @@ export function updateTrainingProgress(assignmentId: string, progress: number) {
     assignment.credentialId = assignment.credentialId || assignment.id;
   }
 
+  if (assignment.applicationId) {
+    reconcileJewelCertCompletionForApplication(assignment.applicationId);
+  }
+
   return assignment;
 }
 
@@ -825,19 +835,32 @@ export function completeGemMatchResponse(input: { inviteId: string; pickedAdject
   }
   if (!invite) return undefined;
 
-  const profileCodes: ProfileCode[] = ["V", "C", "F", "D"];
-  const primary = profileCodes[(input.pickedAdjectiveIds?.length || 0) % profileCodes.length];
+  // Resolve the submitted picks (slugified IDs or raw adjective texts) back to
+  // canonical adjective texts, then score them so `primary` reflects the actual
+  // trait signal. Mirrors the postgres runtime (completePostgresGemMatchResponse).
+  // Falls back to Foundation when no picks resolve (empty/legacy submissions).
+  const pickedTexts = (input.pickedAdjectiveIds || [])
+    .map((rawId) => {
+      const normalized = slugify(String(rawId));
+      return ADJECTIVES.find((adj) => slugify(adj.text) === normalized || adj.text === rawId)?.text;
+    })
+    .filter((text): text is string => Boolean(text));
+  const primary: ProfileCode = pickedTexts.length ? scoreGemMatch(pickedTexts).primary : "F";
+  // Pre-update completion state so the caller only fires the "assessment
+  // completed" emails on the genuine started->completed transition; a repeat
+  // POST for an already-completed invite must not re-notify (mirrors postgres).
+  const wasAlreadyCompleted = invite.status === "completed";
   invite.status = "completed";
   invite.resultProfileCode = primary;
   invite.fitRating = primary === "C" || primary === "F" ? "Strong fit" : "Good fit";
   invite.completedAt = timestamp;
 
-  if (jewelcert) {
-    jewelcert.status = "completed";
-    jewelcert.completedAt = timestamp;
-  }
-  updateApplicationStage(invite.applicationId, "gemmatch", "Completed GemMatch response");
-  return { invite, result: { primary, fitRating: invite.fitRating } };
+  // Completing the pick-10 profile is not the same as completing the whole JewelCert
+  // package. JewelCert should only move to completed when its required
+  // assessment attempts are actually present.
+  updateApplicationStage(invite.applicationId, "gemmatch", "Completed JewelCert response");
+  reconcileJewelCertCompletionForApplication(invite.applicationId);
+  return { invite, result: { primary, fitRating: invite.fitRating }, wasAlreadyCompleted };
 }
 
 export function createPublicApplication(input: {
@@ -1044,6 +1067,7 @@ export function createJewelCertInvite(input: {
     });
   }
   updateApplicationStage(input.applicationId, "jewelcert", "Sent JewelCert package");
+  reconcileJewelCertCompletionForApplication(input.applicationId);
   return invite;
 }
 
@@ -1055,24 +1079,31 @@ function inviteStatusLabel(status: JewelCertInviteRecord["status"]) {
   return "Sent";
 }
 
-function packageLabels(assessmentPackageId: string) {
+function packageLabels(storeId: string, assessmentPackageId: string) {
   const ids = assessmentPackageId.split("+").filter(Boolean);
+  const customAssessments = new Map(
+    listStoreAssessments(storeId).map((assessment) => [`assessment:${assessment.id}`, assessment.title]),
+  );
   const componentLabels = ids
     .filter((item) => !item.startsWith("course:") && !item.startsWith("package-"))
-    .map((item) => CERT_COMPONENTS.find((component) => component.id === item)?.label || item);
+    .map((item) => CERT_COMPONENTS.find((component) => component.id === item)?.label || customAssessments.get(item) || item.replace(/^assessment:/, ""));
   const courseLabels = ids
     .filter((item) => item.startsWith("course:"))
-    .map((item) => CERT_COURSES.find((course) => course.slug === item.replace(/^course:/, ""))?.title || item.replace(/^course:/, ""));
+    .map((item) => {
+      const slug = item.replace(/^course:/, "");
+      // Resolve legacy CERT_COURSES first, then fall back to a builder-course title.
+      return CERT_COURSES.find((course) => course.slug === slug)?.title || courseTitleById(slug) || slug;
+    });
   if (assessmentPackageId === "package-sales-associate-screen") {
     return {
       title: "Sales Associate screen",
-      contents: "GemMatch profile, Sales Personality, Jewelry Basic Knowledge",
+      contents: "JewelCert profile, Sales Personality, Jewelry Basic Knowledge",
     };
   }
   if (assessmentPackageId === "package-bench-jeweler-screen") {
     return {
       title: "Bench readiness",
-      contents: "GemMatch profile, Jewelry Basic Knowledge",
+      contents: "JewelCert profile, Jewelry Basic Knowledge",
     };
   }
   const contents = [...componentLabels, ...courseLabels.map((label) => `Course: ${label}`)];
@@ -1080,6 +1111,89 @@ function packageLabels(assessmentPackageId: string) {
     title: componentLabels.length ? componentLabels.join(" + ") : courseLabels.length ? "Training follow-up" : "Custom JewelCert",
     contents: contents.join(", ") || "Custom JewelCert package",
   };
+}
+
+const PACKAGE_REQUIREMENTS: Record<string, { componentIds: string[]; courseSlugs: string[] }> = {
+  "package-sales-associate-screen": {
+    componentIds: ["gemmatch", "sales-personality", "jewelry-basic-knowledge"],
+    courseSlugs: [],
+  },
+  "package-bench-jeweler-screen": {
+    componentIds: ["gemmatch", "jewelry-basic-knowledge"],
+    courseSlugs: [],
+  },
+};
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function resolveJewelCertRequirements(assessmentPackageId: string) {
+  const known = PACKAGE_REQUIREMENTS[assessmentPackageId];
+  if (known) {
+    return {
+      componentIds: [...known.componentIds],
+      courseSlugs: [...known.courseSlugs],
+    };
+  }
+
+  const parts = assessmentPackageId.split("+").map((part) => part.trim()).filter(Boolean);
+  return {
+    componentIds: uniqueStrings(parts.filter((part) => !part.startsWith("course:") && !part.startsWith("package-"))),
+    courseSlugs: uniqueStrings(parts.filter((part) => part.startsWith("course:")).map((part) => part.replace(/^course:/, ""))),
+  };
+}
+
+function requiredAssessmentType(componentId: string): AssessmentAttemptLinkRecord["assessmentType"] | undefined {
+  if (componentId === "sales-personality" || componentId === "12-essentials") return "trait_profile";
+  if (componentId === "jewelry-knowledge" || componentId === "jewelry-basic-knowledge") return "knowledge_check";
+  return undefined;
+}
+
+function reconcileJewelCertCompletionForApplication(applicationId: string) {
+  const store = state();
+  const timestamp = nowIso();
+  for (const invite of store.jewelcertInvites.filter(
+    (item) => item.applicationId === applicationId && !["completed", "expired", "cancelled"].includes(item.status),
+  )) {
+    const requirements = resolveJewelCertRequirements(invite.assessmentPackageId);
+    if (!requirements.componentIds.length && !requirements.courseSlugs.length) continue;
+
+    const gemmatchReady =
+      !requirements.componentIds.includes("gemmatch") ||
+      store.gemmatchInvites.some(
+        (item) => item.applicationId === applicationId && item.storeId === invite.storeId && item.status === "completed" && item.completedAt,
+      );
+    if (!gemmatchReady) continue;
+
+    const assessmentsReady = requirements.componentIds
+      .filter((componentId) => componentId !== "gemmatch")
+      .every((componentId) => {
+        const type = requiredAssessmentType(componentId);
+        return Boolean(type) && store.assessmentAttempts.some(
+          (attempt) =>
+            attempt.applicationId === applicationId &&
+            attempt.assessmentType === type &&
+            attempt.completedAt,
+        );
+      });
+    if (!assessmentsReady) continue;
+
+    const coursesReady = requirements.courseSlugs.every((courseSlug) =>
+      store.trainingAssignments.some(
+        (assignment) =>
+          assignment.applicationId === applicationId &&
+          assignment.storeId === invite.storeId &&
+          assignment.recipientType === "applicant" &&
+          assignment.courseSlug === courseSlug &&
+          Boolean(assignment.credentialId || assignment.credentialed),
+      ),
+    );
+    if (!coursesReady) continue;
+
+    invite.status = "completed";
+    invite.completedAt = invite.completedAt || timestamp;
+  }
 }
 
 function gemmatchType(primary?: ProfileCode) {
@@ -1109,7 +1223,7 @@ export function listStoreJewelCertInvites(storeId: string) {
     .jewelcertInvites.filter((invite) => invite.storeId === storeId)
     .map((invite) => {
       const detail = getApplicationDetail(invite.applicationId);
-      const labels = packageLabels(invite.assessmentPackageId);
+      const labels = packageLabels(storeId, invite.assessmentPackageId);
       return {
         invite,
         candidate: detail?.profile
@@ -1302,6 +1416,29 @@ export function updateInterviewRsvp(interviewId: string, response: "accepted" | 
   return interview;
 }
 
+export function getInterviewRsvpScope(interviewId: string) {
+  const interview = state().interviews.find((item) => item.id === interviewId);
+  if (!interview) return undefined;
+  const detail = getApplicationDetail(interview.applicationId);
+  return {
+    storeId: interview.storeId,
+    recipientEmail: detail?.profile?.email,
+  };
+}
+
+export function getGemMatchInviteScope(inviteId: string) {
+  const store = state();
+  const invite = store.gemmatchInvites.find((item) => item.id === inviteId);
+  const jewelcert = store.jewelcertInvites.find((item) => item.id === inviteId);
+  const applicationId = invite?.applicationId || jewelcert?.applicationId;
+  if (!applicationId) return undefined;
+  const detail = getApplicationDetail(applicationId);
+  return {
+    storeId: invite?.storeId || jewelcert?.storeId || detail?.application.storeId,
+    recipientEmail: detail?.profile?.email,
+  };
+}
+
 export function updateInterview(input: { interviewId: string; status?: InterviewStatus; notes?: string }) {
   const store = state();
   const interview = store.interviews.find((item) => item.id === input.interviewId);
@@ -1391,10 +1528,13 @@ export function hireApplication(input: { applicationId: string; role?: string; l
 
   const preview = getHirePreview(input);
   if (!preview) return undefined;
-  updateApplicationStage(input.applicationId, "hired", "Confirmed hire and queued JewelLink sync");
-  const timestamp = nowIso();
+  // Idempotency: short-circuit BEFORE mutating stage/history so a repeat hire POST does
+  // not churn the application with duplicate no-op hired→hired stage events. Mirrors the
+  // postgres branch, which returns the existing sync before writing any stage event.
   const existing = state().hireSyncs.find((sync) => sync.applicationId === input.applicationId);
   if (existing) return existing;
+  updateApplicationStage(input.applicationId, "hired", "Confirmed hire and queued JewelLink sync");
+  const timestamp = nowIso();
 
   const primary = preview.gemmatch.primary || undefined;
   const teamMember = addTeamMember(detail.application.storeId, {

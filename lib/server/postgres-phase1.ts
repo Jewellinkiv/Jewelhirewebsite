@@ -19,6 +19,7 @@ import type { AssessmentResult } from "@/lib/assessment-results";
 import { ACTIVITY, CAREERS, floorRead, LOCATION_FLOORS } from "@/lib/dashboard";
 import { CalProvider, INVITE_SETTINGS, InviteSettings, PROVIDER_LABEL } from "@/lib/invite-settings";
 import { CERT_COMPONENTS, CERT_COURSES } from "@/lib/jewelcert";
+import { getPostgresCourseTitles } from "@/lib/server/postgres-courses";
 import { ADJECTIVES, Mix, PROFILE_ORDER, ProfileCode, PROFILES, score as scoreGemMatch, TYPE_BY_PAIR } from "@/lib/gemmatch";
 import type { AssessmentKind, AssessmentQuestion, CustomAssessment } from "@/lib/custom-assessments";
 import type {
@@ -65,6 +66,7 @@ interface PublicJobRow {
   id: string;
   store_id: string;
   public_page_id: string;
+  slug?: string | null;
   title: string;
   location: string | null;
   employment_type: string | null;
@@ -77,6 +79,10 @@ interface PublicJobRow {
   status: PublicJobRecord["status"];
   opened_at: string | null;
   closed_at: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  view_count?: number | null;
+  apply_click_count?: number | null;
 }
 
 interface ApplicationSummaryRow {
@@ -614,6 +620,7 @@ export interface CreatePostgresStoreJobInput {
 
 export interface UpdatePostgresStoreJobInput {
   jobId: string;
+  storeId?: string;
   title?: string;
   location?: string;
   employmentType?: string;
@@ -636,6 +643,15 @@ export interface UpdatePostgresTeamMemberInput {
   locationId?: string | null;
   status?: string | null;
   nextAction?: string | null;
+}
+
+export interface CreatePostgresTeamMemberInput {
+  storeId: string;
+  name: string;
+  role?: string;
+  primary?: ProfileCode;
+  type?: string;
+  locationId?: string | null;
 }
 
 interface PostgresStoreJobRow extends PublicJobRow {
@@ -974,31 +990,39 @@ function inviteStatusLabel(status: JewelCertInviteRecord["status"]) {
   return "Sent";
 }
 
-function gemmatchFitScore(fit?: string) {
+function gemmatchFitScore(fit?: string): number | undefined {
   if (fit === "Strong fit") return 88;
   if (fit === "Good fit") return 74;
   if (fit === "Poor fit") return 32;
   return undefined;
 }
 
-function packageLabels(assessmentPackageId: string) {
+function packageLabels(
+  assessmentPackageId: string,
+  customAssessments = new Map<string, string>(),
+  courseTitles = new Map<string, string>(),
+) {
   const ids = assessmentPackageId.split("+").filter(Boolean);
   const componentLabels = ids
     .filter((item) => !item.startsWith("course:") && !item.startsWith("package-"))
-    .map((item) => CERT_COMPONENTS.find((component) => component.id === item)?.label || item);
+    .map((item) => CERT_COMPONENTS.find((component) => component.id === item)?.label || customAssessments.get(item) || item.replace(/^assessment:/, ""));
   const courseLabels = ids
     .filter((item) => item.startsWith("course:"))
-    .map((item) => CERT_COURSES.find((course) => course.slug === item.replace(/^course:/, ""))?.title || item.replace(/^course:/, ""));
+    .map((item) => {
+      const slug = item.replace(/^course:/, "");
+      // Legacy CERT_COURSES first, then a builder-course title.
+      return CERT_COURSES.find((course) => course.slug === slug)?.title || courseTitles.get(slug) || slug;
+    });
   if (assessmentPackageId === "package-sales-associate-screen") {
     return {
       title: "Sales Associate screen",
-      contents: "GemMatch profile, Sales Personality, Jewelry Basic Knowledge",
+      contents: "JewelCert profile, Sales Personality, Jewelry Basic Knowledge",
     };
   }
   if (assessmentPackageId === "package-bench-jeweler-screen") {
     return {
       title: "Bench readiness",
-      contents: "GemMatch profile, Jewelry Basic Knowledge",
+      contents: "JewelCert profile, Jewelry Basic Knowledge",
     };
   }
   const contents = [...componentLabels, ...courseLabels.map((label) => `Course: ${label}`)];
@@ -1006,6 +1030,60 @@ function packageLabels(assessmentPackageId: string) {
     title: componentLabels.length ? componentLabels.join(" + ") : courseLabels.length ? "Training follow-up" : "Custom JewelCert",
     contents: contents.join(", ") || "Custom JewelCert package",
   };
+}
+
+const PACKAGE_REQUIREMENTS: Record<string, { componentIds: string[]; courseSlugs: string[] }> = {
+  "package-sales-associate-screen": {
+    componentIds: ["gemmatch", "sales-personality", "jewelry-basic-knowledge"],
+    courseSlugs: [],
+  },
+  "package-bench-jeweler-screen": {
+    componentIds: ["gemmatch", "jewelry-basic-knowledge"],
+    courseSlugs: [],
+  },
+};
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function resolveJewelCertRequirements(row: {
+  assessment_package_id?: string | null;
+  component_ids?: JsonArray;
+  course_slugs?: JsonArray;
+}) {
+  const explicitComponents = asStringArray(row.component_ids || null);
+  const explicitCourses = asStringArray(row.course_slugs || null);
+  if (explicitComponents.length || explicitCourses.length) {
+    return {
+      componentIds: uniqueStrings(explicitComponents),
+      courseSlugs: uniqueStrings(explicitCourses),
+    };
+  }
+
+  const packageId = row.assessment_package_id || "";
+  const known = PACKAGE_REQUIREMENTS[packageId];
+  if (known) {
+    return {
+      componentIds: [...known.componentIds],
+      courseSlugs: [...known.courseSlugs],
+    };
+  }
+
+  const parts = packageId.split("+").map((part) => part.trim()).filter(Boolean);
+  return {
+    componentIds: uniqueStrings(parts.filter((part) => !part.startsWith("course:") && !part.startsWith("package-"))),
+    courseSlugs: uniqueStrings(parts.filter((part) => part.startsWith("course:")).map((part) => part.replace(/^course:/, ""))),
+  };
+}
+
+function assessmentEvidenceAliases(componentId: string) {
+  const normalized = componentId.replace(/^assessment:/, "").trim();
+  if (!normalized) return [];
+  if (normalized === "jewelry-knowledge" || normalized === "jewelry-basic-knowledge") {
+    return ["jewelry-knowledge", "jewelry-basic-knowledge"];
+  }
+  return [normalized];
 }
 
 function resolveInterviewStartsAt(input: { startsAt?: string; date?: string; time?: string }) {
@@ -1191,12 +1269,42 @@ function mapPublicPage(row: PublicStoreRow): StorePublicPageRecord {
   };
 }
 
-function mapPublicJob(row: PublicJobRow): PublicJobRecord {
+function storeJobSlug(row: PublicJobRow) {
+  if (row.id === "job-luxury-sales-associate") return "sales-associate";
+  return row.slug || slugify(row.title) || row.id;
+}
+
+function jobLocationId(location?: string | null) {
+  const normalized = (location || "").toLowerCase();
+  if (normalized.includes("little rock")) return "location-little-rock";
+  if (normalized.includes("memphis")) return "location-memphis";
+  if (normalized.includes("jonesboro")) return "location-jonesboro";
+  return null;
+}
+
+function locationFilterMatches(location: string | null | undefined, locationId?: string | null) {
+  if (!locationId) return true;
+  const locationSlug = slugify(location || "");
+  const filterSlug = slugify(locationId.replace(/^location-/, ""));
+  return Boolean(filterSlug && locationSlug.includes(filterSlug));
+}
+
+function mapPublicJob(row: PublicJobRow): PublicJobRecord & {
+  slug: string;
+  locationId: string | null;
+  openings: number;
+  views: number;
+  applyClicks: number;
+  createdAt: string;
+  updatedAt: string;
+} {
   return {
     id: row.id,
+    slug: storeJobSlug(row),
     storeId: row.store_id,
     publicPageId: row.public_page_id,
     title: row.title,
+    locationId: jobLocationId(row.location),
     location: row.location || "",
     employmentType: row.employment_type === "Part-time" ? "Part-time" : "Full-time",
     compensationSummary: row.compensation_summary || "",
@@ -1208,6 +1316,11 @@ function mapPublicJob(row: PublicJobRow): PublicJobRecord {
     requiredAssessmentIds: asStringArray(row.required_assessment_ids),
     requiredCourseIds: asStringArray(row.required_course_ids),
     status: row.status,
+    openings: 1,
+    views: Number(row.view_count || 0),
+    applyClicks: Number(row.apply_click_count || 0),
+    createdAt: row.created_at || row.opened_at || new Date().toISOString(),
+    updatedAt: row.updated_at || row.opened_at || new Date().toISOString(),
     openedAt: optional(row.opened_at),
     closedAt: optional(row.closed_at),
   };
@@ -1820,9 +1933,13 @@ function mapJewelCertInvite(row: JewelCertInviteRow): JewelCertInviteRecord {
   };
 }
 
-function mapJewelCertInviteListItem(row: JewelCertInviteListRow) {
+function mapJewelCertInviteListItem(
+  row: JewelCertInviteListRow,
+  customAssessments = new Map<string, string>(),
+  courseTitles = new Map<string, string>(),
+) {
   const invite = mapJewelCertInvite(row);
-  const labels = packageLabels(invite.assessmentPackageId);
+  const labels = packageLabels(invite.assessmentPackageId, customAssessments, courseTitles);
   return {
     invite,
     candidate: row.applicant_full_name
@@ -1841,6 +1958,147 @@ function mapJewelCertInviteListItem(row: JewelCertInviteListRow) {
     sent: shortDate(invite.sentAt),
     due: shortDate(invite.expiresAt),
   };
+}
+
+async function hasPostgresCompletedGemMatchEvidence(client: PoolClient, row: JewelCertInviteRow) {
+  const result = await client.query<{ exists: boolean }>(
+    `
+      select exists(
+        select 1
+        from gemmatch_invites
+        where application_id = $1
+          and store_id = $2
+          and status = 'completed'
+          and completed_at is not null
+      )
+    `,
+    [row.application_id, row.store_id],
+  );
+  return Boolean(result.rows[0]?.exists);
+}
+
+async function hasPostgresAssessmentEvidence(client: PoolClient, row: JewelCertInviteRow, componentId: string) {
+  const aliases = assessmentEvidenceAliases(componentId);
+  if (!aliases.length) return false;
+  const assessmentId = componentId.startsWith("assessment:") ? componentId.replace(/^assessment:/, "") : null;
+  const result = await client.query<{ exists: boolean }>(
+    `
+      select exists(
+        select 1
+        from assessment_results
+        where application_id = $1
+          and store_id = $2
+          and (
+            slug = any($3::text[])
+            or ($4::text is not null and assessment_id = $4)
+          )
+      )
+    `,
+    [row.application_id, row.store_id, aliases, assessmentId],
+  );
+  return Boolean(result.rows[0]?.exists);
+}
+
+async function hasPostgresCourseEvidence(client: PoolClient, row: JewelCertInviteRow, courseSlug: string) {
+  const result = await client.query<{ exists: boolean }>(
+    `
+      select exists(
+        select 1
+        from course_assignments ca
+        join courses c on c.id = ca.course_id
+        join course_credentials cc on cc.course_assignment_id = ca.id
+        where ca.application_id = $1
+          and ca.store_id = $2
+          and ca.recipient_type = 'applicant'
+          and c.slug = $3
+      )
+    `,
+    [row.application_id, row.store_id, courseSlug],
+  );
+  return Boolean(result.rows[0]?.exists);
+}
+
+async function reconcilePostgresJewelCertCompletionWithClient(
+  client: PoolClient,
+  input: { inviteId?: string; applicationId?: string },
+) {
+  if (!input.inviteId && !input.applicationId) return [];
+  const result = await client.query<JewelCertInviteRow>(
+    `
+      select
+        id, application_id, store_id, assessment_package_id, sent_by_user_id, sent_to_email,
+        status, component_ids, course_slugs, expires_at::text, sent_at::text, completed_at::text
+      from jewelcert_invites
+      where status not in ('completed', 'expired', 'cancelled')
+        and ($1::text is null or id = $1)
+        and ($2::text is null or application_id = $2)
+      order by sent_at desc nulls last, created_at desc
+      for update
+    `,
+    [input.inviteId || null, input.applicationId || null],
+  );
+
+  const completed: JewelCertInviteRecord[] = [];
+  const timestamp = new Date().toISOString();
+  for (const row of result.rows) {
+    const requirements = resolveJewelCertRequirements(row);
+    const requiredComponents = requirements.componentIds.filter((componentId) => componentId !== "gemmatch");
+    const hasAnyRequirement =
+      requirements.componentIds.length > 0 || requirements.courseSlugs.length > 0;
+    if (!hasAnyRequirement) continue;
+
+    const gemmatchReady =
+      !requirements.componentIds.includes("gemmatch") || await hasPostgresCompletedGemMatchEvidence(client, row);
+    if (!gemmatchReady) continue;
+
+    let assessmentsReady = true;
+    for (const componentId of requiredComponents) {
+      if (!await hasPostgresAssessmentEvidence(client, row, componentId)) {
+        assessmentsReady = false;
+        break;
+      }
+    }
+    if (!assessmentsReady) continue;
+
+    let coursesReady = true;
+    for (const courseSlug of requirements.courseSlugs) {
+      if (!await hasPostgresCourseEvidence(client, row, courseSlug)) {
+        coursesReady = false;
+        break;
+      }
+    }
+    if (!coursesReady) continue;
+
+    const updated = await client.query<JewelCertInviteRow>(
+      `
+        update jewelcert_invites
+        set status = 'completed',
+            completed_at = coalesce(completed_at, $1)
+        where id = $2
+        returning
+          id, application_id, store_id, assessment_package_id, sent_by_user_id, sent_to_email,
+          status, component_ids, course_slugs, expires_at::text, sent_at::text, completed_at::text
+      `,
+      [timestamp, row.id],
+    );
+    if (updated.rows[0]) completed.push(mapJewelCertInvite(updated.rows[0]));
+  }
+  return completed;
+}
+
+export async function reconcilePostgresJewelCertCompletion(input: { inviteId?: string; applicationId?: string }) {
+  const client = await getPostgresPool().connect();
+  try {
+    await client.query("begin");
+    const completed = await reconcilePostgresJewelCertCompletionWithClient(client, input);
+    await client.query("commit");
+    return completed;
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 function mapGemMatchInvite(row: GemMatchInviteRow): GemMatchInviteRecord {
@@ -2010,7 +2268,9 @@ export async function getPostgresPublicStoreSnapshot(storeSlug: string): Promise
         required_course_ids,
         status,
         opened_at::text,
-        closed_at::text
+        closed_at::text,
+        view_count,
+        apply_click_count
       from public_jobs
       where store_id = $1
         and status = 'open'
@@ -2031,13 +2291,14 @@ export async function getPostgresPublicStoreSnapshot(storeSlug: string): Promise
   };
 }
 
-async function listPostgresStoreJobsWithClient(client: PoolClient, storeId: string) {
+async function listPostgresStoreJobsWithClient(client: PoolClient, storeId: string, locationId?: string | null) {
   const result = await client.query<PostgresStoreJobRow>(
     `
       select
         pj.id,
         pj.store_id,
         pj.public_page_id,
+        pj.slug,
         pj.title,
         pj.location,
         pj.employment_type,
@@ -2050,6 +2311,10 @@ async function listPostgresStoreJobsWithClient(client: PoolClient, storeId: stri
         pj.status,
         pj.opened_at::text,
         pj.closed_at::text,
+        pj.created_at::text,
+        pj.updated_at::text,
+        pj.view_count,
+        pj.apply_click_count,
         count(a.id)::text as applicants_count,
         count(distinct a.applicant_profile_id)::text as unique_applicants_count,
         count(a.id) filter (where a.stage = 'hired')::text as hired_count,
@@ -2061,6 +2326,7 @@ async function listPostgresStoreJobsWithClient(client: PoolClient, storeId: stri
         pj.id,
         pj.store_id,
         pj.public_page_id,
+        pj.slug,
         pj.title,
         pj.location,
         pj.employment_type,
@@ -2073,7 +2339,10 @@ async function listPostgresStoreJobsWithClient(client: PoolClient, storeId: stri
         pj.status,
         pj.opened_at,
         pj.closed_at,
-        pj.created_at
+        pj.created_at,
+        pj.updated_at,
+        pj.view_count,
+        pj.apply_click_count
       order by
         case pj.status
           when 'open' then 0
@@ -2087,21 +2356,28 @@ async function listPostgresStoreJobsWithClient(client: PoolClient, storeId: stri
     [storeId],
   );
 
-  return result.rows.map((row) => ({
-    job: mapPublicJob(row),
-    kpis: {
-      applicants: Number(row.applicants_count || 0),
-      uniqueApplicants: Number(row.unique_applicants_count || 0),
-      hired: Number(row.hired_count || 0),
-      activePipeline: Number(row.active_pipeline_count || 0),
-    },
-  }));
+  return result.rows
+    .filter((row) => locationFilterMatches(row.location, locationId))
+    .map((row) => {
+      const job = mapPublicJob(row);
+      return {
+        job,
+        kpis: {
+          applicants: Number(row.applicants_count || 0),
+          uniqueApplicants: Number(row.unique_applicants_count || 0),
+          hired: Number(row.hired_count || 0),
+          activePipeline: Number(row.active_pipeline_count || 0),
+          views: job.views,
+          applyClicks: job.applyClicks,
+        },
+      };
+    });
 }
 
-export async function listPostgresStoreJobs(storeId: string) {
+export async function listPostgresStoreJobs(storeId: string, locationId?: string | null) {
   const client = await getPostgresPool().connect();
   try {
-    return await listPostgresStoreJobsWithClient(client, storeId);
+    return await listPostgresStoreJobsWithClient(client, storeId, locationId);
   } finally {
     client.release();
   }
@@ -2170,6 +2446,7 @@ export async function createPostgresStoreJob(input: CreatePostgresStoreJobInput)
           id,
           store_id,
           public_page_id,
+          slug,
           title,
           location,
           employment_type,
@@ -2181,7 +2458,11 @@ export async function createPostgresStoreJob(input: CreatePostgresStoreJobInput)
           required_course_ids,
           status,
           opened_at::text,
-          closed_at::text
+          closed_at::text,
+          created_at::text,
+          updated_at::text,
+          view_count,
+          apply_click_count
       `,
       [
         id("job"),
@@ -2212,6 +2493,8 @@ export async function createPostgresStoreJob(input: CreatePostgresStoreJobInput)
         uniqueApplicants: 0,
         hired: 0,
         activePipeline: 0,
+        views: 0,
+        applyClicks: 0,
       },
     };
   } catch (error) {
@@ -2223,7 +2506,7 @@ export async function createPostgresStoreJob(input: CreatePostgresStoreJobInput)
 }
 
 export async function updatePostgresStoreJob(input: UpdatePostgresStoreJobInput) {
-  const current = await resolvePostgresJobBySlug(input.jobId);
+  const current = await resolvePostgresJobBySlug(input.jobId, input.storeId);
   if (!current) return undefined;
   const timestamp = new Date().toISOString();
   const nextStatus = input.status && ["draft", "open", "paused", "closed"].includes(input.status) ? input.status : current.status;
@@ -2257,6 +2540,7 @@ export async function updatePostgresStoreJob(input: UpdatePostgresStoreJobInput)
         id,
         store_id,
         public_page_id,
+        slug,
         title,
         location,
         employment_type,
@@ -2268,7 +2552,11 @@ export async function updatePostgresStoreJob(input: UpdatePostgresStoreJobInput)
         required_course_ids,
         status,
         opened_at::text,
-        closed_at::text
+        closed_at::text,
+        created_at::text,
+        updated_at::text,
+        view_count,
+        apply_click_count
     `,
     [
       current.id,
@@ -2287,18 +2575,22 @@ export async function updatePostgresStoreJob(input: UpdatePostgresStoreJobInput)
   );
   const row = result.rows[0];
   if (!row) return undefined;
-  return getPostgresJobDetail(row.id);
+  return getPostgresJobDetail(row.id, input.storeId);
 }
 
-async function resolvePostgresJobBySlug(slug: string) {
+async function resolvePostgresJobBySlug(slug: string, storeId?: string) {
   const normalized = slugify(slug);
   const candidates = Array.from(new Set([slug, normalized, `job-${normalized}`].filter(Boolean)));
+  const values: unknown[] = [candidates, normalized];
+  const storeClause = storeId ? "and store_id = $3" : "";
+  if (storeId) values.push(storeId);
   const result = await getPostgresPool().query<PublicJobRow>(
     `
       select
         id,
         store_id,
         public_page_id,
+        slug,
         title,
         location,
         employment_type,
@@ -2310,25 +2602,35 @@ async function resolvePostgresJobBySlug(slug: string) {
         required_course_ids,
         status,
         opened_at::text,
-        closed_at::text
+        closed_at::text,
+        created_at::text,
+        updated_at::text,
+        view_count,
+        apply_click_count
       from public_jobs
-      where id = any($1::text[])
-         or ${slugExpression("id")} = $2
-         or ${slugExpression("title")} = $2
+      where (
+        id = any($1::text[])
+        or slug = any($1::text[])
+        or slug = $2
+        or slug like '%' || $2
+        or ${slugExpression("id")} = $2
+        or ${slugExpression("title")} = $2
+      )
+      ${storeClause}
       order by
         case status when 'open' then 0 when 'draft' then 1 when 'paused' then 2 else 3 end,
         opened_at desc nulls last,
         created_at desc
       limit 1
     `,
-    [candidates, normalized],
+    values,
   );
   const row = result.rows[0];
   return row ? mapPublicJob(row) : undefined;
 }
 
-export async function getPostgresJobDetail(slug: string) {
-  const job = await resolvePostgresJobBySlug(slug);
+export async function getPostgresJobDetail(slug: string, storeId?: string) {
+  const job = await resolvePostgresJobBySlug(slug, storeId);
   if (!job) return undefined;
   const jobRows = await listPostgresStoreJobs(job.storeId);
   const applications = await listPostgresApplicationSummaries({ storeId: job.storeId, limit: 100 });
@@ -2351,60 +2653,38 @@ export async function getPostgresJobDetail(slug: string) {
   };
 }
 
-export async function getPostgresStoreDashboard(storeId: string) {
+export async function getPostgresStoreDashboard(storeId: string, locationId?: string | null) {
   const client = await getPostgresPool().connect();
   try {
-    const applicationResult = await client.query<{
-      applicants_count: string;
-      hired_count: string;
-      completed_gemmatch_count: string;
-      completed_gemmatch_fit_total: string | null;
-      active_jobs_count: string;
-    }>(
-      `
-        select
-          count(distinct a.id)::text as applicants_count,
-          count(distinct a.id) filter (where a.stage = 'hired')::text as hired_count,
-          count(distinct gi.id) filter (where gi.status = 'completed')::text as completed_gemmatch_count,
-          sum(
-            case gi.fit_rating
-              when 'Strong fit' then 88
-              when 'Good fit' then 76
-              when 'Watch fit' then 62
-              when 'Poor fit' then 45
-              else null
-            end
-          )::text as completed_gemmatch_fit_total,
-          count(distinct pj.id) filter (where pj.status = 'open')::text as active_jobs_count
-        from stores s
-        left join applications a on a.store_id = s.id
-        left join gemmatch_invites gi on gi.application_id = a.id
-        left join public_jobs pj on pj.store_id = s.id
-        where s.id = $1
-        group by s.id
-      `,
-      [storeId],
-    );
-    const jobs = await listPostgresStoreJobsWithClient(client, storeId);
+    const jobs = await listPostgresStoreJobsWithClient(client, storeId, locationId);
+    const applicationSummaries = await listPostgresApplicationSummariesWithClient(client, { storeId, limit: 100 });
+    const applications = locationId
+      ? applicationSummaries.items.filter((item) => locationFilterMatches(item.job?.location || item.applicant.location, locationId))
+      : applicationSummaries.items;
     const composition = await getPostgresTeamComposition(client, storeId);
-    const aggregate = applicationResult.rows[0];
-    const applicants = Number(aggregate?.applicants_count || 0);
-    const hired = Number(aggregate?.hired_count || 0);
-    const completedGemMatches = Number(aggregate?.completed_gemmatch_count || 0);
-    const fitTotal = Number(aggregate?.completed_gemmatch_fit_total || 0);
-    const activeJobs = Number(aggregate?.active_jobs_count || jobs.filter((item) => item.job.status === "open").length);
-    const floor = floorRead(composition.mix, composition.floorType, composition.tested, Math.max(composition.total, composition.tested));
+    const selectedLocation = locationId
+      ? LOCATION_FLOORS.find((location) => locationFilterMatches(location.name, locationId) || location.id === locationId)
+      : undefined;
+    const applicants = applications.length;
+    const hired = applications.filter((item) => item.application.stage === "hired").length;
+    const completed = applications.filter((item) => item.screening.gemmatchStatus === "completed");
+    const fitScores = completed.map((item) => gemmatchFitScore(item.screening.gemmatchFit)).filter((score): score is number => score !== undefined);
+    const activeJobs = jobs.filter((item) => item.job.status === "open").length;
+    const floor = selectedLocation
+      ? floorRead(composition.mix, selectedLocation.archetype, selectedLocation.count, selectedLocation.count)
+      : floorRead(composition.mix, composition.floorType, composition.tested, Math.max(composition.total, composition.tested));
 
     return {
       storeId,
+      selectedLocationId: locationId || null,
       floor,
       jobs,
       kpis: {
         activeJobs,
         applicants,
         hired,
-        avgFit: completedGemMatches ? Math.round(fitTotal / completedGemMatches) : 0,
-        gemmatchCompletion: applicants ? Math.round((completedGemMatches / applicants) * 100) : 0,
+        avgFit: fitScores.length ? Math.round(fitScores.reduce((sum, score) => sum + score, 0) / fitScores.length) : 0,
+        gemmatchCompletion: applicants ? Math.round((completed.length / applicants) * 100) : 0,
       },
       careers: CAREERS,
       locations: LOCATION_FLOORS,
@@ -2594,7 +2874,9 @@ async function listPostgresPublicPageJobsForStore(client: PoolClient, storeId: s
         required_course_ids,
         status,
         opened_at::text,
-        closed_at::text
+        closed_at::text,
+        view_count,
+        apply_click_count
       from public_jobs
       where store_id = $1
         and status = 'open'
@@ -2614,6 +2896,21 @@ async function buildPostgresStorePublicPage(client: PoolClient, row: PublicPageC
   const config = mapPublicPageConfig(row, testimonials);
   const logoAsset = assets.find((asset) => asset.id === config.logoAssetId || asset.usageContext === "logo") || null;
   return {
+    page: {
+      id: row.page_id,
+      storeId: row.store_id,
+      slug: row.store_slug,
+      headline: row.headline,
+      about: row.about || "",
+      benefits: asStringArray(row.benefits),
+      reviewSummary: {
+        rating: Number(row.review_summary?.rating ?? 0),
+        count: Number(row.review_summary?.count ?? 0),
+      },
+      status: row.status,
+      publishedAt: optional(row.published_at),
+      updatedAt: row.updated_at,
+    },
     store: {
       ...STORE,
       name: row.store_name,
@@ -3297,12 +3594,20 @@ export async function completePostgresGemMatchResponse(input: { inviteId: string
     }
 
     const pickedTexts = resolveGemMatchPickedTexts(input.pickedAdjectiveIds);
-    const scored = scoreGemMatch(pickedTexts);
-    const primary = scored.primary;
+    // Fall back to Foundation when no picks resolve (empty/legacy submissions),
+    // matching the local runtime (completeGemMatchResponse). Without this guard
+    // scoreGemMatch([]) returns "V" (stable-sort of an all-zero mix), which would
+    // diverge from local's "F" fallback for the same empty submission.
+    const primary: ProfileCode = pickedTexts.length ? scoreGemMatch(pickedTexts).primary : "F";
     const fitRating = primary === "C" || primary === "F" ? "Strong fit" : "Good fit";
     const timestamp = new Date().toISOString();
     const stageEventId = id("event");
     const domainEventId = id("event");
+    // Capture the pre-update completion state so the caller can fire the
+    // "assessment completed" emails only on the genuine started->completed
+    // transition. A repeat POST for an already-completed invite must not
+    // re-notify the candidate + manager (mirrors the hire route's guard).
+    const wasAlreadyCompleted = invite.status === "completed";
 
     const updatedInvite = await client.query<GemMatchInviteRow>(
       `
@@ -3319,23 +3624,16 @@ export async function completePostgresGemMatchResponse(input: { inviteId: string
       [primary, fitRating, timestamp, invite.id],
     );
 
-    if (directJewelCert) {
-      await client.query(
-        `
-          update jewelcert_invites
-          set status = 'completed',
-              completed_at = coalesce(completed_at, $1)
-          where id = $2
-        `,
-        [timestamp, directJewelCert.id],
-      );
-    }
+    // Completing the pick-10 profile is not the same as completing the whole JewelCert
+    // package. JewelCert completion needs real assessment-attempt evidence,
+    // not a shortcut from the package invite id.
+    await reconcilePostgresJewelCertCompletionWithClient(client, { applicationId: invite.application_id ?? undefined });
 
     await client.query(
       `
         update applications
         set stage = 'gemmatch',
-            status_reason = 'Completed GemMatch response',
+            status_reason = 'Completed JewelCert response',
             last_activity_at = $1,
             updated_at = $1
         where id = $2
@@ -3348,7 +3646,7 @@ export async function completePostgresGemMatchResponse(input: { inviteId: string
         insert into application_stage_events (
           id, application_id, store_id, from_stage, to_stage, actor_user_id, reason, metadata, created_at
         )
-        values ($1, $2, $3, $4, 'gemmatch', $5, 'Completed GemMatch response', $6::jsonb, $7)
+        values ($1, $2, $3, $4, 'gemmatch', $5, 'Completed JewelCert response', $6::jsonb, $7)
       `,
       [
         stageEventId,
@@ -3382,6 +3680,7 @@ export async function completePostgresGemMatchResponse(input: { inviteId: string
     return {
       invite: updatedInvite.rows[0] ? mapGemMatchInvite(updatedInvite.rows[0]) : undefined,
       result: { primary, fitRating },
+      wasAlreadyCompleted,
     };
   } catch (error) {
     await client.query("rollback");
@@ -3389,6 +3688,28 @@ export async function completePostgresGemMatchResponse(input: { inviteId: string
   } finally {
     client.release();
   }
+}
+
+export async function getPostgresGemMatchInviteScope(inviteId: string) {
+  const result = await getPostgresPool().query<{ store_id: string; recipient_email: string | null }>(
+    `
+      select gi.store_id, ap.email as recipient_email
+      from gemmatch_invites gi
+      join applications a on a.id = gi.application_id
+      join applicant_profiles ap on ap.id = a.applicant_profile_id
+      where gi.id = $1
+      union all
+      select ji.store_id, coalesce(ap.email, ji.sent_to_email) as recipient_email
+      from jewelcert_invites ji
+      join applications a on a.id = ji.application_id
+      join applicant_profiles ap on ap.id = a.applicant_profile_id
+      where ji.id = $1
+      limit 1
+    `,
+    [inviteId],
+  );
+  const row = result.rows[0];
+  return row ? { storeId: row.store_id, recipientEmail: row.recipient_email || undefined } : undefined;
 }
 
 export async function getPostgresGemMatchCompletionNotificationContext(inviteId: string) {
@@ -4622,10 +4943,10 @@ export async function disconnectPostgresStoreIntegration(input: { storeId: strin
   };
 }
 
-export async function listPostgresApplicationSummaries(input: ListPostgresApplicationSummariesInput) {
+async function listPostgresApplicationSummariesWithClient(client: PoolClient, input: ListPostgresApplicationSummariesInput) {
   const query = input.query?.trim() || "";
   const limit = Math.min(Math.max(input.limit ?? 25, 1), 100);
-  const result = await getPostgresPool().query<ApplicationSummaryRow>(
+  const result = await client.query<ApplicationSummaryRow>(
     `
       select
         count(*) over()::text as total_count,
@@ -4715,6 +5036,15 @@ export async function listPostgresApplicationSummaries(input: ListPostgresApplic
     count: result.rows.length,
     items: result.rows.map(mapApplicationSummary),
   };
+}
+
+export async function listPostgresApplicationSummaries(input: ListPostgresApplicationSummariesInput) {
+  const result = await getPostgresPool().connect();
+  try {
+    return await listPostgresApplicationSummariesWithClient(result, input);
+  } finally {
+    result.release();
+  }
 }
 
 async function listPostgresNotesForApplications(applicationIds: string[]) {
@@ -5589,6 +5919,14 @@ export async function getPostgresAssessmentResult(attemptId: string) {
   return result.rows[0] ? mapAssessmentResult(result.rows[0]) : undefined;
 }
 
+export async function getPostgresAssessmentResultStoreId(attemptId: string) {
+  const result = await getPostgresPool().query<{ store_id: string }>(
+    "select store_id from assessment_results where id = $1 or slug = $1 limit 1",
+    [attemptId],
+  );
+  return result.rows[0]?.store_id;
+}
+
 export async function listPostgresApplicationJewelCertResults(applicationId: string) {
   const storeId = await getPostgresApplicationStoreId(applicationId);
   const result = await getPostgresPool().query<AssessmentResultRow>(
@@ -5990,7 +6328,8 @@ export async function deletePostgresApplicantNote(input: {
 }
 
 export async function listPostgresStoreJewelCertInvites(storeId: string) {
-  const result = await getPostgresPool().query<JewelCertInviteListRow>(
+  const [result, storeAssessments] = await Promise.all([
+    getPostgresPool().query<JewelCertInviteListRow>(
     `
       select
         j.id,
@@ -6018,8 +6357,22 @@ export async function listPostgresStoreJewelCertInvites(storeId: string) {
       order by j.sent_at desc nulls last, j.created_at desc
     `,
     [storeId],
+    ),
+    listPostgresStoreAssessments(storeId),
+  ]);
+  const customAssessments = new Map(storeAssessments.map((assessment) => [`assessment:${assessment.id}`, assessment.title]));
+  const courseSlugs = Array.from(
+    new Set(
+      result.rows.flatMap((row) =>
+        (row.assessment_package_id || "")
+          .split("+")
+          .filter((part) => part.startsWith("course:"))
+          .map((part) => part.replace(/^course:/, "")),
+      ),
+    ),
   );
-  return result.rows.map(mapJewelCertInviteListItem);
+  const courseTitles = await getPostgresCourseTitles(courseSlugs);
+  return result.rows.map((row) => mapJewelCertInviteListItem(row, customAssessments, courseTitles));
 }
 
 export async function createPostgresJewelCertInvite(
@@ -6184,8 +6537,10 @@ export async function createPostgresJewelCertInvite(
       ],
     );
 
+    const completedInvites = await reconcilePostgresJewelCertCompletionWithClient(client, { inviteId });
+
     await client.query("commit");
-    return inviteResult.rows[0] ? mapJewelCertInvite(inviteResult.rows[0]) : undefined;
+    return completedInvites.find((invite) => invite.id === inviteId) || (inviteResult.rows[0] ? mapJewelCertInvite(inviteResult.rows[0]) : undefined);
   } catch (error) {
     await client.query("rollback");
     throw error;
@@ -6995,6 +7350,74 @@ export async function getPostgresTeamMemberStoreId(memberId: string) {
   return result.rows[0]?.store_id;
 }
 
+export async function createPostgresTeamMember(input: CreatePostgresTeamMemberInput) {
+  const name = input.name.trim();
+  if (!name) return undefined;
+  const primary = input.primary && PROFILE_ORDER.includes(input.primary) ? input.primary : "C";
+  const client = await getPostgresPool().connect();
+  try {
+    await client.query("begin");
+    const resolved = await resolvePostgresLocationId(client, input.storeId, input.locationId);
+    const timestamp = new Date().toISOString();
+    const result = await client.query<TeamMemberRow>(
+      `
+        insert into team_members (
+          id, store_id, location_id, name, initials, role, gemmatch_type, primary_profile_code,
+          status, next_action, created_at, updated_at
+        )
+        values (
+          $1, $2, $3, $4, $5, $6, $7, $8,
+          'onboarding', 'Assign first 30-day training path', $9, $9
+        )
+        returning
+          id,
+          store_id,
+          location_id,
+          jewellink_team_member_id,
+          source_application_id,
+          name,
+          initials,
+          role,
+          gemmatch_type,
+          primary_profile_code,
+          status,
+          next_action,
+          created_at::text,
+          updated_at::text,
+          (select name from locations where locations.id = team_members.location_id) as location_name,
+          (select floor_type from locations where locations.id = team_members.location_id) as floor_type
+      `,
+      [
+        id("team"),
+        input.storeId,
+        resolved.locationId,
+        name,
+        initials(name),
+        input.role?.trim() || "Team member",
+        input.type?.trim() || typeForPrimary(primary),
+        primary,
+        timestamp,
+      ],
+    );
+    await client.query("commit");
+    const row = result.rows[0];
+    if (!row) return undefined;
+    return {
+      member: {
+        ...mapTeamMember(row),
+        training: "Needs assignment",
+        lastCheckIn: "Needs scheduling",
+        nextAction: row.next_action || "Assign first 30-day training path",
+      },
+    };
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function getPostgresTeamMember(client: PoolClient, memberId: string) {
   const result = await client.query<TeamMemberRow>(
     `
@@ -7093,8 +7516,40 @@ export async function removePostgresTeamMember(memberId: string) {
       `,
       [memberId, new Date().toISOString()],
     );
+    const membersResult = await client.query<TeamMemberRow>(
+      `
+        select
+          tm.id,
+          tm.store_id,
+          tm.location_id,
+          tm.jewellink_team_member_id,
+          tm.source_application_id,
+          tm.name,
+          tm.initials,
+          tm.role,
+          tm.gemmatch_type,
+          tm.primary_profile_code,
+          tm.status,
+          tm.next_action,
+          tm.created_at::text,
+          tm.updated_at::text,
+          l.name as location_name,
+          l.floor_type
+        from team_members tm
+        left join locations l on l.id = tm.location_id
+        where tm.store_id = $1
+          and tm.status <> 'removed'
+        order by tm.created_at asc
+      `,
+      [existing.store_id],
+    );
     await client.query("commit");
-    const members = await listPostgresStoreTeamMembers({ storeId: existing.store_id });
+    const members = membersResult.rows.map((row, index) => ({
+      ...mapTeamMember(row),
+      training: index === 4 ? "Clienteling starter" : index === 5 ? "Inventory Security" : "Current",
+      lastCheckIn: index < 2 ? "This week" : index < 4 ? "Last week" : "Needs scheduling",
+      nextAction: row.next_action || "Keep in quarterly coaching rhythm",
+    }));
     return { member: mapTeamMember(existing), members };
   } catch (error) {
     await client.query("rollback");
@@ -7930,6 +8385,22 @@ async function queryPostgresCourseAssignments(input: ListPostgresCourseAssignmen
   }
 }
 
+export async function getPostgresInterviewRsvpScope(interviewId: string) {
+  const result = await getPostgresPool().query<{ store_id: string; recipient_email: string | null }>(
+    `
+      select i.store_id, ap.email as recipient_email
+      from interviews i
+      join applications a on a.id = i.application_id
+      join applicant_profiles ap on ap.id = a.applicant_profile_id
+      where i.id = $1
+      limit 1
+    `,
+    [interviewId],
+  );
+  const row = result.rows[0];
+  return row ? { storeId: row.store_id, recipientEmail: row.recipient_email || undefined } : undefined;
+}
+
 export async function listPostgresCourseAssignments(input: ListPostgresCourseAssignmentsInput = {}) {
   return queryPostgresCourseAssignments(input);
 }
@@ -7948,6 +8419,18 @@ export async function getPostgresCourseAssignmentStoreId(assignmentId: string) {
   const result = await getPostgresPool().query<{ store_id: string }>(
     "select store_id from course_assignments where id = $1 limit 1",
     [assignmentId],
+  );
+  return result.rows[0]?.store_id;
+}
+
+export async function getPostgresCourseTestAttemptStoreId(attemptId: string) {
+  const result = await getPostgresPool().query<{ store_id: string }>(
+    `select ca.store_id
+       from course_test_attempts cta
+       join course_assignments ca on ca.id = cta.assignment_id
+      where cta.id = $1
+      limit 1`,
+    [attemptId],
   );
   return result.rows[0]?.store_id;
 }
@@ -8283,6 +8766,10 @@ export async function updatePostgresTrainingProgress(input: { assignmentId: stri
         `,
         [credentialId, timestamp, assignment.resume_id],
       );
+    }
+
+    if (status === "completed" && assignment.application_id) {
+      await reconcilePostgresJewelCertCompletionWithClient(client, { applicationId: assignment.application_id });
     }
 
     await client.query("commit");
@@ -8703,7 +9190,9 @@ async function getOpenPostgresPublicJob(client: PoolClient, storeSlug: string, j
         pj.required_course_ids,
         pj.status,
         pj.opened_at::text,
-        pj.closed_at::text
+        pj.closed_at::text,
+        pj.view_count,
+        pj.apply_click_count
       from store_public_pages spp
       join stores s on s.id = spp.store_id
       join public_jobs pj on pj.store_id = s.id
@@ -8717,6 +9206,55 @@ async function getOpenPostgresPublicJob(client: PoolClient, storeSlug: string, j
     [storeSlug, jobId],
   );
   return result.rows[0];
+}
+
+export async function incrementPostgresPublicJobView(storeSlug: string, jobId: string) {
+  const client = await getPostgresPool().connect();
+  try {
+    await client.query("begin");
+    const job = await getOpenPostgresPublicJob(client, storeSlug, jobId);
+    if (!job) {
+      await client.query("rollback");
+      return undefined;
+    }
+    const result = await client.query<PublicJobRow>(
+      `
+        update public_jobs
+        set view_count = view_count + 1
+        where id = $1
+        returning
+          id,
+          store_id,
+          public_page_id,
+          slug,
+          title,
+          location,
+          employment_type,
+          compensation_summary,
+          description,
+          requirements,
+          ideal_gemmatch_mix,
+          required_assessment_ids,
+          required_course_ids,
+          status,
+          opened_at::text,
+          closed_at::text,
+          created_at::text,
+          updated_at::text,
+          view_count,
+          apply_click_count
+      `,
+      [job.id],
+    );
+    await client.query("commit");
+    const row = result.rows[0];
+    return row ? mapPublicJob(row) : undefined;
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function createPostgresPublicApplication(
@@ -8845,6 +9383,7 @@ export async function createPostgresPublicApplication(
         timestamp,
       ],
     );
+    await client.query("update public_jobs set apply_click_count = apply_click_count + 1 where id = $1", [application.jobId]);
 
     await client.query("commit");
     return {

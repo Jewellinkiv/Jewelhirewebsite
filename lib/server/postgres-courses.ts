@@ -191,6 +191,19 @@ export async function completePostgresCourse(
   return { passed, quiz };
 }
 
+// id -> title for a set of builder-course ids (for labeling courses attached to
+// a JewelCert package). Any status.
+export async function getPostgresCourseTitles(ids: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (ids.length === 0) return map;
+  const r = await getPostgresPool().query<{ id: string; title: string }>(
+    `select id, title from builder_courses where id = any($1::text[])`,
+    [ids],
+  );
+  for (const row of r.rows) map.set(row.id, row.title);
+  return map;
+}
+
 export async function listPostgresEarnedBadges(userId: string): Promise<EarnedBadge[]> {
   const r = await getPostgresPool().query<{
     course_id: string;

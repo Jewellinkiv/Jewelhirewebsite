@@ -421,3 +421,9 @@ export function recordEnrollment(id: string, userId?: string) {
   s.enrolled.add(key);
   course.enrollments += 1;
 }
+
+// Resolve a builder-course id to its title (for labeling a course attached to a
+// JewelCert package). Any course, regardless of status.
+export function courseTitleById(id: string): string | undefined {
+  return state().courses.find((c) => c.id === id)?.title;
+}
