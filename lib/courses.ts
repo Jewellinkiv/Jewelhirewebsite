@@ -88,6 +88,26 @@ export const MODULE_TYPE_LABEL: Record<ModuleType, string> = {
   upload: "Upload",
 };
 
+const MODULE_TYPE_PLURAL: Record<ModuleType, string> = {
+  video: "videos",
+  quiz: "quizzes",
+  upload: "uploads",
+};
+
+// "2 videos · 1 quiz" — shared by the admin and store course lists.
+export function moduleSummary(modules: { type: string }[]): string {
+  const counts = modules.reduce<Record<string, number>>((acc, m) => {
+    acc[m.type] = (acc[m.type] || 0) + 1;
+    return acc;
+  }, {});
+  return (
+    (["video", "quiz", "upload"] as const)
+      .filter((t) => counts[t])
+      .map((t) => `${counts[t]} ${counts[t] === 1 ? MODULE_TYPE_LABEL[t].toLowerCase() : MODULE_TYPE_PLURAL[t]}`)
+      .join(" · ") || "No modules"
+  );
+}
+
 const BADGE_PALETTE = ["#123FB9", "#1f9e75", "#7C6CF0", "#e2683c", "#0f6e56"];
 
 export function badgeColorFor(seed: string): string {
@@ -169,6 +189,7 @@ export const SEED_COURSES: Course[] = [
 interface CourseState {
   courses: Course[];
   earned: EarnedBadge[];
+  enrolled: Set<string>; // `${courseId}:${userId}` — dedupes the enrollment count
 }
 
 declare global {
@@ -181,11 +202,13 @@ function state(): CourseState {
     globalThis.__jewelhireCourseStore = {
       courses: SEED_COURSES.map((c) => ({ ...c, modules: c.modules.map((m) => ({ ...m })) })),
       earned: [],
+      enrolled: new Set(),
     };
   }
   // Backfill fields added after a store instance was first created (survives HMR
   // where the global persists with an older shape).
   if (!globalThis.__jewelhireCourseStore.earned) globalThis.__jewelhireCourseStore.earned = [];
+  if (!globalThis.__jewelhireCourseStore.enrolled) globalThis.__jewelhireCourseStore.enrolled = new Set();
   return globalThis.__jewelhireCourseStore;
 }
 
@@ -257,12 +280,15 @@ function normalizeModules(modules: CourseModuleInput[]): CourseModule[] {
     if (m.type === "quiz") {
       const questions = (m.questions || [])
         .filter((q) => q.prompt?.trim() && Array.isArray(q.options) && q.options.filter((o) => o.trim()).length >= 2)
-        .map((q, qi) => ({
-          id: `q${qi + 1}`,
-          prompt: q.prompt.trim(),
-          options: q.options.map((o) => o.trim()).filter(Boolean),
-          answerIndex: Math.min(Math.max(0, q.answerIndex || 0), q.options.filter((o) => o.trim()).length - 1),
-        }));
+        .map((q, qi) => {
+          // Track which option was marked correct BEFORE dropping blanks, so the
+          // answerIndex stays pointed at the same option after filtering (a blank
+          // option before the correct one would otherwise shift the key).
+          const selectedRaw = Math.max(0, q.answerIndex || 0);
+          const kept = q.options.map((o, oi) => ({ text: o.trim(), selected: oi === selectedRaw })).filter((o) => o.text);
+          const answerIndex = Math.max(0, kept.findIndex((o) => o.selected));
+          return { id: `q${qi + 1}`, prompt: q.prompt.trim(), options: kept.map((o) => o.text), answerIndex };
+        });
       base.questions = questions;
       base.passingCount = Math.min(Math.max(1, m.passingCount || questions.length), questions.length || 1);
     }
@@ -346,12 +372,14 @@ export function completeCourse(
 
   const passed = quiz.every((q) => q.passed);
   if (passed) {
-    course.completions += 1;
     const earnedOn = nowLabel();
     if (userId) {
       const earned = state().earned;
       const existing = earned.find((b) => b.userId === userId && b.courseId === course.id);
       if (!existing) {
+        // Count a completion (and award the badge) only the first time each
+        // learner finishes — re-submits by the same user don't re-count.
+        course.completions += 1;
         earned.push({ courseId: course.id, userId, courseTitle: course.title, badgeLabel: course.badgeLabel, badgeColor: course.badgeColor, earnedOn });
       }
     }
@@ -372,7 +400,15 @@ export function listEarnedBadges(userId: string): EarnedBadge[] {
     .reverse();
 }
 
-export function recordEnrollment(id: string) {
-  const course = state().courses.find((c) => c.id === id);
-  if (course) course.enrollments += 1;
+// Count an enrollment once per distinct learner (requires a signed-in user);
+// anonymous/repeat views do not inflate the metric.
+export function recordEnrollment(id: string, userId?: string) {
+  if (!userId) return;
+  const s = state();
+  const key = `${id}:${userId}`;
+  if (s.enrolled.has(key)) return;
+  const course = s.courses.find((c) => c.id === id);
+  if (!course) return;
+  s.enrolled.add(key);
+  course.enrollments += 1;
 }

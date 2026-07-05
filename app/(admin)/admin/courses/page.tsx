@@ -6,7 +6,7 @@ import { Panel } from "@/components/ui";
 import { CourseBadgeChip } from "@/components/CourseBadge";
 import { IconSchool, IconPlus, IconCheck, IconX } from "@/components/icons";
 import type { Course } from "@/lib/courses";
-import { MODULE_TYPE_LABEL } from "@/lib/courses";
+import { moduleSummary } from "@/lib/courses";
 
 const STATUS: Record<string, string> = { Published: "bg-[#e1f5ee] text-[#0f6e56]", Draft: "bg-[#fff4e2] text-[#9a6a12]" };
 
@@ -67,10 +67,6 @@ export default function AdminCoursesPage() {
     }
   };
 
-  const moduleSummary = (c: Course) => {
-    const counts = c.modules.reduce<Record<string, number>>((acc, m) => ({ ...acc, [m.type]: (acc[m.type] || 0) + 1 }), {});
-    return (["video", "quiz", "upload"] as const).filter((t) => counts[t]).map((t) => `${counts[t]} ${MODULE_TYPE_LABEL[t].toLowerCase()}${counts[t] > 1 ? "s" : ""}`).join(" · ") || "No modules";
-  };
 
   return (
     <div>
@@ -96,7 +92,7 @@ export default function AdminCoursesPage() {
                     <div className="text-[12px] text-muted mt-0.5 max-w-[360px]">{c.description}</div>
                   </td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]"><CourseBadgeChip label={c.badgeLabel} color={c.badgeColor} /></td>
-                  <td className="px-4 py-3 border-b border-[#eef1f6] text-[12.5px] text-body">{moduleSummary(c)}</td>
+                  <td className="px-4 py-3 border-b border-[#eef1f6] text-[12.5px] text-body">{moduleSummary(c.modules)}</td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
                     <button onClick={() => togglePublish(c)} disabled={busyId === c.id} title="Toggle published" className={`inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full disabled:opacity-50 ${STATUS[c.status]}`}>{c.status === "Published" && <IconCheck size={11} />}{c.status}</button>
                   </td>

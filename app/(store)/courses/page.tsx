@@ -6,15 +6,10 @@ import { PageHeader } from "@/components/common";
 import { Panel } from "@/components/ui";
 import { CourseBadgeChip } from "@/components/CourseBadge";
 import { IconPlus, IconSchool, IconCheck, IconX, IconDiamond } from "@/components/icons";
-import { MODULE_TYPE_LABEL, type StoreCourse, type PublicCourse } from "@/lib/courses";
+import { moduleSummary, type StoreCourse, type PublicCourse } from "@/lib/courses";
 
 const STORE_ID = "store-sissys-little-rock";
 const STATUS: Record<string, string> = { Published: "bg-[#e1f5ee] text-[#0f6e56]", Draft: "bg-[#fff4e2] text-[#9a6a12]" };
-
-function moduleSummary(modules: { type: string }[]) {
-  const counts = modules.reduce<Record<string, number>>((acc, m) => ({ ...acc, [m.type]: (acc[m.type] || 0) + 1 }), {});
-  return (["video", "quiz", "upload"] as const).filter((t) => counts[t]).map((t) => `${counts[t]} ${MODULE_TYPE_LABEL[t].toLowerCase()}${counts[t] > 1 ? "s" : ""}`).join(" · ") || "No modules";
-}
 
 export default function StoreCoursesPage() {
   const [own, setOwn] = useState<StoreCourse[]>([]);
