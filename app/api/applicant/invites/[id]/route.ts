@@ -17,6 +17,36 @@ type BundleItem = {
   done: boolean;
 };
 
+// Named packages expand to their component ids (mirrors PACKAGE_REQUIREMENTS in
+// lib/local-api-store.ts). Seeded/"screen" JewelCert invites store a named
+// package id rather than a "+"-joined component list; without expanding it here
+// the bundle landing page resolves to ZERO items (empty page).
+const PACKAGE_COMPONENTS: Record<string, string[]> = {
+  "package-sales-associate-screen": ["gemmatch", "sales-personality", "jewelry-basic-knowledge"],
+  "package-bench-jeweler-screen": ["gemmatch", "jewelry-basic-knowledge"],
+};
+
+// Turn an invite's assessmentPackageId into its launchable component parts.
+// Handles both formats: a "+"-joined explicit list (new send flow) and a named
+// package (seed/screen invites). Unknown package-* ids expand to nothing.
+function expandPackageParts(assessmentPackageId: string): string[] {
+  const out: string[] = [];
+  for (const part of (assessmentPackageId || "").split("+").map((p) => p.trim()).filter(Boolean)) {
+    if (part.startsWith("package-")) {
+      out.push(...(PACKAGE_COMPONENTS[part] || []));
+    } else {
+      out.push(part);
+    }
+  }
+  return [...new Set(out)];
+}
+
+// Fallback label for a built-in component id not found in CERT_COMPONENTS
+// (e.g. the "jewelry-basic-knowledge" alias) — prettify instead of showing the raw slug.
+function prettyLabel(id: string): string {
+  return id.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // Resolve a JewelCert (bundle) invite into its launchable components so the
 // applicant's bundle landing page can render + track each one.
 export const GET = withApiErrorHandling(async function GET(
@@ -38,7 +68,7 @@ export const GET = withApiErrorHandling(async function GET(
     return NextResponse.json({ error: { code: "not_found", message: "Invite not found." } }, { status: 404 });
   }
 
-  const parts = (invite.assessmentPackageId || "").split("+").filter((p) => p && !p.startsWith("package-"));
+  const parts = expandPackageParts(invite.assessmentPackageId || "");
   const courseStore = getCourseStore();
   const earned = new Set((await courseStore.listEarnedBadges(session.userId)).map((b) => b.courseId));
   const courseIds = parts.filter((p) => p.startsWith("course:")).map((p) => p.replace(/^course:/, ""));
@@ -58,7 +88,7 @@ export const GET = withApiErrorHandling(async function GET(
     }
     // Built-in cert component (12-essentials, sales-personality, jewelry-knowledge, …)
     const component = CERT_COMPONENTS.find((c) => c.id === part);
-    return { key: part, type: "test", label: component?.label || part, href: null, done: false };
+    return { key: part, type: "test", label: component?.label || prettyLabel(part), href: null, done: false };
   });
 
   return NextResponse.json({
