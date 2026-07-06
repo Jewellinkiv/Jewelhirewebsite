@@ -79,6 +79,9 @@ export default async function LoginPage(props: { searchParams?: Promise<{ next?:
             Google sign-in needs OAuth or Firebase credentials configured before live login can start.
           </div>
         )}
+        <p className="text-center text-[12.5px] text-muted mt-6 mb-0">
+          New here? <a href="/signup" className="text-primary no-underline hover:underline">Create an applicant account</a>
+        </p>
       </section>
     </main>
   );

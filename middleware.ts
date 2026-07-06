@@ -14,6 +14,7 @@ function sessionOverrideEnabled() {
 function isPublicPath(pathname: string) {
   return (
     pathname === "/login" ||
+    pathname === "/signup" ||
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
     pathname.startsWith("/jewelcert/claim/") ||
