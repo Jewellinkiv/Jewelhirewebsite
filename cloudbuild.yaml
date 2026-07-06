@@ -1,0 +1,37 @@
+# CI/CD: on push to main, build the app with Google Cloud buildpacks and deploy
+# to the Cloud Run service `jewelhire`. This mirrors the manual bootstrap deploy
+# (`gcloud run deploy --source .`) so behaviour is identical to what shipped by hand.
+#
+# Wire it up (one-time, interactive — see notes below):
+#   1. Connect the GitHub repo to Cloud Build (installs the Cloud Build GitHub App):
+#        gcloud builds connections create github jewelhire-gh \
+#          --region=us-central1 --project=jewelhire-prod-20260626
+#      then open the returned URL to authorize, and link the repo:
+#        gcloud builds repositories create jewelhire \
+#          --connection=jewelhire-gh --region=us-central1 \
+#          --remote-uri=https://github.com/Jewellinkiv/Jewelhire.git \
+#          --project=jewelhire-prod-20260626
+#   2. Create the trigger on main:
+#        gcloud builds triggers create github --name=deploy-main \
+#          --region=us-central1 --project=jewelhire-prod-20260626 \
+#          --repository=projects/jewelhire-prod-20260626/locations/us-central1/connections/jewelhire-gh/repositories/jewelhire \
+#          --branch-pattern='^main$' --build-config=cloudbuild.yaml
+#
+# The Cloud Build service account needs roles: run.admin, iam.serviceAccountUser,
+# and cloudbuild.builds.editor (source deploys submit a nested buildpacks build).
+
+steps:
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - jewelhire
+      - --source=.
+      - --region=us-central1
+      - --quiet
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1800s
