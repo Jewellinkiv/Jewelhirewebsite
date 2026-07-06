@@ -8,14 +8,14 @@
 // account exists we redirect to login instead of resetting a password.
 
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { authSecret } from "@/lib/server/auth";
 import { getPostgresPool } from "@/lib/server/postgres";
 
-function claimSecret() {
-  return process.env.AUTH_SECRET || "dev-only-jewelhire-auth-secret";
-}
-
 export function signInviteClaim(inviteId: string): string {
-  return createHmac("sha256", claimSecret()).update(`jewelcert-claim:${inviteId}`).digest("base64url");
+  // Same secret as session signing — authSecret() throws if AUTH_SECRET is unset
+  // while auth is required, so claim tokens can't silently fall back to a
+  // well-known dev key in a live deployment.
+  return createHmac("sha256", authSecret()).update(`jewelcert-claim:${inviteId}`).digest("base64url");
 }
 
 export function verifyInviteClaim(inviteId: string, token: string): boolean {

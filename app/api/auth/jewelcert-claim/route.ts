@@ -6,7 +6,7 @@ import {
   verifyInviteClaim,
 } from "@/lib/server/invite-claim";
 import { isStrongPassword, setPassword } from "@/lib/server/password-auth";
-import { createSessionToken, findSessionForGoogleUser, SESSION_COOKIE } from "@/lib/server/auth";
+import { findSessionForGoogleUser, isConfiguredAdminEmail, setSessionCookie } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
 
@@ -51,6 +51,11 @@ export async function POST(request: Request) {
   if (await userExistsForEmail(invite.email)) {
     return NextResponse.json({ existingAccount: true, next });
   }
+  // Never create a password account for a configured admin email (would mint an
+  // admin session); route them to SSO instead.
+  if (isConfiguredAdminEmail(invite.email)) {
+    return NextResponse.json({ existingAccount: true, next: "/login" });
+  }
   if (!isStrongPassword(password)) {
     return NextResponse.json(
       { error: { code: "weak_password", message: "Use at least 12 characters, including a letter and a number." } },
@@ -63,14 +68,6 @@ export async function POST(request: Request) {
 
   const session = await findSessionForGoogleUser({ email: invite.email });
   const response = NextResponse.json({ ok: true, next });
-  if (session) {
-    response.cookies.set(SESSION_COOKIE, createSessionToken(session), {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-  }
+  if (session) setSessionCookie(response, session);
   return response;
 }

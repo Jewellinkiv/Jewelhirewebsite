@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 import { getPostgresPool } from "@/lib/server/postgres";
 
 export const SESSION_COOKIE = "jewelhire_session";
@@ -44,10 +45,24 @@ export function randomState() {
   return randomBytes(24).toString("base64url");
 }
 
-function authSecret() {
+export function authSecret() {
   const value = process.env.AUTH_SECRET || "";
   if (!value && authRequired()) throw new Error("AUTH_SECRET is not configured.");
   return value || "dev-only-jewelhire-auth-secret";
+}
+
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+
+// Single place that decides session-cookie flags, so lifetime/SameSite/secure
+// can't drift across the many auth routes that log a user in.
+export function setSessionCookie(response: NextResponse, session: AuthSession) {
+  response.cookies.set(SESSION_COOKIE, createSessionToken(session), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: SESSION_MAX_AGE_SECONDS,
+  });
 }
 
 function encode(value: unknown) {
@@ -91,6 +106,14 @@ function adminEmailSet() {
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean),
   );
+}
+
+// A configured platform-admin email resolves to role='admin' in
+// findSessionForGoogleUser purely from the env allowlist — even with no users
+// row. Self-service password flows (signup / claim) must refuse these emails so
+// they can't be used to mint an admin session; admins authenticate via SSO.
+export function isConfiguredAdminEmail(email: string) {
+  return adminEmailSet().has(email.trim().toLowerCase());
 }
 
 function guardrails(): AuthSession["guardrails"] {

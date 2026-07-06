@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { consumeActionToken, invalidateActionTokens, isActionTokenValid } from "@/lib/server/action-tokens";
 import { isStrongPassword, setPassword } from "@/lib/server/password-auth";
-import { createSessionToken, findSessionForGoogleUser, SESSION_COOKIE } from "@/lib/server/auth";
+import { findSessionForGoogleUser, setSessionCookie } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
 
@@ -44,15 +44,9 @@ export async function POST(request: Request) {
   await invalidateActionTokens("account_claim", claim.userId);
 
   const session = await findSessionForGoogleUser({ email: claim.email });
-  const response = NextResponse.json({ ok: true, next: nextForRole(session?.role) });
-  if (session) {
-    response.cookies.set(SESSION_COOKIE, createSessionToken(session), {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-  }
+  // If the account isn't active (findSessionForGoogleUser returns nothing), don't
+  // claim a logged-in landing — send them to sign in.
+  const response = NextResponse.json({ ok: true, next: session ? nextForRole(session.role) : "/login" });
+  if (session) setSessionCookie(response, session);
   return response;
 }

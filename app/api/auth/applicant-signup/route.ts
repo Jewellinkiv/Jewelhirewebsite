@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isStrongPassword, setPassword } from "@/lib/server/password-auth";
 import { createAssociateUserAndLinkProfile, userExistsForEmail } from "@/lib/server/invite-claim";
-import { createSessionToken, findSessionForGoogleUser, SESSION_COOKIE } from "@/lib/server/auth";
+import { findSessionForGoogleUser, isConfiguredAdminEmail, setSessionCookie } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
 
@@ -21,6 +21,14 @@ export async function POST(request: Request) {
   if (!validEmail(email)) {
     return NextResponse.json({ error: { code: "invalid_email", message: "Enter a valid email address." } }, { status: 400 });
   }
+  // Configured admin emails resolve to an admin session via the env allowlist —
+  // never let one be claimed through unauthenticated self-service signup.
+  if (isConfiguredAdminEmail(email)) {
+    return NextResponse.json(
+      { error: { code: "use_sso", message: "This email is managed. Please sign in with Google." } },
+      { status: 403 },
+    );
+  }
   if (!isStrongPassword(password)) {
     return NextResponse.json(
       { error: { code: "weak_password", message: "Use at least 12 characters, including a letter and a number." } },
@@ -39,14 +47,6 @@ export async function POST(request: Request) {
 
   const session = await findSessionForGoogleUser({ email });
   const response = NextResponse.json({ ok: true, next: "/portal" });
-  if (session) {
-    response.cookies.set(SESSION_COOKIE, createSessionToken(session), {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-  }
+  if (session) setSessionCookie(response, session);
   return response;
 }

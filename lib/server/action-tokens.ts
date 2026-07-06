@@ -45,8 +45,13 @@ export async function consumeActionToken(input: {
   );
   const row = found.rows[0];
   if (!row) return undefined;
-  const claimed = await pool.query(`update auth_action_tokens set used_at = now() where id = $1 and used_at is null`, [row.id]);
-  if (!claimed.rowCount) return undefined; // lost a race
+  // Re-check expiry in the same atomic claim so a token that lapses between the
+  // SELECT and the UPDATE can't still be consumed.
+  const claimed = await pool.query(
+    `update auth_action_tokens set used_at = now() where id = $1 and used_at is null and expires_at > now()`,
+    [row.id],
+  );
+  if (!claimed.rowCount) return undefined; // lost a race, or just expired
   return { userId: row.user_id, email: row.email_normalized };
 }
 

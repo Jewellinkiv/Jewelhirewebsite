@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { consumeActionToken } from "@/lib/server/action-tokens";
+import { consumeActionToken, invalidateActionTokens } from "@/lib/server/action-tokens";
 import { setPassword, isStrongPassword } from "@/lib/server/password-auth";
-import { createSessionToken, findSessionForGoogleUser, SESSION_COOKIE } from "@/lib/server/auth";
+import { findSessionForGoogleUser, setSessionCookie } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
 
@@ -26,18 +26,14 @@ export async function POST(request: Request) {
   }
 
   await setPassword(subject.userId, password);
+  // Invalidate any other outstanding reset links for this user.
+  await invalidateActionTokens("password_reset", subject.userId);
 
-  // Auto-login: mint a fresh session for the user so they land straight in.
+  // Auto-login: mint a fresh session so they land straight in. If the account is
+  // not active, findSessionForGoogleUser returns nothing — route them to sign in
+  // rather than reporting a logged-in landing they don't actually have.
   const session = await findSessionForGoogleUser({ email: subject.email });
-  const response = NextResponse.json({ ok: true, role: session?.role ?? "associate" });
-  if (session) {
-    response.cookies.set(SESSION_COOKIE, createSessionToken(session), {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-  }
+  const response = NextResponse.json({ ok: true, role: session?.role ?? "associate", next: session ? undefined : "/login" });
+  if (session) setSessionCookie(response, session);
   return response;
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isConfiguredAdminEmail } from "@/lib/server/auth";
 import { userExistsForEmail } from "@/lib/server/invite-claim";
 import { createPendingStoreSignup } from "@/lib/server/store-signup";
 import { createStoreSignupCheckoutLink, getStoreOwnerBillingCheckoutReadiness } from "@/lib/server/stripe-billing";
@@ -24,6 +25,12 @@ export async function POST(request: Request) {
   }
   if (!validEmail(email)) {
     return NextResponse.json({ error: { code: "invalid_email", message: "Enter a valid email address." } }, { status: 400 });
+  }
+  if (isConfiguredAdminEmail(email)) {
+    return NextResponse.json(
+      { error: { code: "use_sso", message: "This email is managed. Please sign in with Google." } },
+      { status: 403 },
+    );
   }
   if (await userExistsForEmail(email)) {
     return NextResponse.json(

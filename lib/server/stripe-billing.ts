@@ -372,12 +372,17 @@ async function reconcileStripeCheckoutSession(event: StripeWebhookEvent, object:
   // pending-signup id as client_reference_id. Provision the store now that payment
   // is confirmed (idempotent across Stripe retries).
   if (clientReferenceId.startsWith("psu-")) {
+    const customerEmail =
+      (typeof object.customer_email === "string" ? object.customer_email : "") ||
+      ((object.customer_details as { email?: string } | undefined)?.email ?? "") ||
+      null;
     const result = await provisionStoreFromPendingSignup({
       pendingId: clientReferenceId,
       stripeReference: subscriptionIdFor(object) || object.id || null,
+      customerEmail,
     });
     return result.provisioned
-      ? { reconciled: true, target: "store_signup", pendingId: clientReferenceId, companyId: result.companyId }
+      ? { reconciled: true, target: "store_signup", pendingId: clientReferenceId, companyId: result.companyId, claimEmailSent: result.claimEmailSent }
       : { reconciled: false, reason: result.reason };
   }
 

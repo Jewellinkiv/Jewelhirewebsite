@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { PoolClient } from "pg";
+import { isConfiguredAdminEmail } from "@/lib/server/auth";
 import { getPostgresPool } from "@/lib/server/postgres";
 import { createActionToken } from "@/lib/server/action-tokens";
 import { notifyStoreOwnerClaim } from "@/lib/server/notifications";
@@ -84,7 +85,7 @@ type PendingRow = {
 
 export type ProvisionResult =
   | { provisioned: false; reason: string }
-  | { provisioned: true; companyId: string; storeId: string; userId: string; alreadyDone?: boolean };
+  | { provisioned: true; companyId: string; storeId: string; userId: string; alreadyDone?: boolean; claimEmailSent?: boolean };
 
 // Idempotently provision a store from a pending signup. Safe to call repeatedly
 // (Stripe retries webhooks): the pending row is flipped pending -> provisioned in
@@ -92,6 +93,9 @@ export type ProvisionResult =
 export async function provisionStoreFromPendingSignup(input: {
   pendingId: string;
   stripeReference?: string | null;
+  customerEmail?: string | null;
+  // internal: set on a self-heal retry to bound recursion to one hop.
+  _retry?: boolean;
 }): Promise<ProvisionResult> {
   const pool = getPostgresPool();
 
@@ -107,7 +111,7 @@ export async function provisionStoreFromPendingSignup(input: {
 
   const row = claim.rows[0];
   if (!row) {
-    // Either unknown id, or already provisioned by a prior delivery.
+    // Either unknown id, already provisioned, cancelled, or stuck mid-provision.
     const existing = await pool.query<{ status: string; provisioned_company_id: string | null; provisioned_store_id: string | null; provisioned_user_id: string | null }>(
       `select status, provisioned_company_id, provisioned_store_id, provisioned_user_id
          from pending_store_signups where id = $1`,
@@ -117,21 +121,55 @@ export async function provisionStoreFromPendingSignup(input: {
     if (e?.status === "provisioned" && e.provisioned_company_id && e.provisioned_store_id && e.provisioned_user_id) {
       return { provisioned: true, companyId: e.provisioned_company_id, storeId: e.provisioned_store_id, userId: e.provisioned_user_id, alreadyDone: true };
     }
+    // Self-heal: a row left 'provisioned' with null ids means a prior attempt
+    // claimed it but died before commit/rollback. Reopen it — but only if it has
+    // been stuck for >2 minutes, so we never race a provision that is genuinely
+    // in flight (which commits in well under a second).
+    if (e?.status === "provisioned" && !e.provisioned_company_id && !input._retry) {
+      const reopened = await pool.query(
+        `update pending_store_signups set status = 'pending', updated_at = now()
+          where id = $1 and status = 'provisioned' and provisioned_company_id is null
+            and provisioned_at < now() - interval '2 minutes'
+          returning id`,
+        [input.pendingId],
+      );
+      if (reopened.rows[0]) return provisionStoreFromPendingSignup({ ...input, _retry: true });
+    }
     return { provisioned: false, reason: "pending_signup_not_claimable" };
   }
+
+  const emailNorm = row.owner_email_normalized;
+
+  // Safety gates before we create anything. Any failure cancels the pending
+  // signup (terminal) rather than grafting a store onto someone else's account.
+  const cancel = async (reason: string): Promise<ProvisionResult> => {
+    await pool.query(`update pending_store_signups set status = 'cancelled', updated_at = now() where id = $1`, [row.id]);
+    console.warn(`[store-signup] provisioning cancelled for ${row.id} (${emailNorm}): ${reason}`);
+    return { provisioned: false, reason };
+  };
+
+  // Configured admin emails would resolve to an admin session — never provision one.
+  if (isConfiguredAdminEmail(emailNorm)) return cancel("admin_email_blocked");
+  // The paying Stripe customer must match the email the store is being created for.
+  if (input.customerEmail && input.customerEmail.trim().toLowerCase() !== emailNorm) {
+    return cancel("customer_email_mismatch");
+  }
+  // Never attach a store to a pre-existing account (the signup route blocks known
+  // emails up front; this closes the webhook-time window and prevents account graft).
+  const preexisting = await pool.query<{ id: string }>(`select id from users where email_normalized = $1`, [emailNorm]);
+  if (preexisting.rows[0]) return cancel("owner_account_exists");
 
   const client = await pool.connect();
   let companyId = "";
   let storeId = "";
   let userId = "";
-  let existingUser = false;
   try {
     await client.query("begin");
     const slug = await uniqueCompanySlug(client, row.company_name);
     companyId = `co-${slug}`;
     storeId = `store-${slug}-primary`;
+    userId = `user-${slug}-owner`;
     const email = row.owner_email;
-    const emailNorm = row.owner_email_normalized;
     const ownerName = row.owner_name?.trim() || email;
     const planDb = ["starter", "growth", "pro"].includes(row.plan) ? row.plan : DEFAULT_PLAN;
 
@@ -145,26 +183,12 @@ export async function provisionStoreFromPendingSignup(input: {
        values ($1, $2, $3, $4, null, 'America/New_York', 'active', now(), now())`,
       [storeId, companyId, `${row.company_name} — Primary`, `${slug}-careers`],
     );
-
-    // Reuse an existing user with this email if one was created in the meantime
-    // (e.g. a free applicant signup between form submit and payment). Otherwise
-    // create the owner. Either way, link them to the store as 'store_owner'.
-    const found = await client.query<{ id: string }>(
-      `select id from users where email_normalized = $1`,
-      [emailNorm],
+    // Fresh owner account, linked to the store as 'store_owner' (never 'admin').
+    await client.query(
+      `insert into users (id, company_id, email, email_normalized, name, status, created_at, updated_at)
+       values ($1, $2, $3, $4, $5, 'active', now(), now())`,
+      [userId, companyId, email, emailNorm, ownerName],
     );
-    if (found.rows[0]) {
-      userId = found.rows[0].id;
-      existingUser = true;
-      await client.query(`update users set company_id = coalesce(company_id, $2), updated_at = now() where id = $1`, [userId, companyId]);
-    } else {
-      userId = `user-${slug}-owner`;
-      await client.query(
-        `insert into users (id, company_id, email, email_normalized, name, status, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, 'active', now(), now())`,
-        [userId, companyId, email, emailNorm, ownerName],
-      );
-    }
     await client.query(
       `insert into store_users (id, store_id, user_id, role, status, created_at, updated_at)
        values ($1, $2, $3, 'store_owner', 'active', now(), now())
@@ -190,7 +214,8 @@ export async function provisionStoreFromPendingSignup(input: {
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
-    // Re-open the pending row so a retry can try again.
+    // Re-open the pending row so a retry can try again (fast path when the
+    // process survives; the >2min self-heal above covers a mid-provision crash).
     await pool.query(`update pending_store_signups set status = 'pending', updated_at = now() where id = $1`, [input.pendingId]);
     throw error;
   } finally {
@@ -198,7 +223,9 @@ export async function provisionStoreFromPendingSignup(input: {
   }
 
   // Email the account-claim link so the owner can set their password. Best-effort;
-  // a mail failure must not undo the provisioning.
+  // a mail failure must not undo the provisioning, but it IS surfaced (logs +
+  // claimEmailSent) so a paid-but-unemailed owner can be found and recovered.
+  let claimEmailSent = false;
   try {
     const token = await createActionToken({ purpose: "account_claim", userId, email: row.owner_email, ttlMinutes: CLAIM_TTL_MINUTES });
     await notifyStoreOwnerClaim({
@@ -206,11 +233,12 @@ export async function provisionStoreFromPendingSignup(input: {
       name: row.owner_name,
       companyName: row.company_name,
       token,
-      existingAccount: existingUser,
+      existingAccount: false,
     });
-  } catch {
-    // swallow — provisioning succeeded; the owner can use "forgot password" to recover.
+    claimEmailSent = true;
+  } catch (error) {
+    console.error(`[store-signup] claim email FAILED for provisioned owner ${userId} <${row.owner_email}> (company ${companyId}). They can recover via forgot-password.`, error);
   }
 
-  return { provisioned: true, companyId, storeId, userId };
+  return { provisioned: true, companyId, storeId, userId, claimEmailSent };
 }
