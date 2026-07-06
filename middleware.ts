@@ -26,6 +26,7 @@ function isPublicPath(pathname: string) {
     pathname.startsWith("/apply/") ||
     pathname.startsWith("/_next/") ||
     pathname === "/favicon.ico" ||
+    pathname === "/icon.svg" ||
     pathname === "/robots.txt"
   );
 }
