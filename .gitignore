@@ -16,3 +16,12 @@ next-env.d.ts
 # QA run artifacts (screenshots, reports)
 docs/qa-runs/
 qa-artifacts/
+
+# Local scratch & typecheck logs
+*.log
+.qa_tmp/
+docs/.fuse_hidden*
+docs/_ledger_tmp.txt
+
+# Local-only dev login (mirrors app/dev; kept out of repo and deploy)
+app/dev-login/

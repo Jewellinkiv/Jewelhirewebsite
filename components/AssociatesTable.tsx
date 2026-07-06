@@ -34,7 +34,7 @@ const STATUS_STYLE: Record<string, string> = {
 const COLS: { key: SortKey; label: string; num?: boolean }[] = [
   { key: "name", label: "Associate" },
   { key: "role", label: "Role" },
-  { key: "type", label: "GemMatch type" },
+  { key: "type", label: "JewelCert type" },
   { key: "secondary", label: "Secondary" },
   { key: "floorFit", label: "Floor fit", num: true },
   { key: "tenureMonths", label: "Tenure", num: true },

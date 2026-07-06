@@ -22,12 +22,11 @@ export const GET = withApiErrorHandling(async function GET(_request: Request, pr
 
 export const POST = withApiErrorHandling(async function POST(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
+  const storeId = await requireStoreAccess(params.storeId, "jewelcert_invites.create");
   const body = await request.json().catch(() => null);
   if (!body?.applicationId) {
     return NextResponse.json({ error: "applicationId is required" }, { status: 400 });
   }
-
-  const storeId = await requireStoreAccess(params.storeId, "jewelcert_invites.create");
   const input = {
     storeId,
     applicationId: body.applicationId,

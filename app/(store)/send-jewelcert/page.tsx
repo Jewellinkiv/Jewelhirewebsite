@@ -12,11 +12,67 @@ const STORE_ID = "store-sissys-little-rock";
 const PUBLIC_STORE_SLUG = "sissys-log-cabin-careers";
 const DEFAULT_JOB_ID = "job-luxury-sales-associate";
 
+type NotificationStatus = "disabled" | "dry_run" | "sent" | "skipped" | "failed";
+
+type NotificationResult = {
+  status?: NotificationStatus;
+  reason?: string;
+};
+
+type DeliveryNotice = {
+  tone: "success" | "warning" | "error";
+  title: string;
+  body: string;
+};
+
 function KindIcon({ kind, size = 18 }: { kind: ComponentKind; size?: number }) {
   if (kind === "gemmatch") return <IconDiamond size={size} />;
   if (kind === "knowledge") return <IconClipboardList size={size} />;
   if (kind === "course") return <IconSchool size={size} />;
   return <IconTargetArrow size={size} />;
+}
+
+function deliveryNotice(notification?: NotificationResult): DeliveryNotice {
+  if (notification?.status === "sent") {
+    return {
+      tone: "success",
+      title: "Email sent",
+      body: "The invite email was accepted by the email provider.",
+    };
+  }
+  if (notification?.status === "dry_run") {
+    return {
+      tone: "warning",
+      title: "Email dry run",
+      body: "The invite was created, but email delivery is running in dry-run mode.",
+    };
+  }
+  if (notification?.status === "disabled") {
+    return {
+      tone: "warning",
+      title: "Email disabled",
+      body: notification.reason || "The invite was created, but live email delivery is disabled.",
+    };
+  }
+  if (notification?.status === "skipped") {
+    return {
+      tone: "error",
+      title: "Email skipped",
+      body: notification.reason || "The invite was created, but no deliverable recipient email was available.",
+    };
+  }
+  if (notification?.status === "failed") {
+    return {
+      tone: "error",
+      title: "Email failed",
+      body: notification.reason || "The invite was created, but the email provider did not accept it.",
+    };
+  }
+  return {
+    tone: "warning",
+    title: "Email status unknown",
+    body: "The invite was created, but the email delivery status was not returned.",
+  };
 }
 
 export default function SendJewelCert() {
@@ -30,6 +86,7 @@ export default function SendJewelCert() {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [delivery, setDelivery] = useState<DeliveryNotice | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +125,7 @@ export default function SendJewelCert() {
     if (!canSend || sending) return;
     setSending(true);
     setError("");
+    setDelivery(null);
     try {
       let applicationId = "";
       if (mode === "existing") {
@@ -103,6 +161,8 @@ export default function SendJewelCert() {
         const body = await response.json().catch(() => ({}));
         throw new Error(body.error || "Unable to send JewelCert");
       }
+      const body = await response.json().catch(() => ({}));
+      setDelivery(deliveryNotice(body.notification));
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to send JewelCert");
@@ -115,15 +175,27 @@ export default function SendJewelCert() {
   const label = "text-[12px] font-semibold text-head mb-1.5 block";
 
   if (sent) {
+    const deliveryClass =
+      delivery?.tone === "success"
+        ? "border-[#b9e4d4] bg-[#f0fbf7] text-[#0f6e56]"
+        : delivery?.tone === "error"
+          ? "border-[#f2c2c2] bg-[#fff4f4] text-[#a32d2d]"
+          : "border-[#f2d3aa] bg-[#fff8ec] text-[#8a4b10]";
     return (
       <div>
         <PageHeader title="Send JewelCert" />
         <Panel className="max-w-[560px] mx-auto">
           <div className="p-8 text-center">
             <div className="w-14 h-14 rounded-full bg-[#e1f5ee] text-[#0f6e56] flex items-center justify-center mx-auto mb-4"><IconCheck size={28} /></div>
-            <h2 className="text-[20px] font-bold text-head m-0">JewelCert queued</h2>
-            <p className="text-[14px] text-body mt-2 mb-5">{recipientName} has one invite link queued for {total} item{total === 1 ? "" : "s"}. Progress shows on their pipeline card.</p>
-            <button onClick={() => { setSent(false); setComps(new Set()); setCourses(new Set()); }} className="btn-outline px-4 py-2.5 text-[13px]">Send another</button>
+            <h2 className="text-[20px] font-bold text-head m-0">{delivery?.tone === "success" ? "JewelCert sent" : "JewelCert created"}</h2>
+            <p className="text-[14px] text-body mt-2 mb-4">{recipientName} has one invite link for {total} item{total === 1 ? "" : "s"}. Progress shows on their pipeline card.</p>
+            {delivery && (
+              <div className={`mb-5 rounded-md border px-3 py-2 text-left text-[12.5px] ${deliveryClass}`}>
+                <div className="font-bold">{delivery.title}</div>
+                <div className="mt-0.5">{delivery.body}</div>
+              </div>
+            )}
+            <button onClick={() => { setSent(false); setDelivery(null); setComps(new Set()); setCourses(new Set()); }} className="btn-outline px-4 py-2.5 text-[13px]">Send another</button>
           </div>
         </Panel>
       </div>

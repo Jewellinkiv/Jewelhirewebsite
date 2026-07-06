@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireStoreAccess } from "@/lib/server/access-control";
+import { getCourseAssignment, updateTrainingProgress } from "@/lib/local-api-store";
+import { requireRecipientOrStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { notifyTrainingAssignment } from "@/lib/server/notifications";
-import { getPostgresCourseAssignment, getPostgresCourseAssignmentStoreId, updatePostgresTrainingProgress } from "@/lib/server/postgres-phase1";
-import { getApplicantStore } from "@/lib/server/stores/applicant-store";
+import { getPostgresCourseAssignment, updatePostgresTrainingProgress } from "@/lib/server/postgres-phase1";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
 
 async function notifyIfCompleted(
@@ -39,18 +39,27 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
   }
 
   if (getStorageRuntime() === "postgres") {
-    const storeId = await getPostgresCourseAssignmentStoreId(params.id);
-    if (!storeId) return NextResponse.json({ error: "Course assignment not found" }, { status: 404 });
-    await requireStoreAccess(storeId, "course_assignments.progress");
     const before = await getPostgresCourseAssignment(params.id);
+    if (!before) return NextResponse.json({ error: "Course assignment not found" }, { status: 404 });
+    await requireRecipientOrStoreAccess({
+      storeId: before.storeId,
+      recipientEmail: before.recipientEmail,
+      operation: "course_assignments.progress",
+    });
     const assignment = await updatePostgresTrainingProgress({ assignmentId: params.id, progress });
     if (!assignment) return NextResponse.json({ error: "Course assignment not found" }, { status: 404 });
     const notification = await notifyIfCompleted(before, assignment);
     return NextResponse.json({ assignment, notification });
   }
 
-  const before = await getApplicantStore().getScopedCourseAssignment({ assignmentId: params.id });
-  const assignment = await getApplicantStore().updateScopedTrainingProgress({ assignmentId: params.id, progress });
+  const before = getCourseAssignment(params.id);
+  if (!before) return NextResponse.json({ error: "Course assignment not found" }, { status: 404 });
+  await requireRecipientOrStoreAccess({
+    storeId: before.storeId,
+    recipientEmail: before.recipientEmail,
+    operation: "course_assignments.progress",
+  });
+  const assignment = updateTrainingProgress(params.id, progress);
   if (!assignment) return NextResponse.json({ error: "Course assignment not found" }, { status: 404 });
   const notification = await notifyIfCompleted(before, assignment);
   return NextResponse.json({ assignment, notification });

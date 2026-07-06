@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Panel } from "@/components/ui";
-import { SESSION } from "@/lib/session";
+import { useCurrentSessionUser } from "@/lib/client-session";
 import { SEED_APPLICATIONS, STAGE_META, ApplicationStage } from "@/lib/my-applications";
 import { IconBriefcase, IconCalendar, IconClipboardList, IconChevronRight, IconCheck } from "@/components/icons";
 
@@ -36,7 +36,7 @@ interface ApiApplicationItem {
 function nextStep(stage: ApplicationStage) {
   if (stage === "applied") return "Application received — the store is reviewing it";
   if (stage === "jewelcert") return "Finish your JewelCert knowledge check";
-  if (stage === "gemmatch") return "Complete your GemMatch assessment (~3 min)";
+  if (stage === "gemmatch") return "Complete your JewelCert assessment (~3 min)";
   if (stage === "interview") return "Interview scheduled — confirm your time";
   if (stage === "offer") return "Offer extended — review the details";
   return undefined;
@@ -71,6 +71,7 @@ function apiRows(items: ApiApplicationItem[]): Row[] {
 
 export default function AssociateHome() {
   const [apps, setApps] = useState<Row[]>(seedRows);
+  const user = useCurrentSessionUser();
 
   useEffect(() => {
     let cancelled = false;
@@ -101,7 +102,7 @@ export default function AssociateHome() {
 
   return (
     <div>
-      <h1 className="text-[22px] font-semibold text-head m-0">Welcome back, {SESSION.name.split(" ")[0]}</h1>
+      <h1 className="text-[22px] font-semibold text-head m-0">Welcome back, {user.name.split(" ")[0]}</h1>
       <p className="mt-1 mb-5 text-muted text-[13.5px]">Here's where things stand across the stores you applied to.</p>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-[18px]">
@@ -145,7 +146,7 @@ export default function AssociateHome() {
         {/* right column */}
         <div className="flex flex-col gap-[18px]">
           {interviews.length > 0 && (
-            <Panel title="Upcoming interview" icon={<IconCalendar size={16} />}>
+            <Panel title={interviews.length > 1 ? "Upcoming interviews" : "Upcoming interview"} icon={<IconCalendar size={16} />}>
               <div className="p-4">
                 {interviews.map((a) => (
                   <div key={a.id}>

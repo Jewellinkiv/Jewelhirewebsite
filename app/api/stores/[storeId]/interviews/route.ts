@@ -10,17 +10,17 @@ const statuses: InterviewStatus[] = ["scheduled", "completed", "cancelled", "no_
 
 export const GET = withApiErrorHandling(async function GET(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
+  const storeId = await requireStoreAccess(params.storeId, "interviews.list");
   const url = new URL(request.url);
   const status = statuses.includes(url.searchParams.get("status") as InterviewStatus)
     ? (url.searchParams.get("status") as InterviewStatus)
     : undefined;
   if (getStorageRuntime() === "postgres") {
-    await requireStoreAccess(params.storeId, "interviews.list");
-    return listPostgresStoreInterviews({ storeId: params.storeId, status }).then((items) =>
+    return listPostgresStoreInterviews({ storeId, status }).then((items) =>
       NextResponse.json({ count: items.length, items }),
     );
   }
 
-  const items = await getApplicantStore().listStoreInterviews({ storeId: params.storeId, status });
+  const items = await getApplicantStore().listStoreInterviews({ storeId, status });
   return NextResponse.json({ count: items.length, items });
 });

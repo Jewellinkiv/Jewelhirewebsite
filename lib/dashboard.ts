@@ -1,5 +1,5 @@
 // Dashboard data: a template-based "where the floor is now" read derived from
-// GemMatch results, plus careers-page analytics and an activity feed. Mock data;
+// JewelCert results, plus careers-page analytics and an activity feed. Mock data;
 // the floor read is generated from the mix so it adapts as results change.
 
 import { Mix, ProfileCode, PROFILES, PROFILE_ORDER } from "./gemmatch";
@@ -76,8 +76,8 @@ export const DASH_KPIS: DashKpi[] = [
   { key: "jobs", label: "Active job posts", value: "3", sub: "Sales, Mgr, Bench", href: "/jobs" },
   { key: "applicants", label: "Applicants", value: "47", sub: "+4 this week", href: "/applicants" },
   { key: "hired", label: "Hired", value: "6", sub: "this quarter", href: "/pipeline" },
-  { key: "fit", label: "Avg fit", value: "78", sub: "across results", href: "/gemmatch" },
-  { key: "gemmatch", label: "GemMatch done", value: "81%", sub: "completion", href: "/gemmatch" },
+  { key: "fit", label: "Avg fit", value: "78", sub: "across results", href: "/jewelcert" },
+  { key: "jewelcert", label: "JewelCert done", value: "81%", sub: "completion", href: "/jewelcert" },
 ];
 
 export interface CareersAnalytics {
@@ -122,6 +122,6 @@ export interface ActivityItem {
 
 export const ACTIVITY: ActivityItem[] = [
   { icon: "apply", text: "Maya Chen applied — Sales Associate, Little Rock", when: "2h", href: "/applicants/maya-chen" },
-  { icon: "gemmatch", text: "Devon Ross completed GemMatch — fit 86 · Strong", when: "5h", href: "/applicants/devon-ross" },
+  { icon: "gemmatch", text: "Devon Ross completed JewelCert — fit 88 · Strong", when: "5h", href: "/applicants/devon-ross" },
   { icon: "interview", text: "Interview scheduled — Jess Wood, Thu 2pm", when: "1d", href: "/interviews" },
 ];

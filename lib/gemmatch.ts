@@ -1,4 +1,4 @@
-// GemMatch domain model + scoring helpers.
+// JewelCert pick-10 domain model + scoring helpers.
 // NOTE: scoring/fit functions are reference stubs. In production the matching
 // service supplies `mix`, `fitScore`, and `tier`; the UI just consumes them.
 

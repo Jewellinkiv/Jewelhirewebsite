@@ -177,12 +177,12 @@ export default function ApplicantProfilePage(props: { params: Promise<{ id: stri
                 <div className="max-w-[200px] mx-auto"><Radar mix={gm.mix} size={200} /></div>
                 <div>
                   <div className="text-[15px] font-bold text-head">{gm.type}</div>
-                  <div className="text-[12.5px] text-muted mb-2">GemMatch · {PROFILES[gm.primary].name}-led · <b style={{ color: barColor(gm.fitScore) }}>{gm.fitScore} {gm.tier}</b></div>
+                  <div className="text-[12.5px] text-muted mb-2">JewelCert · {PROFILES[gm.primary].name}-led · <b style={{ color: barColor(gm.fitScore) }}>{gm.fitScore} {gm.tier}</b></div>
                   <MixBars mix={gm.mix} />
                 </div>
               </div>
             ) : (
-              <div className="px-4 py-3 text-[13px] text-muted border-b border-[#eef1f6]">GemMatch not completed.</div>
+              <div className="px-4 py-3 text-[13px] text-muted border-b border-[#eef1f6]">JewelCert not completed.</div>
             )}
             <div className="p-4">
               <div className="text-[12px] font-semibold uppercase tracking-wide text-muted mb-2 inline-flex items-center gap-1.5"><IconClipboardList size={13} /> Test scores</div>

@@ -31,7 +31,16 @@ function redirectToLogin(request: Request, error: string) {
 }
 
 function safeNext(value: string) {
-  return value.startsWith("/") && !value.startsWith("//") ? value : "/";
+  // Must be a same-origin path-relative URL. Reject protocol-relative ("//host")
+  // and backslash tricks ("/\\host", "/\/host") which the WHATWG URL parser
+  // normalizes to "//host" for http(s), turning it into an external open redirect.
+  let decoded = "";
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    return "/";
+  }
+  return value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") && !decoded.includes("\\") ? value : "/";
 }
 
 function destinationForSession(next: string, session: AuthSession) {

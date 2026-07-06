@@ -7,6 +7,7 @@ import { RESUME_TEMPLATES, ResumeTemplate } from "@/lib/resume-templates";
 import { IconFileText, IconCheck, IconUser, IconBriefcase, IconSchool, IconCertificate } from "@/components/icons";
 
 const input = "w-full border border-line rounded-md px-3 py-2 text-[13px] text-body outline-none focus:border-primary bg-white";
+const readonlyInput = `${input} bg-[#f8fafc] text-muted`;
 
 interface ResumeApiResponse {
   profile: {
@@ -151,7 +152,7 @@ export default function PortalResumePage() {
             <Field label="Headline"><input className={input} value={resume.headline} onChange={(e) => set("headline", e.target.value)} /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Location"><input className={input} value={resume.location} onChange={(e) => set("location", e.target.value)} /></Field>
-              <Field label="Email"><input className={input} value={resume.email} onChange={(e) => set("email", e.target.value)} /></Field>
+              <Field label="Email"><input className={readonlyInput} value={resume.email} readOnly /></Field>
             </div>
             <Field label="Summary"><textarea className={`${input} h-[80px] resize-none`} value={resume.summary} onChange={(e) => set("summary", e.target.value)} /></Field>
             <div className="text-[11.5px] text-muted">Experience, education, and skills carry over from your profile. Completed training is added as credentials automatically.</div>

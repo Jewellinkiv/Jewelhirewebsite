@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/common";
-import { Panel, StatusChip } from "@/components/ui";
+import { Panel } from "@/components/ui";
 import { CANDIDATES } from "@/lib/data";
 import { LEGACY_ASSESSMENTS, LEGACY_COURSE_TOTALS } from "@/lib/legacy";
 import { IconClipboardList, IconSchool, IconSend, IconUserPlus } from "@/components/icons";
@@ -12,6 +12,7 @@ type InviteStatus = "Sent" | "Opened" | "Started" | "Completed" | "Expired";
 
 const INVITES: {
   candidateId: string;
+  candidate?: QueueCandidate | null;
   package: string;
   contents: string;
   status: InviteStatus;
@@ -20,8 +21,8 @@ const INVITES: {
 }[] = [
   {
     candidateId: "bryan-lett",
-    package: "GemMatch + 12 Essentials",
-    contents: "GemMatch profile, 12 Essentials",
+    package: "JewelCert + 12 Essentials",
+    contents: "JewelCert profile, 12 Essentials",
     status: "Opened",
     sent: "Today",
     due: "Jun 26",
@@ -29,7 +30,7 @@ const INVITES: {
   {
     candidateId: "kate-pryor",
     package: "Sales Associate screen",
-    contents: "GemMatch profile, Sales Personality, Jewelry Basic Knowledge",
+    contents: "JewelCert profile, Sales Personality, Jewelry Basic Knowledge",
     status: "Sent",
     sent: "Today",
     due: "Jun 27",
@@ -52,7 +53,23 @@ const INVITES: {
   },
 ];
 
-type QueueInvite = (typeof INVITES)[number];
+type QueueCandidate = {
+  id: string;
+  name: string;
+  initials: string;
+  role: string;
+  email?: string;
+};
+
+type QueueInvite = {
+  candidateId: string;
+  candidate?: QueueCandidate | null;
+  package: string;
+  contents: string;
+  status: InviteStatus;
+  sent: string;
+  due: string;
+};
 const STORE_ID = "store-sissys-little-rock";
 
 const STATUS_STYLE: Record<InviteStatus, string> = {
@@ -65,11 +82,11 @@ const STATUS_STYLE: Record<InviteStatus, string> = {
 
 const PACKAGE_TEMPLATES = [
   {
-    title: "GemMatch profile",
+    title: "JewelCert profile",
     icon: <IconSend size={17} />,
     audience: "Every candidate",
     detail: "Primary invite for candidate style, fit, and manager coaching notes.",
-    items: ["GemMatch assessment", "Candidate share page", "Manager fit report"],
+    items: ["JewelCert assessment", "Candidate share page", "Manager fit report"],
   },
   {
     title: "Sales Associate screen",
@@ -117,7 +134,7 @@ export default function CertInvitationsPage() {
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: {
         items: {
-          candidate: { id: string } | null;
+          candidate: QueueCandidate | null;
           package: string;
           contents: string;
           status: InviteStatus;
@@ -128,6 +145,7 @@ export default function CertInvitationsPage() {
         if (!cancelled) {
           setInvites(data.items.map((item) => ({
             candidateId: item.candidate?.id || "unknown",
+            candidate: item.candidate,
             package: item.package,
             contents: item.contents,
             status: item.status,
@@ -148,18 +166,18 @@ export default function CertInvitationsPage() {
     <div>
       <PageHeader
         title="Cert invitations"
-        subtitle="Send GemMatch, aptitude tests, and training packages without copying the legacy Bubble flow."
+        subtitle="Send JewelCert, aptitude tests, and training packages without copying the legacy Bubble flow."
         action={
-          <button className="btn-grad inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[12.5px]">
+          <Link href="/send-jewelcert" className="btn-grad inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[12.5px] no-underline">
             <IconUserPlus size={15} /> New invitation
-          </button>
+          </Link>
         }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-[18px]">
         <Stat label="Open invites" value={pending} sub="Sent, opened, or started" />
         <Stat label="Completed" value={completed} sub="Ready for manager review" />
-        <Stat label="Assessment options" value={LEGACY_ASSESSMENTS.length + 1} sub="GemMatch plus legacy tests" />
+        <Stat label="Assessment options" value={LEGACY_ASSESSMENTS.length + 1} sub="JewelCert plus legacy tests" />
         <Stat label="Training courses" value={LEGACY_COURSE_TOTALS.total} sub={`${LEGACY_COURSE_TOTALS.published} published`} />
       </div>
 
@@ -175,7 +193,7 @@ export default function CertInvitationsPage() {
             </thead>
             <tbody>
               {invites.map((invite) => {
-                const candidate = candidateMap.get(invite.candidateId);
+                const candidate = invite.candidate || candidateMap.get(invite.candidateId);
                 return (
                   <tr key={`${invite.candidateId}-${invite.package}`} className="hover:bg-rowhover align-top">
                     <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
@@ -229,7 +247,7 @@ export default function CertInvitationsPage() {
           <Panel title="V2 invite rules">
             <div className="p-4 text-[12.5px] text-body leading-relaxed space-y-2">
               <p className="m-0">Keep invite packages role-based, not page-based. A store manager should pick a package, candidate, due date, and message.</p>
-              <p className="m-0">Legacy aptitude tests stay available as seed assessments, but GemMatch should be the primary invite in v2.</p>
+              <p className="m-0">Legacy aptitude tests stay available as seed assessments, but JewelCert should be the primary invite in v2.</p>
               <p className="m-0">Training can be assigned to finalists or new hires without mixing it into the assessment score.</p>
             </div>
           </Panel>

@@ -47,6 +47,13 @@ function redactedTarget(rawUrl) {
   };
 }
 
+function sslConfig(rawUrl) {
+  const url = new URL(rawUrl);
+  const sslmode = url.searchParams.get("sslmode");
+  if (sslmode === "disable" || ["localhost", "127.0.0.1", "::1"].includes(url.hostname)) return false;
+  return { rejectUnauthorized: true };
+}
+
 function usage() {
   console.log(`Usage:
   npm run db:migrate:status
@@ -158,7 +165,7 @@ async function main() {
     connectionTimeoutMillis: 5000,
     idleTimeoutMillis: 30_000,
     max: 1,
-    ssl: { rejectUnauthorized: true },
+    ssl: sslConfig(url),
   });
 
   try {

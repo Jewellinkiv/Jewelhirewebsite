@@ -12,7 +12,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "JewelHire",
-  description: "JewelHire v2 — jewelry hiring & GemMatch",
+  description: "JewelHire v2 — jewelry hiring & JewelCert",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

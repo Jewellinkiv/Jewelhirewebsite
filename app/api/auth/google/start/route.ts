@@ -5,6 +5,17 @@ function appBaseUrl(request: Request) {
   return (process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin).replace(/\/$/, "");
 }
 
+function safeNext(value: unknown) {
+  if (typeof value !== "string") return "/";
+  let decoded = "";
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    return "/";
+  }
+  return value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") && !decoded.includes("\\") ? value : "/";
+}
+
 export function GET(request: Request) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) {
@@ -26,6 +37,6 @@ export function GET(request: Request) {
   const response = NextResponse.redirect(authUrl);
   const secure = process.env.NODE_ENV === "production";
   response.cookies.set(OAUTH_STATE_COOKIE, state, { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 600 });
-  response.cookies.set(OAUTH_NEXT_COOKIE, next.startsWith("/") ? next : "/", { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 600 });
+  response.cookies.set(OAUTH_NEXT_COOKIE, safeNext(next), { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 600 });
   return response;
 }

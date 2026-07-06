@@ -1,4 +1,4 @@
-// Applicants a GemMatch has been sent to (via a JewelCert that included GemMatch).
+// Applicants a JewelCert has been sent to (via a JewelCert that included the pick-10 profile).
 // Surfaces send status + the resulting fit. Mock data.
 
 import { FitTier, ProfileCode } from "./gemmatch";

@@ -74,7 +74,7 @@ export interface Plan {
 }
 
 export const PLANS: Plan[] = [
-  { tier: "Starter", price: "$49/mo", seats: "Up to 2 seats", features: ["GemMatch", "1 store", "Email invites"] },
+  { tier: "Starter", price: "$49/mo", seats: "Up to 2 seats", features: ["JewelCert", "1 store", "Email invites"] },
   { tier: "Growth", price: "$149/mo", seats: "Up to 5 seats", features: ["Everything in Starter", "Up to 3 stores", "Custom assessments", "Calendar sync"] },
   { tier: "Pro", price: "$349/mo", seats: "Unlimited seats", features: ["Everything in Growth", "Unlimited stores", "Priority support", "Analytics"] },
 ];

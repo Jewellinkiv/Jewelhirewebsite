@@ -46,7 +46,7 @@ function formatDate(value: string) {
 function nextStep(stage: ApplicationStage) {
   if (stage === "applied") return "Application received — the store is reviewing it";
   if (stage === "jewelcert") return "Finish your JewelCert knowledge check";
-  if (stage === "gemmatch") return "Complete your GemMatch assessment (~3 min)";
+  if (stage === "gemmatch") return "Complete your JewelCert assessment (~3 min)";
   if (stage === "interview") return "Interview scheduled — confirm your time";
   if (stage === "offer") return "Offer extended — review the details";
   return undefined;

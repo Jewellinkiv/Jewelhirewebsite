@@ -76,7 +76,7 @@ export default function AnalyticsPage() {
           <div className="p-4">{funnel.map((f) => <Bar key={f.key} label={f.key} value={f.value} max={maxFunnel} />)}</div>
         </Panel>
 
-        <Panel title="GemMatch fit distribution">
+        <Panel title="JewelCert fit distribution">
           <div className="p-4">{fit.map((f) => <Bar key={f.key} label={f.key} value={f.value} max={100} sub="%" />)}</div>
         </Panel>
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { CalProvider } from "@/lib/invite-settings";
+import { requireStoreAccess } from "@/lib/server/access-control";
 import { getSettingsStore } from "@/lib/server/stores/settings-store";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 
@@ -7,11 +8,13 @@ const providers: CalProvider[] = ["google", "microsoft"];
 
 export const GET = withApiErrorHandling(async function GET(_request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
-  return NextResponse.json({ inviteSettings: await getSettingsStore().getStoreInviteSettings(params.storeId) });
+  const storeId = await requireStoreAccess(params.storeId, "invite_settings.read");
+  return NextResponse.json({ inviteSettings: await getSettingsStore().getStoreInviteSettings(storeId) });
 });
 
 export const PUT = withApiErrorHandling(async function PUT(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
+  const storeId = await requireStoreAccess(params.storeId, "invite_settings.update");
   const body = await request.json().catch(() => null);
   const calendarProvider = body?.calendarProvider === null || providers.includes(body?.calendarProvider) ? body.calendarProvider : undefined;
   const nextInviteSettings = {
@@ -29,7 +32,7 @@ export const PUT = withApiErrorHandling(async function PUT(request: Request, pro
     ...(typeof body?.noteTemplate === "string" ? { noteTemplate: body.noteTemplate } : {}),
   };
   const inviteSettings = await getSettingsStore().updateStoreInviteSettings({
-    storeId: params.storeId,
+    storeId,
     inviteSettings: nextInviteSettings,
   });
   return NextResponse.json({ inviteSettings });

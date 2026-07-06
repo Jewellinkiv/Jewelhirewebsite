@@ -7,7 +7,14 @@ import type { AuthSession } from "@/lib/server/auth";
 export const runtime = "nodejs";
 
 function safeNext(value: unknown) {
-  return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+  if (typeof value !== "string") return "/";
+  let decoded = "";
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    return "/";
+  }
+  return value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") && !decoded.includes("\\") ? value : "/";
 }
 
 function destinationForSession(next: unknown, session: AuthSession) {

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { getPublicPageStore } from "@/lib/server/stores/public-page-store";
 
 export const POST = withApiErrorHandling(async function POST(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
+  const storeId = await requireStoreAccess(params.storeId, "public_page.logo");
   const contentType = request.headers.get("content-type") || "";
 
   if (contentType.includes("multipart/form-data")) {
@@ -12,7 +14,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
     if (!(file instanceof File)) return NextResponse.json({ error: "file is required" }, { status: 400 });
 
     const result = await getPublicPageStore().savePublicPageLogo({
-      storeId: params.storeId,
+      storeId,
       filename: file.name,
       mimeType: file.type,
       size: file.size,
@@ -24,7 +26,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
 
   const body = await request.json().catch(() => null);
   const result = await getPublicPageStore().savePublicPageLogo({
-    storeId: params.storeId,
+    storeId,
     filename: body?.filename,
     mimeType: body?.mimeType,
     size: body?.size,

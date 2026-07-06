@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/common";
+import { TeamMemberModal } from "@/components/TeamMemberModal";
 import { Panel, TypeLabel } from "@/components/ui";
 import { LOCATIONS, Location, TEAM_MEMBERS, TeamMemberLoc } from "@/lib/team-locations";
 import { IconSend, IconX, IconUserPlus, IconMapPin } from "@/components/icons";
@@ -11,6 +12,7 @@ export default function TeamPage() {
   const [members, setMembers] = useState<TeamMemberLoc[]>(TEAM_MEMBERS);
   const [locations, setLocations] = useState<Location[]>(LOCATIONS);
   const [loc, setLoc] = useState<string>("all");
+  const [adding, setAdding] = useState(false);
 
   const visible = loc === "all" ? members : members.filter((m) => m.locationId === loc);
   const countAt = (id: string) => members.filter((m) => m.locationId === id).length;
@@ -57,7 +59,15 @@ export default function TeamPage() {
       <PageHeader
         title="Team"
         subtitle="Your associates across locations. Reassign locations, send a JewelCert, or remove."
-        action={<button className="btn-grad inline-flex items-center gap-1.5 px-4 py-2.5 text-[13px]"><IconUserPlus size={16} /> Invite member</button>}
+        action={<button onClick={() => setAdding(true)} className="btn-grad inline-flex items-center gap-1.5 px-4 py-2.5 text-[13px]"><IconUserPlus size={16} /> Invite member</button>}
+      />
+      <TeamMemberModal
+        open={adding}
+        title="Invite member"
+        locations={locations}
+        defaultLocationId={loc === "all" ? locations[0]?.id : loc}
+        onClose={() => setAdding(false)}
+        onCreated={(member) => setMembers((current) => [{ ...member, locationId: member.locationId || locations[0]?.id || "little-rock" }, ...current])}
       />
 
       {/* location switcher */}
@@ -78,7 +88,7 @@ export default function TeamPage() {
         <div className="overflow-x-auto"><table className="w-full border-collapse">
           <thead>
             <tr>
-              {["Associate", "Role", "GemMatch type", "Location", ""].map((h) => (
+              {["Associate", "Role", "JewelCert type", "Location", ""].map((h) => (
                 <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted px-4 py-2.5 border-b border-line">{h}</th>
               ))}
             </tr>

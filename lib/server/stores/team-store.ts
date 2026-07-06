@@ -1,5 +1,7 @@
 import {
+  addTeamMember,
   getTeamComposition,
+  getTeamMemberStoreId,
   listStoreLocations,
   listStoreTeamMembers,
   removeTeamMember,
@@ -12,6 +14,7 @@ import {
   getPostgresTeamMemberStoreId,
   listPostgresStoreLocations,
   listPostgresStoreTeamMembers,
+  createPostgresTeamMember,
   removePostgresTeamMember,
   updatePostgresTeamMember,
 } from "@/lib/server/postgres-phase1";
@@ -60,12 +63,31 @@ export interface UpdateTeamMemberInput {
   nextAction?: string;
 }
 
+export interface CreateTeamMemberInput {
+  storeId: string;
+  name: string;
+  role?: string;
+  primary?: ProfileCode;
+  type?: string;
+  locationId?: string | null;
+}
+
 export interface TeamStore {
   listStoreLocations(storeId: string): MaybePromise<TeamLocationView[]>;
   listStoreTeamMembers(input: ListTeamMembersInput): MaybePromise<TeamMemberView[]>;
   getTeamComposition(input: ListTeamMembersInput): MaybePromise<TeamCompositionView>;
+  createTeamMember(input: CreateTeamMemberInput): MaybePromise<TeamMemberMutationResult>;
   updateTeamMember(input: UpdateTeamMemberInput): MaybePromise<TeamMemberMutationResult>;
   removeTeamMember(memberId: string): MaybePromise<TeamMemberRemoveResult>;
+}
+
+function localTeamId(name: string) {
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 42) || "member";
+  return `team-${slug}-${Date.now().toString(36)}`;
+}
+
+function localInitials(name: string) {
+  return name.trim().split(/\s+/).map((word) => word[0]).slice(0, 2).join("").toUpperCase() || "NA";
 }
 
 const localTeamStore: TeamStore = {
@@ -80,14 +102,37 @@ const localTeamStore: TeamStore = {
     await requireStoreAccess(input.storeId, "team.composition.read");
     return getTeamComposition(input.storeId, input.locationId);
   },
-  updateTeamMember(input) {
+  async createTeamMember(input) {
+    const storeId = await requireStoreAccess(input.storeId, "team.members.create");
+    const primary = input.primary || "C";
+    const created = addTeamMember(storeId, {
+      id: localTeamId(input.name),
+      name: input.name,
+      initials: localInitials(input.name),
+      role: input.role?.trim() || "Team member",
+      type: input.type?.trim() || "Balanced Associate",
+      primary,
+      locationId: input.locationId || undefined,
+    });
+    const [member] = listStoreTeamMembers(storeId).filter((item) => item.id === created.member.id);
+    return member ? { member } : { member: created.member };
+  },
+  async updateTeamMember(input) {
+    const storeId = getTeamMemberStoreId(input.memberId);
+    if (!storeId) return undefined;
+    await requireStoreAccess(storeId, "team.members.update");
     return updateTeamMember(input.memberId, {
       locationId: input.locationId,
       status: input.status,
       nextAction: input.nextAction,
     });
   },
-  removeTeamMember,
+  async removeTeamMember(memberId) {
+    const storeId = getTeamMemberStoreId(memberId);
+    if (!storeId) return undefined;
+    await requireStoreAccess(storeId, "team.members.remove");
+    return removeTeamMember(memberId);
+  },
 };
 
 const postgresTeamStore: TeamStore = {
@@ -101,6 +146,12 @@ const postgresTeamStore: TeamStore = {
   async getTeamComposition(input) {
     await requireStoreAccess(input.storeId, "team.composition.read");
     return getPostgresStoreTeamComposition(input);
+  },
+  async createTeamMember(input) {
+    return createPostgresTeamMember({
+      ...input,
+      storeId: await requireStoreAccess(input.storeId, "team.members.create"),
+    });
   },
   async updateTeamMember(input) {
     const storeId = await getPostgresTeamMemberStoreId(input.memberId);

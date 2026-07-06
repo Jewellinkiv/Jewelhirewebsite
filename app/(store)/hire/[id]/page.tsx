@@ -32,7 +32,7 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
     const response = await fetch(`/api/applications/app-${c.id}/hire`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ role: c.role, locationId: HIRE_STORE.location }),
+      body: JSON.stringify({ role: c.role, locationId: HIRE_STORE.locationId }),
     });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
@@ -95,12 +95,12 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
                   <span className="text-head font-medium">{HIRE_STORE.name}</span>
                   <span className="text-muted inline-flex items-center gap-1.5"><IconMapPin size={14} /> Location</span>
                   <span className="text-head font-medium">{HIRE_STORE.location}</span>
-                  <span className="text-muted inline-flex items-center gap-1.5"><IconDiamond size={14} /> GemMatch type</span>
+                  <span className="text-muted inline-flex items-center gap-1.5"><IconDiamond size={14} /> JewelCert type</span>
                   <span className="text-head font-medium">{c.gemmatch ? `${c.gemmatch.type} · ${c.gemmatch.clarity}` : "Not completed"}</span>
                 </div>
                 <p className="mt-3.5 mb-0 text-[12.5px] text-muted leading-relaxed">
                   Hiring adds {c.name.split(" ")[0]} to your {HIRE_STORE.product} team with their profile,
-                  role, and GemMatch fit. The sales-floor mix recomputes below.
+                  role, and JewelCert fit. The sales-floor mix recomputes below.
                 </p>
               </div>
             </Panel>
@@ -109,7 +109,7 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
               <div className="p-4">
                 {!hasGemMatch && (
                   <div className="mb-3 text-[12.5px] text-[#9a6a12] bg-[#fff4e2] border border-[#f0dcb4] rounded-md px-3 py-2">
-                    GemMatch isn&rsquo;t complete — preview uses a balanced placeholder mix.
+                    JewelCert isn&rsquo;t complete — preview uses a balanced placeholder mix.
                   </div>
                 )}
                 <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
@@ -183,7 +183,7 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
             </div>
             <h2 className="m-0 text-[19px] font-semibold text-head">Added to {HIRE_STORE.product}</h2>
             <p className="mt-2 mb-0 text-[13px] text-muted leading-relaxed">
-              {c.name} is now on the {HIRE_STORE.name} team as a {c.role}. Their GemMatch profile and
+              {c.name} is now on the {HIRE_STORE.name} team as a {c.role}. Their JewelCert profile and
               fit synced — the sales floor now reflects {TEAM.length + 1} members.
             </p>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">

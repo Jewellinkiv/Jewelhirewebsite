@@ -202,12 +202,19 @@ export default function InterviewsPage() {
       setNotice("Could not find or create an application for this interview.");
       return;
     }
+    // Convert the picked wall-clock (interpreted in the store owner's local tz)
+    // into a proper UTC instant so the time round-trips unchanged on reload.
+    // Without this the server labels the naive wall-clock with "Z", shifting the
+    // displayed time by the local UTC offset when the list re-fetches.
+    const localStartsAt = new Date(`${draft.date}T${draft.time || "09:00"}`);
+    const startsAt = Number.isNaN(localStartsAt.getTime()) ? undefined : localStartsAt.toISOString();
     const createdResponse = await fetch(`/api/applications/${applicationId}/interviews`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         date: draft.date,
         time: draft.time,
+        startsAt,
         duration: Number.parseInt(String(draft.duration), 10),
         type: draft.type === "Video" ? "video" : draft.type === "Phone" ? "phone" : "in_store",
         location: meetLink ?? draft.location,

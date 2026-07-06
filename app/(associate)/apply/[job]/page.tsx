@@ -158,7 +158,7 @@ export default function ApplyFlow(props: { params: Promise<{ job: string }> }) {
                   <div className="border border-[#cfe0fb] bg-[#eef4ff] rounded-md p-4">
                     <div className="text-[13px] font-semibold text-primary mb-1.5">What happens next</div>
                     <ul className="m-0 pl-4 text-[13px] text-body leading-relaxed">
-                      <li>We&apos;ll email you a short <b>GemMatch</b> assessment (~3 min).</li>
+                      <li>We&apos;ll email you a short <b>JewelCert</b> assessment (~3 min).</li>
                       <li>You may also receive a <b>JewelCert</b> knowledge check.</li>
                       <li>The hiring team at {STORE.name} reviews your application.</li>
                     </ul>

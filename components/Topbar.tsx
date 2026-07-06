@@ -2,6 +2,7 @@ import Link from "next/link";
 import { IconChevronDown, IconBell, IconSend } from "@/components/icons";
 import { PortalSwitcher } from "@/components/PortalSwitcher";
 import { MobileNav } from "@/components/MobileNav";
+import { LogoutButton } from "@/components/LogoutButton";
 
 export function Topbar() {
   return (
@@ -23,6 +24,7 @@ export function Topbar() {
       <div className="w-[34px] h-[34px] rounded-full bg-[#e8f1ff] text-primary flex items-center justify-center font-semibold text-xs shrink-0">
         WJ
       </div>
+      <LogoutButton />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { FONTS, PublicTheme, TEMPLATES } from "@/lib/public-templates";
+import { requireStoreAccess } from "@/lib/server/access-control";
 import { getPublicPageStore } from "@/lib/server/stores/public-page-store";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 
@@ -20,10 +21,11 @@ function pickThemePatch(body: unknown): Partial<PublicTheme> {
 
 export const GET = withApiErrorHandling(async function GET(_request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
-  const page = await getPublicPageStore().getStorePublicPage(params.storeId);
+  const storeId = await requireStoreAccess(params.storeId, "theme.read");
+  const page = await getPublicPageStore().getStorePublicPage(storeId);
   if (!page) return NextResponse.json({ error: "Public page not found" }, { status: 404 });
   return NextResponse.json({
-    storeId: params.storeId,
+    storeId,
     theme: page.config.theme,
     templateId: page.config.templateId,
     fonts: FONTS,
@@ -33,8 +35,9 @@ export const GET = withApiErrorHandling(async function GET(_request: Request, pr
 
 export const PATCH = withApiErrorHandling(async function PATCH(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
+  const storeId = await requireStoreAccess(params.storeId, "theme.update");
   const body = await request.json().catch(() => null);
-  const page = await getPublicPageStore().getStorePublicPage(params.storeId);
+  const page = await getPublicPageStore().getStorePublicPage(storeId);
   if (!page) return NextResponse.json({ error: "Public page not found" }, { status: 404 });
 
   const theme = {
@@ -42,7 +45,7 @@ export const PATCH = withApiErrorHandling(async function PATCH(request: Request,
     ...pickThemePatch(body),
   };
   const updated = await getPublicPageStore().saveStorePublicPage({
-    storeId: params.storeId,
+    storeId,
     config: {
       ...page.config,
       theme,
@@ -50,7 +53,7 @@ export const PATCH = withApiErrorHandling(async function PATCH(request: Request,
   });
   if (!updated) return NextResponse.json({ error: "Public page not found" }, { status: 404 });
   return NextResponse.json({
-    storeId: params.storeId,
+    storeId,
     theme: updated.config.theme,
     templateId: updated.config.templateId,
     publicPage: updated,

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireApplicantSelf } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { getPostgresApplicantProfile, updatePostgresApplicantResume } from "@/lib/server/postgres-phase1";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
@@ -6,22 +7,22 @@ import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withApiErrorHandling(async function GET(request: Request) {
-  const url = new URL(request.url);
+export const GET = withApiErrorHandling(async function GET() {
+  const { email } = await requireApplicantSelf("applicant.profile.read");
   const profile =
     getStorageRuntime() === "postgres"
-      ? await getPostgresApplicantProfile(url.searchParams.get("email"))
-      : getApplicantStore().getApplicantProfile(url.searchParams.get("email"));
+      ? await getPostgresApplicantProfile(email)
+      : getApplicantStore().getApplicantProfile(email);
   if (!profile) return NextResponse.json({ error: "Applicant profile not found" }, { status: 404 });
   return NextResponse.json({ profile });
 });
 
 export const PATCH = withApiErrorHandling(async function PATCH(request: Request) {
+  const { email } = await requireApplicantSelf("applicant.profile.update");
   const body = await request.json().catch(() => null);
   if (getStorageRuntime() === "postgres") {
     const result = await updatePostgresApplicantResume({
-      lookupEmail: body?.lookupEmail || body?.email,
-      email: body?.email,
+      lookupEmail: email,
       fullName: body?.fullName || body?.name,
       phone: body?.phone,
       headline: body?.headline,
@@ -33,8 +34,7 @@ export const PATCH = withApiErrorHandling(async function PATCH(request: Request)
   }
 
   const result = getApplicantStore().updateApplicantResume({
-    lookupEmail: body?.lookupEmail || body?.email,
-    email: body?.email,
+    lookupEmail: email,
     fullName: body?.fullName || body?.name,
     phone: body?.phone,
     headline: body?.headline,

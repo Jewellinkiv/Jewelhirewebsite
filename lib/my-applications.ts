@@ -25,7 +25,7 @@ export interface StoreApplication {
   role: string;
   stage: ApplicationStage;
   submittedAt: string;
-  // The associate's next step — e.g. "Complete GemMatch". Optional for terminal stages.
+  // The associate's next step — e.g. "Complete JewelCert". Optional for terminal stages.
   nextStep?: string;
   // Optional href the next-step CTA points to (associate-facing routes only).
   nextStepHref?: string;
@@ -39,7 +39,7 @@ export const STAGE_META: Record<
 > = {
   applied: { label: "Applied", tone: "pending" },
   jewelcert: { label: "JewelCert", tone: "active" },
-  gemmatch: { label: "GemMatch", tone: "active" },
+  gemmatch: { label: "JewelCert", tone: "active" },
   interview: { label: "Interview", tone: "active" },
   offer: { label: "Offer", tone: "good" },
   hired: { label: "Hired", tone: "good" },
@@ -66,7 +66,7 @@ export const SEED_APPLICATIONS: StoreApplication[] = [
     role: "Luxury Jewelry Sales Associate",
     stage: "gemmatch",
     submittedAt: "Jun 12, 2026",
-    nextStep: "Complete your GemMatch assessment (~3 min)",
+    nextStep: "Complete your JewelCert assessment (~3 min)",
     nextStepHref: "/portal/invites",
   },
   {

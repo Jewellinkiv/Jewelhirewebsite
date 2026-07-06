@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
+import { requireApplicantSelf } from "@/lib/server/access-control";
+import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { listPostgresApplicantInvites } from "@/lib/server/postgres-phase1";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 
-export async function GET(request: Request) {
+export const GET = withApiErrorHandling(async function GET(request: Request) {
+  const { email } = await requireApplicantSelf("applicant.invites");
   const url = new URL(request.url);
   const status = url.searchParams.get("status");
   const items =
     getStorageRuntime() === "postgres"
-      ? await listPostgresApplicantInvites(url.searchParams.get("email"), status)
-      : getApplicantStore().listApplicantInvites(url.searchParams.get("email")).filter((invite) => !status || invite.status === status);
+      ? await listPostgresApplicantInvites(email, status)
+      : getApplicantStore().listApplicantInvites(email).filter((invite) => !status || invite.status === status);
   return NextResponse.json({ count: items.length, items });
-}
+});

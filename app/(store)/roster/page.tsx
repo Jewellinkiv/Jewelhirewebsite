@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/common";
+import { TeamMemberModal } from "@/components/TeamMemberModal";
 import { Panel, TypeLabel } from "@/components/ui";
 import { TEAM } from "@/lib/data";
 import { PROFILES, ProfileCode } from "@/lib/gemmatch";
+import { LOCATIONS, Location } from "@/lib/team-locations";
 import { IconClipboardList, IconSchool, IconSend, IconTargetArrow, IconUserPlus, IconUsersGroup } from "@/components/icons";
 
 type TeamStatus = "Active" | "Onboarding" | "Needs review";
@@ -64,6 +66,8 @@ function Stat({ label, value, sub }: { label: string; value: string | number; su
 
 export default function RosterPage() {
   const [roster, setRoster] = useState<RosterMember[]>(ROSTER);
+  const [locations, setLocations] = useState<Location[]>(LOCATIONS);
+  const [adding, setAdding] = useState(false);
   const counts = roster.reduce<Record<ProfileCode, number>>(
     (acc, member) => {
       acc[member.primary] += 1;
@@ -74,13 +78,20 @@ export default function RosterPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/stores/${STORE_ID}/team`)
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data: { members: RosterMember[] }) => {
-        if (!cancelled) setRoster(data.members);
+    Promise.all([
+      fetch(`/api/stores/${STORE_ID}/locations`).then((response) => (response.ok ? response.json() : Promise.reject())),
+      fetch(`/api/stores/${STORE_ID}/team`).then((response) => (response.ok ? response.json() : Promise.reject())),
+    ])
+      .then(([locationsData, teamData]: [{ items: Location[] }, { members: RosterMember[] }]) => {
+        if (cancelled) return;
+        setLocations(locationsData.items);
+        setRoster(teamData.members);
       })
       .catch(() => {
-        if (!cancelled) setRoster(ROSTER);
+        if (!cancelled) {
+          setLocations(LOCATIONS);
+          setRoster(ROSTER);
+        }
       });
     return () => {
       cancelled = true;
@@ -91,12 +102,20 @@ export default function RosterPage() {
     <div>
       <PageHeader
         title="Roster"
-        subtitle="Active team members, GemMatch profile signals, and development next steps."
+        subtitle="Active team members, JewelCert profile signals, and development next steps."
         action={
-          <button className="btn-grad inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[12.5px]">
+          <button onClick={() => setAdding(true)} className="btn-grad inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[12.5px]">
             <IconUserPlus size={15} /> Add team member
           </button>
         }
+      />
+      <TeamMemberModal
+        open={adding}
+        title="Add team member"
+        locations={locations}
+        defaultLocationId={locations[0]?.id}
+        onClose={() => setAdding(false)}
+        onCreated={(member) => setRoster((current) => [member as RosterMember, ...current])}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-[18px]">
@@ -111,7 +130,7 @@ export default function RosterPage() {
           <div className="overflow-x-auto"><table className="w-full border-collapse">
             <thead>
               <tr>
-                {["Team member", "Role", "GemMatch", "Status", "Training", "Check-in", "Next action"].map((h) => (
+                {["Team member", "Role", "JewelCert", "Status", "Training", "Check-in", "Next action"].map((h) => (
                   <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted px-4 py-2.5 border-b border-line">{h}</th>
                 ))}
               </tr>
@@ -133,7 +152,7 @@ export default function RosterPage() {
                     <TypeLabel primary={member.primary} type={member.type} />
                   </td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
-                    <span className={`inline-flex px-2.5 py-1 rounded-full text-[11.5px] font-medium ${STATUS_STYLE[member.status]}`}>{member.status}</span>
+                    <span className={`inline-flex px-2.5 py-1 rounded-full text-[11.5px] font-medium ${STATUS_STYLE[member.status] ?? "bg-[#eef1f7] text-muted"}`}>{member.status}</span>
                   </td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[12.5px] text-body">{member.training}</td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[12.5px] text-muted">{member.lastCheckIn}</td>
@@ -157,7 +176,7 @@ export default function RosterPage() {
                     <span className="text-muted">{counts[code]}</span>
                   </div>
                   <span className="block h-2 rounded-full bg-[#eef1f7] overflow-hidden">
-                    <span className="block h-full" style={{ width: `${(counts[code] / roster.length) * 100}%`, background: PROFILES[code].color }} />
+                    <span className="block h-full" style={{ width: `${roster.length ? (counts[code] / roster.length) * 100 : 0}%`, background: PROFILES[code].color }} />
                   </span>
                 </div>
               ))}
@@ -167,7 +186,7 @@ export default function RosterPage() {
           <Panel title="Manager actions">
             <div className="p-4 flex flex-col gap-2">
               {[
-                { href: "/cert-invitations", label: "Invite team member to GemMatch", icon: <IconSend size={17} /> },
+                { href: "/cert-invitations", label: "Invite team member to JewelCert", icon: <IconSend size={17} /> },
                 { href: "/learn", label: "Assign training path", icon: <IconSchool size={17} /> },
                 { href: "/assessments", label: "Review assessment history", icon: <IconClipboardList size={17} /> },
                 { href: "/team-map", label: "Compare team fit", icon: <IconTargetArrow size={17} /> },

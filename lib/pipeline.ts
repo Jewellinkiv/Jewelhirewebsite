@@ -1,5 +1,5 @@
 // Store hiring pipeline (Phase 1 — single store, private applicants).
-// Mock data; in production this comes from the API. JewelCert + GemMatch fit
+// Mock data; in production this comes from the API. JewelCert + fit
 // are screening signals; managers filter, note, interview, and hire → JewelLink.
 
 import { FitTier, ProfileCode } from "./gemmatch";

@@ -127,7 +127,7 @@ export default function ApplicantsPage() {
             const list = notes[a.id] ?? [];
             return (
               <div key={a.id}>
-                <button onClick={() => setOpenId(open ? null : a.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-rowhover">
+                <button onClick={() => { setDraft(""); setOpenId(open ? null : a.id); }} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-rowhover">
                   <span className="w-[34px] h-[34px] rounded-full bg-[#e8f1ff] flex items-center justify-center text-[12px] font-bold text-primary">{a.initials}</span>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">

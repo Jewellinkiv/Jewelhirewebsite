@@ -4,7 +4,9 @@ import { ReactNode, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IconDiamond, IconLayoutDashboard, IconBriefcase, IconClipboardList, IconCalendar, IconFileText, IconSchool, IconMenu, IconX } from "@/components/icons";
+import { LogoutButton } from "@/components/LogoutButton";
 import { PortalSwitcher } from "@/components/PortalSwitcher";
+import { useCurrentSessionUser } from "@/lib/client-session";
 
 const NAV = [
   { label: "Home", href: "/portal", icon: <IconLayoutDashboard size={17} /> },
@@ -18,6 +20,7 @@ const NAV = [
 export function AssociateShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const user = useCurrentSessionUser();
   const active = (href: string) => (href === "/portal" ? path === "/portal" : path.startsWith(href));
 
   return (
@@ -41,8 +44,9 @@ export function AssociateShell({ children }: { children: ReactNode }) {
           <div className="ml-auto flex items-center gap-2.5">
             <PortalSwitcher current="associate" />
             <Link href="/portal/profile" className="flex items-center gap-2 no-underline">
-              <span className="w-8 h-8 rounded-full bg-[#eef2f7] flex items-center justify-center text-[12px] font-semibold text-[#5b6472]">JS</span>
+              <span className="w-8 h-8 rounded-full bg-[#eef2f7] flex items-center justify-center text-[12px] font-semibold text-[#5b6472]">{user.initials}</span>
             </Link>
+            <LogoutButton />
           </div>
         </div>
 

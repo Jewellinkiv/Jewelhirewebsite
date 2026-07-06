@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireStoreAccess } from "@/lib/server/access-control";
 import { getPublicPageStore } from "@/lib/server/stores/public-page-store";
 import { getSettingsStore } from "@/lib/server/stores/settings-store";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
@@ -32,10 +33,11 @@ function buildStoreProfile(storeId: string, settings: Awaited<ReturnType<ReturnT
 
 export const GET = withApiErrorHandling(async function GET(_request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
-  const settings = await getSettingsStore().getStoreSettings(params.storeId);
-  const page = await getPublicPageStore().getStorePublicPage(params.storeId);
+  const storeId = await requireStoreAccess(params.storeId, "store.read");
+  const settings = await getSettingsStore().getStoreSettings(storeId);
+  const page = await getPublicPageStore().getStorePublicPage(storeId);
   return NextResponse.json({
-    store: buildStoreProfile(params.storeId, settings, page),
+    store: buildStoreProfile(storeId, settings, page),
     settings,
     publicPage: page,
   });
@@ -43,8 +45,9 @@ export const GET = withApiErrorHandling(async function GET(_request: Request, pr
 
 export const PATCH = withApiErrorHandling(async function PATCH(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
+  const storeId = await requireStoreAccess(params.storeId, "store.update");
   const body = await request.json().catch(() => null);
-  const currentSettings = await getSettingsStore().getStoreSettings(params.storeId);
+  const currentSettings = await getSettingsStore().getStoreSettings(storeId);
   const nextOrganization = {
     ...currentSettings.organization,
     ...(body?.organization || {}),
@@ -54,7 +57,7 @@ export const PATCH = withApiErrorHandling(async function PATCH(request: Request,
     ...(typeof body?.defaultManager === "string" ? { defaultManager: body.defaultManager } : {}),
   };
   const settings = await getSettingsStore().updateStoreSettings({
-    storeId: params.storeId,
+    storeId,
     settings: {
       organization: nextOrganization,
       workflow: Array.isArray(body?.workflow) ? body.workflow : undefined,
@@ -62,10 +65,10 @@ export const PATCH = withApiErrorHandling(async function PATCH(request: Request,
     },
   });
 
-  let page = await getPublicPageStore().getStorePublicPage(params.storeId);
+  let page = await getPublicPageStore().getStorePublicPage(storeId);
   if (page && body?.publicPage) {
     page = await getPublicPageStore().saveStorePublicPage({
-      storeId: params.storeId,
+      storeId,
       config: {
         ...page.config,
         ...(typeof body.publicPage.headline === "string" ? { headline: body.publicPage.headline } : {}),
@@ -76,7 +79,7 @@ export const PATCH = withApiErrorHandling(async function PATCH(request: Request,
   }
 
   return NextResponse.json({
-    store: buildStoreProfile(params.storeId, settings, page),
+    store: buildStoreProfile(storeId, settings, page),
     settings,
     publicPage: page,
   });

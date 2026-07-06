@@ -1,5 +1,6 @@
 import { DEFAULT_HOURS, DEFAULT_TESTIMONIALS, PublicPageConfig, TEMPLATES } from "./public-templates";
 import { STORE, STORE_JOBS, STORE_REVIEWS } from "./public-store";
+import { STORE_PUBLIC_PAGES } from "./applicant-lifecycle";
 
 export interface PublicPageAsset {
   id: string;
@@ -159,7 +160,9 @@ export function getStorePublicPage(storeId: string) {
   const assets = ensureAssets(storeId).map((asset) => ({ ...asset }));
   const reviews = ensureReviews(storeId).map((review) => ({ ...review }));
   const previews = ensurePreviews(storeId).map((preview) => structuredClone(preview));
+  const page = STORE_PUBLIC_PAGES.find((item) => item.storeId === storeId) || STORE_PUBLIC_PAGES[0];
   return {
+    page,
     store: STORE,
     jobs: STORE_JOBS,
     config,

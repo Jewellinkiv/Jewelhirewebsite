@@ -10,19 +10,19 @@ const statuses = new Set<HireSyncStatus>(["pending", "synced", "failed", "cancel
 
 export const GET = withApiErrorHandling(async function GET(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
+  const storeId = await requireStoreAccess(params.storeId, "hire_syncs.list");
   const url = new URL(request.url);
   const status = url.searchParams.get("status");
   const normalizedStatus = status && statuses.has(status as HireSyncStatus) ? (status as HireSyncStatus) : undefined;
   if (getStorageRuntime() === "postgres") {
-    await requireStoreAccess(params.storeId, "hire_syncs.list");
-    return listPostgresHireSyncs({ storeId: params.storeId, status: normalizedStatus }).then((items) =>
-      NextResponse.json({ storeId: params.storeId, count: items.length, items }),
+    return listPostgresHireSyncs({ storeId, status: normalizedStatus }).then((items) =>
+      NextResponse.json({ storeId, count: items.length, items }),
     );
   }
 
   const items = await getApplicantStore().listHireSyncs({
-    storeId: params.storeId,
+    storeId,
     status: normalizedStatus,
   });
-  return NextResponse.json({ storeId: params.storeId, count: items.length, items });
+  return NextResponse.json({ storeId, count: items.length, items });
 });

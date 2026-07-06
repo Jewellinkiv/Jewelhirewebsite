@@ -14,6 +14,6 @@ export const POST = withApiErrorHandling(async function POST(_request: Request, 
   const current = await getPostgresJobDetail(params.slug);
   if (!current) return NextResponse.json({ error: "Job not found" }, { status: 404 });
   await requireStoreAccess(current.job.storeId, "jobs.update");
-  const detail = await updatePostgresStoreJob({ jobId: current.job.id, status: "closed" });
+  const detail = await updatePostgresStoreJob({ jobId: current.job.id, storeId: current.job.storeId, status: "closed" });
   return NextResponse.json(detail);
 });

@@ -70,9 +70,9 @@ export const ASSESSMENT_RESULTS: Record<string, AssessmentResult> = {
       { target: "Gemstones", score: 2, max: 3, pct: 67 },
       { target: "Diamonds", score: 2, max: 4, pct: 50 },
       { target: "Jewelry Types", score: 3, max: 4, pct: 75 },
-      { target: "Settings & Mountings", score: 1, max: 3, pct: 40 },
+      { target: "Settings & Mountings", score: 1, max: 3, pct: 33 },
       { target: "Watches", score: 1, max: 2, pct: 50 },
-      { target: "Jewelry Repairs", score: 2, max: 2, pct: 80 },
+      { target: "Jewelry Repairs", score: 2, max: 2, pct: 100 },
     ],
     answerReview: [
       {
@@ -138,7 +138,7 @@ export const ASSESSMENT_RESULTS: Record<string, AssessmentResult> = {
     totalScore: 0,
     scoreLabel: "Relationship Champion",
     summary:
-      "Leans strongly to Relationship Champion with solid Detail-Oriented Educator support — consistent with her GemMatch Luxury Advisor profile. Lower on Assertive Negotiator; pair with a closer on high-pressure deals.",
+      "Leans strongly to Relationship Champion with solid Detail-Oriented Educator support — consistent with her JewelCert Luxury Advisor profile. Lower on Assertive Negotiator; pair with a closer on high-pressure deals.",
     traits: [
       { trait: "Relationship Champion", pct: 86, level: "Strong" },
       { trait: "Detail-Oriented Educator", pct: 64, level: "Solid" },

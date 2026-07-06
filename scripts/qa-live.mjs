@@ -96,7 +96,13 @@ async function verifyViewport(browser, viewport, label) {
   const context = await browser.newContext({ viewport, ignoreHTTPSErrors: true });
   const page = await context.newPage();
   const consoleErrors = [];
+  const expectedUnauthorizedUrls = [];
   watchConsole(page, consoleErrors);
+  page.on("response", (response) => {
+    if (response.status() !== 401) return;
+    const url = new URL(response.url());
+    if (url.pathname === "/api/me") expectedUnauthorizedUrls.push(response.url());
+  });
 
   const loginResponse = await page.goto(`${BASE}/login`, { waitUntil: "networkidle", timeout: 45_000 }).catch((error) => {
     fail(`${label} login load: ${error}`);
@@ -118,7 +124,12 @@ async function verifyViewport(browser, viewport, label) {
   const applyBody = await page.locator("body").innerText().catch(() => "");
   record(`${label} public apply has form`, /apply|application|email/i.test(applyBody), { bodySample: applyBody.slice(0, 160) });
 
-  if (consoleErrors.length) fail(`${label} console errors: ${consoleErrors[0].slice(0, 180)}`);
+  const actionableConsoleErrors = consoleErrors.filter((error) => {
+    const expectedLoggedOutSessionProbe =
+      /status of 401/i.test(error) && expectedUnauthorizedUrls.some((url) => new URL(url).pathname === "/api/me");
+    return !expectedLoggedOutSessionProbe;
+  });
+  if (actionableConsoleErrors.length) fail(`${label} console errors: ${actionableConsoleErrors[0].slice(0, 180)}`);
   else ok(`${label} no console errors`);
 
   await context.close();

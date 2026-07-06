@@ -9,10 +9,10 @@ import { SaveButton } from "@/components/SaveButton";
 import { IconArrowUpRight, IconBell, IconBriefcase, IconProgress, IconSettings } from "@/components/icons";
 import { StoreSettingsRecord } from "@/lib/local-settings-store";
 
-const PIPELINE = ["Applied", "Cert sent", "GemMatch done", "In review", "Interview", "Offer", "Hired"];
+const PIPELINE = ["Applied", "Cert sent", "JewelCert done", "In review", "Interview", "Offer", "Hired"];
 
 const NOTIFICATIONS = [
-  { label: "Candidate completes GemMatch", channel: "Email + in-app", owner: "Hiring manager" },
+  { label: "Candidate completes JewelCert", channel: "Email + in-app", owner: "Hiring manager" },
   { label: "Assessment package expires", channel: "In-app", owner: "Store admin" },
   { label: "Training assignment overdue", channel: "Email", owner: "Manager" },
   { label: "New strong-fit candidate", channel: "Email + in-app", owner: "Manager" },
@@ -192,7 +192,7 @@ export default function SettingsPage() {
             ))}
           </div>
           <div className="mt-3 rounded-md border border-[#cfe0fb] bg-[#eef4ff] px-3 py-2.5 text-[12.5px] text-body">
-            GemMatch is the primary candidate signal. Aptitude, knowledge, and your custom assessments are optional per-role requirements.
+            JewelCert is the primary candidate signal. Aptitude, knowledge, and your custom assessments are optional per-role requirements.
           </div>
         </div>
       </Panel>

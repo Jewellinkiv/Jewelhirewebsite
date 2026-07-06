@@ -75,6 +75,7 @@ export default function SupportPage() {
               <span className="ml-auto text-[11px] text-muted">{a.at}</span>
             </div>
           ))}
+          {audit.length === 0 && <div className="px-4 py-8 text-center text-muted text-[13px]">No activity yet.</div>}
         </div>
       </Panel>
     </div>

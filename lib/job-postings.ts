@@ -48,7 +48,7 @@ export const JOB_POSTINGS: JobPosting[] = [
     ],
   },
   {
-    slug: "bench-jeweler", title: "Bench Jeweler", location: "Little Rock", status: "Draft",
+    slug: "bench-jeweler", title: "Bench Jeweler", location: "Little Rock", status: "Active",
     postedDaysAgo: 9, openings: 1, views: 95,
     applicants: [
       { id: "devon-ross", name: "Devon Ross", initials: "DR", appliedDate: "Jun 20, 2026", attempt: 1, stage: "GemMatch", fitScore: 88, fitTier: "Strong fit" },

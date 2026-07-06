@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { getTeamStore } from "@/lib/server/stores/team-store";
 
-export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+export const PATCH = withApiErrorHandling(async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const body = await request.json().catch(() => null);
   const result = await getTeamStore().updateTeamMember({
@@ -12,11 +13,11 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   });
   if (!result) return NextResponse.json({ error: "Team member not found" }, { status: 404 });
   return NextResponse.json(result);
-}
+});
 
-export async function DELETE(_request: Request, props: { params: Promise<{ id: string }> }) {
+export const DELETE = withApiErrorHandling(async function DELETE(_request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const result = await getTeamStore().removeTeamMember(params.id);
   if (!result) return NextResponse.json({ error: "Team member not found" }, { status: 404 });
   return NextResponse.json(result);
-}
+});

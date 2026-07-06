@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/common";
 import { Panel, Radar } from "@/components/ui";
 import { getCandidate, TEAM_MIX } from "@/lib/data";
 import { PROFILES } from "@/lib/gemmatch";
-import { IconTargetArrow, IconBulb } from "@/components/icons";
+import { IconBulb } from "@/components/icons";
 
 export default function ApplicantFitPage() {
   const c = getCandidate("maya-chen")!;
@@ -42,7 +42,7 @@ export default function ApplicantFitPage() {
             <p className="text-[12px] font-semibold uppercase tracking-wide text-muted m-0 mb-2">Applicant vs. team</p>
             <div className="max-w-[260px] mx-auto"><Radar mix={gm.mix} overlay={TEAM_MIX} size={240} /></div>
             <div className="flex gap-4 justify-center text-xs text-muted mt-1.5">
-              <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: PROFILES[gm.primary].color }} />{c.name.split(" ")[0]}</span>
+              <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-prof-v" />{c.name.split(" ")[0]}</span>
               <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-prof-d" />Team</span>
             </div>
             <div className="border border-[#cfe0fb] bg-[#eef4ff] rounded-md px-3.5 py-3 mt-4">

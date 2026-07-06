@@ -102,6 +102,35 @@ export async function requireAdminAccess(operation: string) {
   return session;
 }
 
+export async function requireApplicantSelf(operation: string) {
+  const session = await getSessionContext();
+  if (session.role !== "associate") {
+    throw new AccessDeniedError(`Applicant role required for ${operation}`);
+  }
+  const email = session.email.trim().toLowerCase();
+  if (!email) {
+    throw new AccessDeniedError(`Applicant email required for ${operation}`);
+  }
+  return { session, email };
+}
+
+export async function requireRecipientOrStoreAccess(input: {
+  storeId?: string | null;
+  recipientEmail?: string | null;
+  operation: string;
+}) {
+  const session = await getSessionContext();
+  const role = session.role as string;
+  const recipientEmail = input.recipientEmail?.trim().toLowerCase();
+  const sessionEmail = session.email.trim().toLowerCase();
+
+  if (role === "admin") return session;
+  if (input.storeId && session.storeIds.includes(input.storeId)) return session;
+  if (recipientEmail && sessionEmail === recipientEmail) return session;
+
+  throw new AccessDeniedError(`Not authorized for ${input.operation}`);
+}
+
 export async function activeStoreId() {
   return (await getSessionContext()).activeStoreId;
 }

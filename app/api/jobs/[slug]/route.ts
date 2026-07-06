@@ -50,6 +50,7 @@ export const PATCH = withApiErrorHandling(async function PATCH(request: Request,
   const body = await request.json().catch(() => null);
   const detail = await updatePostgresStoreJob({
     jobId: current.job.id,
+    storeId: current.job.storeId,
     title: typeof body?.title === "string" ? body.title : undefined,
     location: typeof body?.location === "string" ? body.location : undefined,
     employmentType: typeof body?.employmentType === "string" ? body.employmentType : undefined,

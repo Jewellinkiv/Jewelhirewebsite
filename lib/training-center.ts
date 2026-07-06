@@ -53,7 +53,7 @@ export const COURSES: Course[] = [
     certificate: "Participant badge added to your resume on completion.",
     modules: [
       { title: "Getting started", lessons: lessons([["Introduction to the course", "Video", 6, true], ["Setting up your store profile", "Video", 9, true], ["Posting your first job", "Video", 8, false]]) },
-      { title: "For business owners", lessons: lessons([["Using JewelCert to screen", "Video", 11, false], ["Building your sales floor with GemMatch", "Video", 12, false], ["Social & brand promotion", "Video", 7, false], ["Knowledge check", "Quiz", 5, false]]) },
+      { title: "For business owners", lessons: lessons([["Using JewelCert to screen", "Video", 11, false], ["Building your sales floor with JewelCert", "Video", 12, false], ["Social & brand promotion", "Video", 7, false], ["Knowledge check", "Quiz", 5, false]]) },
     ],
   },
   {

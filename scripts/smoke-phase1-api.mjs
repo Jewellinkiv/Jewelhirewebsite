@@ -180,7 +180,7 @@ async function request(path, init) {
 async function checkRead({ name, path, headers, expectStatus, expect }) {
   const effectiveHeaders =
     headers ||
-    (mode === "postgres" && path.startsWith("/api/admin/") && !path.startsWith("/api/admin/database/")
+    (mode === "postgres" && path.startsWith("/api/admin/")
       ? ADMIN_SESSION
       : undefined);
   const { response, body } = await request(path, { headers: effectiveHeaders });

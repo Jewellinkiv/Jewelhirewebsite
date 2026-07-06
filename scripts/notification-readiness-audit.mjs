@@ -25,7 +25,7 @@ const EXPECTED_TRIGGERS = [
   },
   {
     id: "jewelcert_invite_created",
-    label: "JewelCert or GemMatch invite created",
+    label: "JewelCert invite created",
     recipients: "candidate",
     markers: ["jewelcert-invites", "createPostgresJewelCertInvite"],
     wiredMarkers: ["notifyJewelCertInviteCreated"],
@@ -33,10 +33,18 @@ const EXPECTED_TRIGGERS = [
   },
   {
     id: "assessment_completed",
-    label: "Candidate completes GemMatch or assessment",
+    label: "Candidate completes JewelCert or assessment",
     recipients: "store hiring manager, candidate confirmation",
-    markers: ["complete", "assessment", "GemMatch"],
+    markers: ["complete", "assessment", "JewelCert"],
     wiredMarkers: ["notifyAssessmentCompleted"],
+    requiredForLaunch: false,
+  },
+  {
+    id: "candidate_hired",
+    label: "Candidate hired to team",
+    recipients: "candidate",
+    markers: ["applications", "hire"],
+    wiredMarkers: ["notifyCandidateHired"],
     requiredForLaunch: false,
   },
   {

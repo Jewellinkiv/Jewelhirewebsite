@@ -42,7 +42,7 @@ export function listAssessmentCatalog() {
     items: [
       {
         id: "gemmatch",
-        title: "GemMatch",
+        title: "JewelCert",
         type: "Trait profile",
         durationMinutes: 3,
         questionCount: 48,

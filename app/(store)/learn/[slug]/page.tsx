@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, use } from "react";
+import { useEffect, useMemo, useState, use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCourse, courseStats, CourseIcon, Lesson } from "@/lib/training-center";
@@ -28,13 +28,45 @@ function LessonTypeIcon({ type, size = 14 }: { type: Lesson["type"]; size?: numb
   return <IconPlayerPlay size={size} />;
 }
 
+function progressStorageKey(slug: string) {
+  return `jewelhire:course-progress:${slug}`;
+}
+
+function readStoredDoneIds(slug: string, fallback: Set<string>): Set<string> {
+  try {
+    const raw = window.localStorage.getItem(progressStorageKey(slug));
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed?.doneLessonIds)) return fallback;
+    return new Set<string>(parsed.doneLessonIds.filter((id: unknown): id is string => typeof id === "string"));
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStoredDoneIds(slug: string, doneIds: Set<string>, total: number) {
+  try {
+    window.localStorage.setItem(
+      progressStorageKey(slug),
+      JSON.stringify({
+        doneLessonIds: [...doneIds],
+        progress: Math.round((doneIds.size / Math.max(total, 1)) * 100),
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+  } catch {
+    // Browser storage can be unavailable in private or locked-down sessions.
+  }
+}
+
 export default function CoursePlayer(props: { params: Promise<{ slug: string }> }) {
   const params = use(props.params);
   const course = getCourse(params.slug);
   if (!course) notFound();
 
   const flat = useMemo(() => course.modules.flatMap((m) => m.lessons), [course]);
-  const [doneIds, setDoneIds] = useState<Set<string>>(new Set(flat.filter((l) => l.completed).map((l) => l.id)));
+  const seedDoneIds = useMemo(() => new Set<string>(flat.filter((l) => l.completed).map((l) => l.id)), [flat]);
+  const [doneIds, setDoneIds] = useState<Set<string>>(seedDoneIds);
   const firstIncomplete = flat.find((l) => !doneIds.has(l.id)) ?? flat[0];
   const [currentId, setCurrentId] = useState(firstIncomplete.id);
   const current = flat.find((l) => l.id === currentId) ?? flat[0];
@@ -43,8 +75,18 @@ export default function CoursePlayer(props: { params: Promise<{ slug: string }> 
   const pct = Math.round((doneIds.size / flat.length) * 100);
   const idx = flat.findIndex((l) => l.id === currentId);
 
+  useEffect(() => {
+    const stored = readStoredDoneIds(course.slug, seedDoneIds);
+    setDoneIds(stored);
+    setCurrentId((current) => stored.has(current) ? flat.find((lesson) => !stored.has(lesson.id))?.id || current : current);
+  }, [course.slug, flat, seedDoneIds]);
+
   const complete = () => {
-    setDoneIds((s) => new Set(s).add(currentId));
+    setDoneIds((s) => {
+      const nextDone = new Set(s).add(currentId);
+      writeStoredDoneIds(course.slug, nextDone, flat.length);
+      return nextDone;
+    });
     const next = flat[idx + 1];
     if (next) setCurrentId(next.id);
   };

@@ -57,6 +57,10 @@ const STAGE_FROM_API: Record<ApiStage, Stage> = {
   withdrawn: "Rejected",
 };
 
+function stageLabel(stage: Stage) {
+  return stage === "GemMatch" ? "JewelCert profile" : stage;
+}
+
 function initials(name: string) {
   return name.trim().split(/\s+/).map((word) => word[0]).slice(0, 2).join("").toUpperCase() || "NA";
 }
@@ -154,7 +158,7 @@ export default function PipelinePage() {
       <div className="flex flex-wrap gap-1.5 mb-3">
         <StageChip label="All" n={apiRows.length} active={stage === "All"} onClick={() => setStage("All")} />
         {STAGES.map((s) => (
-          <StageChip key={s} label={s} n={count(s)} active={stage === s} onClick={() => setStage(s)} />
+          <StageChip key={s} label={stageLabel(s)} n={count(s)} active={stage === s} onClick={() => setStage(s)} />
         ))}
       </div>
 
@@ -166,7 +170,7 @@ export default function PipelinePage() {
         </div>
         <select className={selectCls} value={cert} onChange={(e) => setCert(e.target.value as JewelCertStatus | "All")}>
           <option value="All">JewelCert: all</option>
-          {(["Not sent", "Sent", "Completed", "Passed", "Flagged"] as JewelCertStatus[]).map((s) => <option key={s} value={s}>{s}</option>)}
+          {(["Not sent", "Sent", "Completed"] as JewelCertStatus[]).map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <select className={selectCls} value={fit} onChange={(e) => setFit(e.target.value)}>
           <option value="All">Fit: all</option>
@@ -180,7 +184,7 @@ export default function PipelinePage() {
         <div className="hidden md:block overflow-x-auto"><table className="w-full border-collapse">
           <thead>
             <tr>
-              {["Applicant", "Role", "Stage", "JewelCert", "GemMatch", "Fit", "Notes", "Last activity", ""].map((h) => (
+              {["Applicant", "Role", "Stage", "JewelCert", "JewelCert profile", "Fit", "Notes", "Last activity", ""].map((h) => (
                 <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted px-4 py-2.5 border-b border-line">{h}</th>
               ))}
             </tr>
@@ -236,7 +240,7 @@ function Row({ a }: { a: PipelineApplicant }) {
         </Link>
       </td>
       <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">{a.role}</td>
-      <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]"><span className={`inline-flex text-[11.5px] font-medium px-2.5 py-1 rounded-full ${STAGE_STYLE[a.stage]}`}>{a.stage}</span></td>
+      <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]"><span className={`inline-flex text-[11.5px] font-medium px-2.5 py-1 rounded-full ${STAGE_STYLE[a.stage]}`}>{stageLabel(a.stage)}</span></td>
       <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]"><JewelCert status={a.jewelcert.status} score={a.jewelcert.score} /></td>
       <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
         {a.gemmatch ? <TypeLabel primary={a.gemmatch.primary} type={a.gemmatch.type} /> : <span className="text-muted">—</span>}
@@ -285,7 +289,7 @@ function MobileRow({ a }: { a: PipelineApplicant }) {
             <span className="block text-[12px] text-muted truncate">{a.location} · {a.role}</span>
           </span>
         </Link>
-        <span className={`inline-flex text-[11.5px] font-medium px-2.5 py-1 rounded-full shrink-0 ${STAGE_STYLE[a.stage]}`}>{a.stage}</span>
+        <span className={`inline-flex text-[11.5px] font-medium px-2.5 py-1 rounded-full shrink-0 ${STAGE_STYLE[a.stage]}`}>{stageLabel(a.stage)}</span>
       </div>
 
       {/* screening signals */}

@@ -1,5 +1,5 @@
 // Store-created assessments. Stores can build their own assessments alongside
-// the default, admin-created ones (GemMatch, legacy aptitude tests). Mock data.
+// the default, admin-created ones (JewelCert, legacy aptitude tests). Mock data.
 
 export type AssessmentKind = "Knowledge check" | "Trait profile" | "Skills check";
 export type QuestionType = "multiple-choice" | "scale" | "short-answer";

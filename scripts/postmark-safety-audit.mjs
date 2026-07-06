@@ -99,9 +99,10 @@ function cloudRunSafetyAudit() {
     dryRun,
     allowLiveEmailSends: ALLOW_LIVE_EMAIL_SENDS,
   });
-  record("Cloud Run live sends are not active during default QA loop", !emailEnabled || dryRun, {
+  record("Cloud Run live sends are not active during default QA loop unless explicitly allowed", !emailEnabled || dryRun || ALLOW_LIVE_EMAIL_SENDS, {
     emailNotificationsEnabled: emailEnabled,
     dryRun,
+    allowLiveEmailSends: ALLOW_LIVE_EMAIL_SENDS,
   });
 }
 

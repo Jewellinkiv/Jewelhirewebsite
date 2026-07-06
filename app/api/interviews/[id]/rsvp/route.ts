@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { getInterviewRsvpScope } from "@/lib/local-api-store";
+import { requireRecipientOrStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
-import { updatePostgresInterviewRsvp } from "@/lib/server/postgres-phase1";
+import { getPostgresInterviewRsvpScope, updatePostgresInterviewRsvp } from "@/lib/server/postgres-phase1";
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
 
@@ -15,11 +17,17 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
   }
 
   if (getStorageRuntime() === "postgres") {
+    const scope = await getPostgresInterviewRsvpScope(params.id);
+    if (!scope) return NextResponse.json({ error: "Interview not found" }, { status: 404 });
+    await requireRecipientOrStoreAccess({ ...scope, operation: "interviews.rsvp" });
     const interview = await updatePostgresInterviewRsvp({ interviewId: params.id, response });
     if (!interview) return NextResponse.json({ error: "Interview not found" }, { status: 404 });
     return NextResponse.json({ interview });
   }
 
+  const scope = getInterviewRsvpScope(params.id);
+  if (!scope) return NextResponse.json({ error: "Interview not found" }, { status: 404 });
+  await requireRecipientOrStoreAccess({ ...scope, operation: "interviews.rsvp" });
   const interview = getApplicantStore().updateInterviewRsvp(params.id, response);
   if (!interview) return NextResponse.json({ error: "Interview not found" }, { status: 404 });
   return NextResponse.json({ interview });

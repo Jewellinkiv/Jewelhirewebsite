@@ -1,6 +1,6 @@
 // JewelCert = the single screening package a store sends to a candidate.
 // It can bundle any combination of components — all OPTIONAL, chosen per send
-// (nothing pre-selected). GemMatch results still feed the sales floor downstream.
+// (nothing pre-selected). JewelCert results still feed the sales floor downstream.
 
 export type ComponentKind = "gemmatch" | "test" | "knowledge" | "course";
 
@@ -13,7 +13,7 @@ export interface CertComponent {
 }
 
 export const CERT_COMPONENTS: CertComponent[] = [
-  { id: "gemmatch", label: "GemMatch", desc: "Behavioral / sales-floor fit profile", kind: "gemmatch", meta: "~3 min" },
+  { id: "gemmatch", label: "JewelCert", desc: "Behavioral / sales-floor fit profile", kind: "gemmatch", meta: "~3 min" },
   { id: "12-essentials", label: "12 Essentials", desc: "Sales potential profile", kind: "test", meta: "36 questions · 60 min" },
   { id: "sales-personality", label: "Sales Personality", desc: "Sales traits profile", kind: "test", meta: "24 questions · 30 min" },
   { id: "jewelry-knowledge", label: "Jewelry Knowledge", desc: "Knowledge check (metals, gems, diamonds…)", kind: "knowledge", meta: "22 questions · 60 min" },

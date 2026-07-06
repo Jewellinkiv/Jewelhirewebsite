@@ -46,7 +46,7 @@ function dashboardKpis(raw: {
     { key: "applicants", label: "Applicants", value: String(raw.applicants ?? 0), sub: "Store-private pipeline", href: "/applicants" },
     { key: "hired", label: "Hired", value: String(raw.hired ?? 0), sub: "Local handoffs", href: "/pipeline" },
     { key: "fit", label: "Avg fit", value: String(raw.avgFit ?? 0), sub: "across results", href: "/jewelcert" },
-    { key: "gemmatch", label: "JewelCert done", value: `${raw.gemmatchCompletion ?? 0}%`, sub: "completion", href: "/jewelcert" },
+    { key: "jewelcert", label: "JewelCert done", value: `${raw.gemmatchCompletion ?? 0}%`, sub: "completion", href: "/jewelcert" },
   ];
 }
 

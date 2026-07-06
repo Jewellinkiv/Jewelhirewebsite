@@ -8,10 +8,11 @@ import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 export const GET = withApiErrorHandling(async function GET(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
   const url = new URL(request.url);
+  const storeId = await requireStoreAccess(params.storeId, "gemmatch_invites.list");
   const items = await (
     getStorageRuntime() === "postgres"
-      ? await listPostgresStoreGemMatchInvites(await requireStoreAccess(params.storeId, "gemmatch_invites.list"), url.searchParams.get("status"))
-      : getApplicantStore().listStoreGemMatchInvites(params.storeId, url.searchParams.get("status"))
+      ? await listPostgresStoreGemMatchInvites(storeId, url.searchParams.get("status"))
+      : getApplicantStore().listStoreGemMatchInvites(storeId, url.searchParams.get("status"))
   );
   return NextResponse.json({ count: items.length, items });
 });

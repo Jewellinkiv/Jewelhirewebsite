@@ -98,6 +98,18 @@ export function updateTeamMember(memberId: string, input: { locationId?: string;
   return { member: { ...member } };
 }
 
+export function getTeamMemberStoreId(memberId: string): string | undefined {
+  for (const [storeId, members] of Object.entries(state().membersByStoreId)) {
+    if (members.some((candidate) => candidate.id === memberId)) return storeId;
+  }
+  // Mirror the lazy default-store init used by update/remove so a first-call
+  // PATCH/DELETE on a seeded member still resolves its owning store.
+  const defaultStoreId = "store-sissys-little-rock";
+  return ensureMembers(defaultStoreId).some((candidate) => candidate.id === memberId)
+    ? defaultStoreId
+    : undefined;
+}
+
 export function removeTeamMember(memberId: string) {
   for (const [storeId, members] of Object.entries(state().membersByStoreId)) {
     const member = members.find((candidate) => candidate.id === memberId);

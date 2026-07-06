@@ -33,29 +33,30 @@ async function notifyAssignmentsCreated(assignments: Array<{
 
 export const GET = withApiErrorHandling(async function GET(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
+  const storeId = await requireStoreAccess(params.storeId, "course_assignments.list");
   const url = new URL(request.url);
   if (getStorageRuntime() === "postgres") {
-    await requireStoreAccess(params.storeId, "course_assignments.list");
     return listPostgresCourseAssignments({
-      storeId: params.storeId,
+      storeId,
       recipientId: url.searchParams.get("recipientId"),
       status: url.searchParams.get("status"),
       courseSlug: url.searchParams.get("courseSlug"),
-    }).then((items) => NextResponse.json({ storeId: params.storeId, count: items.length, items }));
+    }).then((items) => NextResponse.json({ storeId, count: items.length, items }));
   }
 
   const items = await getApplicantStore().listCourseAssignments({
-    storeId: params.storeId,
+    storeId,
     recipientId: url.searchParams.get("recipientId"),
     status: url.searchParams.get("status"),
     courseSlug: url.searchParams.get("courseSlug"),
   });
 
-  return NextResponse.json({ storeId: params.storeId, count: items.length, items });
+  return NextResponse.json({ storeId, count: items.length, items });
 });
 
 export const POST = withApiErrorHandling(async function POST(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
+  const storeId = await requireStoreAccess(params.storeId, "course_assignments.create");
   const body = await request.json().catch(() => null);
   const recipientIds = Array.isArray(body?.recipientIds) ? body.recipientIds.filter(Boolean) : [];
   const courseSlug = body?.courseSlug || body?.courseId;
@@ -64,9 +65,8 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
   if (recipientIds.length === 0) return NextResponse.json({ error: "recipientIds are required" }, { status: 400 });
 
   if (getStorageRuntime() === "postgres") {
-    await requireStoreAccess(params.storeId, "course_assignments.create");
     const result = await createPostgresCourseAssignments({
-      storeId: params.storeId,
+      storeId,
       courseSlug,
       recipientIds,
       packageName: body?.packageName,
@@ -76,11 +76,11 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
     });
     if (result.error) return NextResponse.json(result, { status: 404 });
     const notifications = await notifyAssignmentsCreated(result.assignments);
-    return NextResponse.json({ storeId: params.storeId, count: result.assignments.length, ...result, notifications }, { status: 201 });
+    return NextResponse.json({ storeId, count: result.assignments.length, ...result, notifications }, { status: 201 });
   }
 
   const result = await getApplicantStore().createCourseAssignments({
-    storeId: params.storeId,
+    storeId,
     courseSlug,
     recipientIds,
     packageName: body?.packageName,
@@ -90,5 +90,5 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
 
   if (result.error) return NextResponse.json(result, { status: 404 });
   const notifications = await notifyAssignmentsCreated(result.assignments);
-  return NextResponse.json({ storeId: params.storeId, count: result.assignments.length, ...result, notifications }, { status: 201 });
+  return NextResponse.json({ storeId, count: result.assignments.length, ...result, notifications }, { status: 201 });
 });

@@ -23,14 +23,18 @@ function isApplicationStage(value: string | null): value is ApplicationStage {
 
 export const GET = withApiErrorHandling(async function GET(request: Request) {
   const url = new URL(request.url);
-  const storeId = url.searchParams.get("storeId") || DEFAULT_STORE_ID;
+  const requestedStoreId = url.searchParams.get("storeId") || DEFAULT_STORE_ID;
+  // Enforce tenant scoping in BOTH runtimes (session-based, runtime-agnostic).
+  // Previously the guard lived only inside the postgres branch, so the local
+  // branch read summaries for any client-supplied ?storeId= with no access check.
+  const storeId = await requireStoreAccess(requestedStoreId, "applications.list");
   const query = url.searchParams.get("q") || "";
   const stage = url.searchParams.get("stage");
   const parsedStage = isApplicationStage(stage) ? stage : undefined;
   const result = await (
     getStorageRuntime() === "postgres"
       ? await listPostgresApplicationSummaries({
-          storeId: await requireStoreAccess(storeId, "applications.list"),
+          storeId,
           query,
           stage: parsedStage,
         })

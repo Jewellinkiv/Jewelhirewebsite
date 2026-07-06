@@ -106,10 +106,10 @@ export function CalendarEmailSettings() {
   };
 
   const preview = note
-    .replace("{{candidate}}", "Jordan")
-    .replace("{{role}}", "Sales Associate")
-    .replace("{{location}}", "Little Rock")
-    .replace("{{time}}", "Thu Jun 25 · 2:30 PM");
+    .replace(/\{\{candidate\}\}/g, "Jordan")
+    .replace(/\{\{role\}\}/g, "Sales Associate")
+    .replace(/\{\{location\}\}/g, "Little Rock")
+    .replace(/\{\{time\}\}/g, "Thu Jun 25 · 2:30 PM");
 
   return (
     <Panel title="Calendar & email invites" icon={<IconCalendar size={16} />} className="mb-[18px]">

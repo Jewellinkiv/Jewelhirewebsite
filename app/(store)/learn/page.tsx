@@ -29,6 +29,36 @@ function Thumb({ c }: { c: Course }) {
   );
 }
 
+function progressStorageKey(slug: string) {
+  return `jewelhire:course-progress:${slug}`;
+}
+
+function storedCourseProgress(course: Course) {
+  try {
+    const raw = window.localStorage.getItem(progressStorageKey(course.slug));
+    if (!raw) return course;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed?.doneLessonIds)) return course;
+    const done = new Set(parsed.doneLessonIds.filter((id: unknown): id is string => typeof id === "string"));
+    const total = course.modules.flatMap((module) => module.lessons).length;
+    const progress = Math.max(course.progress, Math.round((done.size / Math.max(total, 1)) * 100));
+    return {
+      ...course,
+      progress,
+      modules: course.modules.map((module) => ({
+        ...module,
+        lessons: module.lessons.map((lesson) => ({ ...lesson, completed: lesson.completed || done.has(lesson.id) })),
+      })),
+    };
+  } catch {
+    return course;
+  }
+}
+
+function mergeStoredProgress(courses: Course[]) {
+  return courses.map(storedCourseProgress);
+}
+
 export default function LearnPage() {
   const [tab, setTab] = useState<"all" | "mine">("all");
   const [courses, setCourses] = useState<Course[]>(COURSES);
@@ -39,10 +69,10 @@ export default function LearnPage() {
     fetch("/api/courses")
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Unable to load courses"))))
       .then((body) => {
-        if (!cancelled) setCourses(body.items || COURSES);
+        if (!cancelled) setCourses(mergeStoredProgress(body.items || COURSES));
       })
       .catch(() => {
-        if (!cancelled) setCourses(COURSES);
+        if (!cancelled) setCourses(mergeStoredProgress(COURSES));
       });
     return () => {
       cancelled = true;
@@ -51,7 +81,7 @@ export default function LearnPage() {
 
   return (
     <div>
-      <PageHeader title="Training Center" subtitle="Video courses to grow jewelry sales, product, and leadership skills. Completions show on your resume." />
+      <PageHeader title="Training Center" subtitle="Video courses to grow jewelry sales, product, and leadership skills. Progress is saved on this device." />
 
       <div className="flex gap-1.5 mb-4">
         {([["all", "All courses"], ["mine", "My learning"]] as const).map(([k, lbl]) => (
@@ -59,6 +89,15 @@ export default function LearnPage() {
         ))}
       </div>
 
+      {list.length === 0 ? (
+        <div className="bg-panel border border-line rounded-[10px] p-10 text-center">
+          <div className="text-[14px] font-semibold text-head">{tab === "mine" ? "No courses in progress" : "No courses available"}</div>
+          <p className="text-[12.5px] text-muted mt-1 mb-0">{tab === "mine" ? "Start a course to track it here." : "Check back soon for new training."}</p>
+          {tab === "mine" && (
+            <button onClick={() => setTab("all")} className="inline-flex items-center gap-1.5 text-[12.5px] text-primary font-medium mt-3">Browse all courses →</button>
+          )}
+        </div>
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[18px]">
         {list.map((c) => {
           const st = courseStats(c);
@@ -87,6 +126,7 @@ export default function LearnPage() {
           );
         })}
       </div>
+      )}
     </div>
   );
 }

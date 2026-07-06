@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { RESUME_TEMPLATES } from "@/lib/resume-templates";
+import { requireApplicantSelf } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { getPostgresApplicantResume } from "@/lib/server/postgres-phase1";
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
@@ -8,8 +9,8 @@ import { getStorageRuntime } from "@/lib/server/storage-runtime";
 export const dynamic = "force-dynamic";
 
 export const POST = withApiErrorHandling(async function POST(request: Request) {
+  const { email } = await requireApplicantSelf("applicant.resume.export");
   const body = await request.json().catch(() => null);
-  const email = body?.email || body?.lookupEmail;
   const templateId = body?.templateId || "classic";
   const template = RESUME_TEMPLATES.find((item) => item.id === templateId) || RESUME_TEMPLATES[0];
   const resume =

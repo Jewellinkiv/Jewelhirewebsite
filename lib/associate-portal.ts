@@ -24,12 +24,16 @@ export interface AssociateInterview {
   store: string;
   role: string;
   when: string;
+  startIso?: string;
   type: "In-person" | "Video" | "Phone";
   location: string;
   meetLink?: string;
   interviewer: string;
   guests?: string[];
   rsvp: "Pending" | "Accepted" | "Declined";
+  // Only "scheduled" interviews are RSVP-actionable; completed/cancelled/no_show are read-only.
+  // Optional so the static ASSOC_INTERVIEWS seed (no status) stays interactive as a fallback.
+  status?: "scheduled" | "completed" | "cancelled" | "no_show";
 }
 
 export const ASSOC_INTERVIEWS: AssociateInterview[] = [

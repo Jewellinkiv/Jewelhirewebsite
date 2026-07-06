@@ -102,7 +102,7 @@ const SEEDED_TESTS: CourseCompletionTest[] = [
       },
       {
         id: "q-gemmatch",
-        prompt: "Where should GemMatch be used in JewelHire v2?",
+        prompt: "Where should JewelCert be used in JewelHire v2?",
         sortOrder: 2,
         status: "published",
         answers: [

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireApplicantSelf } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import {
   ApplicantNotificationPrefs,
@@ -31,9 +32,8 @@ function pickPrefs(body: any): Partial<ApplicantNotificationPrefs> {
 
 export const dynamic = "force-dynamic";
 
-export const GET = withApiErrorHandling(async function GET(request: Request) {
-  const url = new URL(request.url);
-  const email = url.searchParams.get("email");
+export const GET = withApiErrorHandling(async function GET() {
+  const { email } = await requireApplicantSelf("applicant.notification_prefs.read");
   const prefs =
     getStorageRuntime() === "postgres"
       ? await getPostgresApplicantNotificationPrefs(email)
@@ -43,8 +43,8 @@ export const GET = withApiErrorHandling(async function GET(request: Request) {
 });
 
 export const PATCH = withApiErrorHandling(async function PATCH(request: Request) {
+  const { email } = await requireApplicantSelf("applicant.notification_prefs.update");
   const body = await request.json().catch(() => null);
-  const email = body?.email || body?.lookupEmail || null;
   const patch = pickPrefs(body);
   if (getStorageRuntime() === "postgres") {
     const prefs = await updatePostgresApplicantNotificationPrefs({ email, prefs: patch });

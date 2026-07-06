@@ -40,10 +40,10 @@ declare global {
   var __jewelhireSettingsStore: SettingsState | undefined;
 }
 
-const DEFAULT_WORKFLOW = ["Applied", "Cert sent", "GemMatch done", "In review", "Interview", "Offer", "Hired"];
+const DEFAULT_WORKFLOW = ["Applied", "Cert sent", "JewelCert done", "In review", "Interview", "Offer", "Hired"];
 
 const DEFAULT_NOTIFICATIONS: NotificationRule[] = [
-  { label: "Candidate completes GemMatch", channel: "Email + in-app", owner: "Hiring manager" },
+  { label: "Candidate completes JewelCert", channel: "Email + in-app", owner: "Hiring manager" },
   { label: "Assessment package expires", channel: "In-app", owner: "Store admin" },
   { label: "Training assignment overdue", channel: "Email", owner: "Manager" },
   { label: "New strong-fit candidate", channel: "Email + in-app", owner: "Manager" },

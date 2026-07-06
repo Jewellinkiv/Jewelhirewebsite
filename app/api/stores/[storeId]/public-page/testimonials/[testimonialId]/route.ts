@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
+import { requireStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { getPublicPageStore } from "@/lib/server/stores/public-page-store";
 
 export const PATCH = withApiErrorHandling(async function PATCH(request: Request, props: { params: Promise<{ storeId: string; testimonialId: string }> }) {
   const params = await props.params;
+  const storeId = await requireStoreAccess(params.storeId, "public_page.testimonials.update");
   const body = await request.json().catch(() => null);
   const testimonial = await getPublicPageStore().updatePublicPageTestimonial({
-    storeId: params.storeId,
+    storeId,
     testimonialId: params.testimonialId,
     name: body?.name,
     rating: body?.rating,
@@ -19,8 +21,9 @@ export const PATCH = withApiErrorHandling(async function PATCH(request: Request,
 
 export const DELETE = withApiErrorHandling(async function DELETE(_request: Request, props: { params: Promise<{ storeId: string; testimonialId: string }> }) {
   const params = await props.params;
+  const storeId = await requireStoreAccess(params.storeId, "public_page.testimonials.delete");
   const testimonial = await getPublicPageStore().deletePublicPageTestimonial({
-    storeId: params.storeId,
+    storeId,
     testimonialId: params.testimonialId,
   });
   if (!testimonial) return NextResponse.json({ error: "Testimonial not found" }, { status: 404 });

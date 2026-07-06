@@ -27,6 +27,15 @@ export function PortalSwitcher({ current, dark = false }: { current: AppRole; da
                 {p.label}
               </Link>
             ))}
+            <div className={`my-1 border-t ${dark ? "border-[#1c2942]" : "border-line"}`} />
+            <form action="/api/auth/logout" method="post">
+              <button
+                type="submit"
+                className={`block w-full text-left px-3 py-1.5 text-[13px] ${dark ? "text-[#f1a6a6] hover:bg-[#16243d]" : "text-[#a32d2d] hover:bg-[#fcebeb]"}`}
+              >
+                Log out
+              </button>
+            </form>
           </div>
         </>
       )}

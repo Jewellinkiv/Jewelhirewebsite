@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
-import { getPostgresPublicStoreSnapshot } from "@/lib/server/postgres-phase1";
+import { getPostgresPublicStoreSnapshot, incrementPostgresPublicJobView } from "@/lib/server/postgres-phase1";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
+import { incrementLocalJobView } from "@/lib/local-job-store";
 
 export const GET = withApiErrorHandling(async function GET(_request: Request, props: { params: Promise<{ slug: string; jobId: string }> }) {
   const params = await props.params;
@@ -12,7 +13,7 @@ export const GET = withApiErrorHandling(async function GET(_request: Request, pr
       return NextResponse.json({ error: "Public store page not found" }, { status: 404 });
     }
 
-    const job = snapshot.jobs.find((item) => item.id === params.jobId || item.id === `job-${params.jobId}`);
+    const job = await incrementPostgresPublicJobView(params.slug, params.jobId);
     if (!job) {
       return NextResponse.json({ error: "Public job not found" }, { status: 404 });
     }
@@ -41,6 +42,7 @@ export const GET = withApiErrorHandling(async function GET(_request: Request, pr
   if (!job) {
     return NextResponse.json({ error: "Public job not found" }, { status: 404 });
   }
+  if (job.storeId) incrementLocalJobView(job.storeId, job.id);
 
   return NextResponse.json({
     job,

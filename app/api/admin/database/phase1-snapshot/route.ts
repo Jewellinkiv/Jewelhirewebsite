@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_STORE_ID } from "@/lib/applicant-lifecycle";
+import { requireAdminAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { getPostgresPublicStoreSnapshot, listPostgresApplicationSummaries } from "@/lib/server/postgres-phase1";
 import { checkPostgresReadiness } from "@/lib/server/postgres-readiness";
@@ -7,6 +8,7 @@ import { checkPostgresReadiness } from "@/lib/server/postgres-readiness";
 export const dynamic = "force-dynamic";
 
 export const GET = withApiErrorHandling(async function GET(request: Request) {
+  await requireAdminAccess("admin.database.snapshot.read");
   const readiness = await checkPostgresReadiness();
   if (!readiness.ok) {
     return NextResponse.json(

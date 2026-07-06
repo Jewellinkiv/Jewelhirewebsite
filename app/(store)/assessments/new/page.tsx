@@ -67,7 +67,7 @@ export default function NewAssessmentPage() {
   return (
     <div className="max-w-[940px]">
       <Link href="/assessments" className="inline-flex items-center gap-1 text-[12.5px] text-muted no-underline hover:text-primary mb-2"><IconChevronLeft size={15} /> Assessments</Link>
-      <PageHeader title="Build an assessment" subtitle="Create your own assessment alongside the default GemMatch and admin tests." />
+      <PageHeader title="Build an assessment" subtitle="Create your own assessment alongside the default JewelCert and admin tests." />
 
       {notice && (
         <div className="mb-4 flex items-center gap-2 bg-[#e8f1ff] border border-[#cfe0fb] text-primary rounded-md px-3.5 py-2.5 text-[13px]">

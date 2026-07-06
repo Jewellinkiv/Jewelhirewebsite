@@ -65,6 +65,13 @@ function parseDatabaseUrl() {
   };
 }
 
+function sslConfig(rawUrl: string) {
+  const url = new URL(rawUrl);
+  const sslmode = url.searchParams.get("sslmode");
+  if (sslmode === "disable" || ["localhost", "127.0.0.1", "::1"].includes(url.hostname)) return false;
+  return { rejectUnauthorized: true };
+}
+
 export function getPostgresPool() {
   const parsed = parseDatabaseUrl();
   if (!parsed) throw new Error("DATABASE_URL is not configured.");
@@ -79,7 +86,7 @@ export function getPostgresPool() {
     connectionTimeoutMillis: poolConnectionTimeoutMillis(),
     idleTimeoutMillis: 30_000,
     max: poolMax(),
-    ssl: { rejectUnauthorized: true },
+    ssl: sslConfig(parsed.raw),
   });
   globalStore.__jewelhirePostgresPoolKey = key;
   return globalStore.__jewelhirePostgresPool;

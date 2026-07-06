@@ -31,7 +31,7 @@ export const LEGACY_ASSESSMENTS: LegacyAssessment[] = [
       "Resilience",
     ],
     media: ["12essentialstest.mp4", "SMP1Png File.png"],
-    migrationNote: "Keep as legacy comparison data; consider folding into GemMatch coaching notes.",
+    migrationNote: "Keep as legacy comparison data; consider folding into JewelCert coaching notes.",
   },
   {
     title: "Sales Personality Profiling Test",
@@ -45,7 +45,7 @@ export const LEGACY_ASSESSMENTS: LegacyAssessment[] = [
       "Detail-Oriented Educator",
     ],
     media: ["4traitstest.mp4", "SMP2Png File.png"],
-    migrationNote: "Use as a bridge from legacy sales traits to the new GemMatch profile language.",
+    migrationNote: "Use as a bridge from legacy sales traits to the new JewelCert profile language.",
   },
   {
     title: "Jewelry Basic Knowledge Assessment",
@@ -527,7 +527,7 @@ export const FEATURED_COURSE_DETAIL: FeaturedCourseDetail = {
   assignmentRules: [
     "Available to store owners and employer admins after v2 entitlement checks.",
     "Assignable from onboarding plans, roster development plans, and candidate-to-hire transitions.",
-    "Not used as a primary pre-hire screen; GemMatch and aptitude assessments own screening evidence.",
+    "Not used as a primary pre-hire screen; JewelCert and aptitude assessments own screening evidence.",
     "Completion can create a manager-visible badge when all lessons and the final check are complete.",
   ],
   learnerMilestones: [
@@ -780,7 +780,7 @@ export const COURSE_READINESS_QUEUE: CourseReadinessItem[] = [
     audience: "Managers",
     readiness: "Needs review",
     lessonCount: 5,
-    warnings: ["Unpublished draft", "Confirm whether to fold into GemMatch language"],
+    warnings: ["Unpublished draft", "Confirm whether to fold into JewelCert language"],
   },
   {
     title: "Basic Etiquette",

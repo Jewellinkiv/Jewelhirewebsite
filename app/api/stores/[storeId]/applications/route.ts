@@ -30,15 +30,17 @@ export const GET = withApiErrorHandling(async function GET(request: Request, pro
   const fit = url.searchParams.get("fit");
   const parsedStage = isApplicationStage(stage) ? stage : undefined;
 
+  const storeId = await requireStoreAccess(params.storeId, "applications.list");
+
   const result = await (
     getStorageRuntime() === "postgres"
       ? await listPostgresApplicationSummaries({
-          storeId: await requireStoreAccess(params.storeId, "applications.list"),
+          storeId,
           query,
           stage: parsedStage,
         })
       : getApplicantStore().listStoreApplicationSummaries({
-          storeId: params.storeId,
+          storeId,
           query,
           stage: parsedStage,
         })
@@ -48,7 +50,7 @@ export const GET = withApiErrorHandling(async function GET(request: Request, pro
     .filter((item) => !fit || item.screening.gemmatchFit === fit);
 
   return NextResponse.json({
-    storeId: params.storeId,
+    storeId,
     filters: {
       q: query,
       stage: parsedStage || null,

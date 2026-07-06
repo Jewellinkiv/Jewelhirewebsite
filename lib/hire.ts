@@ -1,6 +1,6 @@
 // Hire → JewelLink (Phase 1 — store-scoped). Helpers for the hire confirm step:
 // the target store and a floor-recompute that blends the current team mix with a
-// new hire's GemMatch mix. Reference math; production gets this from the service.
+// new hire's JewelCert mix. Reference math; production gets this from the service.
 
 import { Mix, PROFILE_ORDER, ProfileCode } from "./gemmatch";
 import { TEAM } from "./data";
@@ -8,6 +8,11 @@ import { TEAM } from "./data";
 export const HIRE_STORE = {
   name: "Sissy's Log Cabin",
   location: "Little Rock, Arkansas",
+  // Canonical location slug (matches lib/team-locations.ts LOCATIONS[].id). The
+  // `location` field above is the human-readable label for display; the hire POST
+  // must send this slug as `locationId` so the new team member groups/filters under
+  // Little Rock on the roster + team-composition views instead of a bogus string id.
+  locationId: "little-rock",
   product: "JewelLink",
 };
 

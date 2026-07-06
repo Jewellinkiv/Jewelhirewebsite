@@ -7,6 +7,7 @@ import {
   TEMPLATES, FONTS, fontStack, DEFAULT_HOURS, DEFAULT_TESTIMONIALS,
   PublicPageConfig, JobLayout, Testimonial,
 } from "@/lib/public-templates";
+import { StorePublicPageRecord } from "@/lib/applicant-lifecycle";
 import {
   IconStar, IconMapPin, IconDiamond, IconChevronLeft, IconChevronRight,
   IconPlus, IconX, IconPalette, IconLink,
@@ -27,6 +28,37 @@ function Stars({ rating, size = 15, color = "#f0a500" }: { rating: number; size?
 const T0 = TEMPLATES[0];
 const STORE_ID = "store-sissys-little-rock";
 
+type PublicPageResponse = {
+  page?: StorePublicPageRecord;
+  store?: typeof STORE & { careersUrl?: string };
+  config: PublicPageConfig;
+};
+
+function publicStoreUrl(slug: string) {
+  const candidate = slug.trim().replace(/^\/+|\/+$/g, "");
+  const normalized = candidate && !candidate.includes("/") && !candidate.includes(".") ? candidate : "sissys-log-cabin-careers";
+  if (typeof window === "undefined") return `/api/public/stores/${normalized}`;
+  return new URL(`/api/public/stores/${normalized}`, window.location.origin).toString();
+}
+
+async function writeClipboardText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const input = document.createElement("input");
+  input.value = value;
+  input.setAttribute("readonly", "true");
+  input.style.position = "fixed";
+  input.style.left = "-9999px";
+  document.body.appendChild(input);
+  input.select();
+  const copied = document.execCommand("copy");
+  document.body.removeChild(input);
+  if (!copied) throw new Error("Clipboard copy failed");
+}
+
 export default function PublicPageBuilder() {
   const [cfg, setCfg] = useState<PublicPageConfig>({
     templateId: T0.id,
@@ -42,13 +74,16 @@ export default function PublicPageBuilder() {
   });
   const [slide, setSlide] = useState(0);
   const [notice, setNotice] = useState("");
+  const [publicSlug, setPublicSlug] = useState("sissys-log-cabin-careers");
 
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/stores/${STORE_ID}/public-page`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data: { config: PublicPageConfig }) => {
-        if (!cancelled) setCfg(data.config);
+      .then((data: PublicPageResponse) => {
+        if (cancelled) return;
+        setCfg(data.config);
+        setPublicSlug(data.page?.slug || data.store?.careersUrl || "sissys-log-cabin-careers");
       })
       .catch(() => undefined);
     return () => {
@@ -100,6 +135,16 @@ export default function PublicPageBuilder() {
     setNotice(`Public page ${status}.`);
   };
 
+  const copyLink = async () => {
+    const url = publicStoreUrl(publicSlug);
+    try {
+      await writeClipboardText(url);
+      setNotice("Careers page link copied.");
+    } catch {
+      setNotice(`Copy this link: ${url}`);
+    }
+  };
+
   const t = cfg.theme;
   const font = fontStack(t.fontId);
   const input = "w-full border border-line rounded-md px-2.5 py-2 text-[13px] text-body outline-none focus:border-primary bg-white";
@@ -107,6 +152,7 @@ export default function PublicPageBuilder() {
   const statusStyle = cfg.status === "published" ? "bg-[#dff3e8] text-[#0f6e56]" : cfg.status === "paused" ? "bg-[#fff4e2] text-[#9a6a12]" : "bg-[#eef2f7] text-[#5b6472]";
   const tCount = cfg.testimonials.length;
   const cur = tCount ? cfg.testimonials[Math.min(slide, tCount - 1)] : null;
+  const publicUrl = publicStoreUrl(publicSlug);
 
   return (
     <div>
@@ -114,7 +160,7 @@ export default function PublicPageBuilder() {
         title="Public hiring page"
         subtitle="Pick a template, brand it, and publish. Applicants only see and apply to your store."
         action={
-          <button className="btn-outline inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[13px]"><IconLink size={16} /> Copy link</button>
+          <button onClick={copyLink} className="btn-outline inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[13px]"><IconLink size={16} /> Copy link</button>
         }
       />
 
@@ -242,7 +288,7 @@ export default function PublicPageBuilder() {
         <div className="rounded-[12px] border border-line overflow-hidden shadow-sm">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#f1f3f8] border-b border-line">
             <span className="w-3 h-3 rounded-full bg-[#e2683c]" /><span className="w-3 h-3 rounded-full bg-[#f0a500]" /><span className="w-3 h-3 rounded-full bg-[#1f9e75]" />
-            <span className="ml-3 flex-1 max-w-[420px] text-[12px] text-muted bg-white border border-line rounded-md px-3 py-1.5">{STORE.careersUrl}</span>
+            <span className="ml-3 flex-1 max-w-[420px] text-[12px] text-muted bg-white border border-line rounded-md px-3 py-1.5 truncate">{publicUrl}</span>
             <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${statusStyle}`}>{cfg.status}</span>
           </div>
 
@@ -326,7 +372,7 @@ export default function PublicPageBuilder() {
             {/* apply CTA */}
             <div className="px-8 py-9 text-center" style={{ background: t.primary }}>
               <h2 className="text-[22px] font-extrabold m-0 text-white">Apply in minutes</h2>
-              <p className="text-[14px] mt-2 mb-5 text-white" style={{ opacity: 0.85 }}>Build your resume and take a short GemMatch assessment.</p>
+              <p className="text-[14px] mt-2 mb-5 text-white" style={{ opacity: 0.85 }}>Build your resume and take a short JewelCert assessment.</p>
               <button className="px-7 py-3 text-[15px] rounded-full font-bold" style={{ background: t.accent, color: "#fff" }}>Start your application</button>
             </div>
 

@@ -21,12 +21,24 @@ interface ApiInterview {
   job?: { title: string };
 }
 
+// Google Calendar TEMPLATE links need a dates=START/END param (UTC, no punctuation)
+// or the created event has no time. Default to a 45-minute block from startIso.
+function gcalDates(startIso?: string): string {
+  if (!startIso) return "";
+  const start = new Date(startIso);
+  if (Number.isNaN(start.getTime())) return "";
+  const end = new Date(start.getTime() + 45 * 60 * 1000);
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  return `&dates=${fmt(start)}/${fmt(end)}`;
+}
+
 function toInterview(item: ApiInterview): AssociateInterview {
   const rsvp = item.outcome?.includes("accepted") ? "Accepted" : item.status === "cancelled" ? "Declined" : "Pending";
   return {
     id: item.id,
     store: "Sissy's Log Cabin",
     role: item.job?.title || "Jewelry role",
+    startIso: item.startsAt,
     when: new Date(item.startsAt).toLocaleString("en-US", {
       weekday: "short",
       month: "short",
@@ -39,6 +51,7 @@ function toInterview(item: ApiInterview): AssociateInterview {
     meetLink: item.locationType === "video" ? item.locationDetails : undefined,
     interviewer: "Hiring team",
     rsvp,
+    status: item.status,
   };
 }
 
@@ -96,15 +109,23 @@ export default function PortalInterviewsPage() {
               </div>
 
               <div className="mt-3.5 flex items-center gap-2">
-                {i.rsvp !== "Accepted" && (
+                {/* Only scheduled interviews are RSVP-actionable; completed/cancelled/no_show are read-only
+                    so an applicant can't cancel a past interview by clicking Decline. The static seed has no
+                    status, so it stays interactive as a fallback. */}
+                {(i.status === "scheduled" || !i.status) && i.rsvp !== "Accepted" && (
                   <button onClick={() => set(i.id, "Accepted")} className="btn-grad inline-flex items-center gap-1.5 px-4 py-2 text-[13px]"><IconCheck size={15} /> Accept</button>
                 )}
-                {i.rsvp !== "Declined" && (
+                {(i.status === "scheduled" || !i.status) && i.rsvp !== "Declined" && (
                   <button onClick={() => set(i.id, "Declined")} className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] rounded-md border border-line text-body hover:bg-rowhover"><IconX size={15} /> Decline</button>
+                )}
+                {i.status && i.status !== "scheduled" && (
+                  <span className="text-[12px] text-muted">
+                    {i.status === "completed" ? "Interview complete" : i.status === "no_show" ? "Marked no-show" : "Interview cancelled"}
+                  </span>
                 )}
                 {i.rsvp === "Accepted" && (
                   <a
-                    href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Interview — ${i.store}`)}&details=${encodeURIComponent(`${i.role} interview with ${i.interviewer}. ${i.meetLink ? "Join: " + i.meetLink : ""}`)}&location=${encodeURIComponent(i.meetLink ?? i.location)}`}
+                    href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Interview — ${i.store}`)}&details=${encodeURIComponent(`${i.role} interview with ${i.interviewer}. ${i.meetLink ? "Join: " + i.meetLink : ""}`)}&location=${encodeURIComponent(i.meetLink ?? i.location)}${gcalDates(i.startIso)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="ml-auto inline-flex items-center gap-1.5 text-[12px] border border-line rounded px-2.5 py-1.5 text-primary no-underline hover:bg-rowhover"

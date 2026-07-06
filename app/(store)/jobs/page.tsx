@@ -1,87 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/common";
-import { Panel, MixBars } from "@/components/ui";
-import { CANDIDATES } from "@/lib/data";
-import { Mix } from "@/lib/gemmatch";
+import { Panel } from "@/components/ui";
 import { LEGACY_ASSESSMENTS, LEGACY_COURSES } from "@/lib/legacy";
-import { getPostingByTitle, postingKpis } from "@/lib/job-postings";
 import { EmptyState } from "@/components/states";
-import { IconBriefcase, IconClipboardList, IconSchool, IconSend, IconTargetArrow, IconUserPlus } from "@/components/icons";
-
-type JobStatus = "Active" | "Draft" | "Paused";
-
-interface RoleProfile {
-  title: string;
-  location: string;
-  status: JobStatus;
-  openings: number;
-  pipeline: number;
-  idealMix: Mix;
-  priority: string;
-  assessments: string[];
-  courses: string[];
-  notes: string;
-}
-
-const ROLE_PROFILES: RoleProfile[] = [
-  {
-    title: "Sales Associate",
-    location: "Little Rock",
-    status: "Active",
-    openings: 2,
-    pipeline: CANDIDATES.filter((c) => c.role === "Sales Associate").length,
-    idealMix: { V: 15, C: 45, F: 25, D: 15 },
-    priority: "Balance a drive-heavy floor with Connector energy and steady follow-through.",
-    assessments: ["GemMatch profile", "Sales Personality Profiling Test", "Jewelry Basic Knowledge Assessment"],
-    courses: ["Mastering the Four C's", "Jewelry Basics", "Clienteling and Follow-up"],
-    notes: "Best candidates should show client warmth, teachable jewelry knowledge, and enough drive to close without overpowering the floor.",
-  },
-  {
-    title: "Sales Manager",
-    location: "Little Rock",
-    status: "Active",
-    openings: 1,
-    pipeline: CANDIDATES.filter((c) => c.role === "Sales Manager").length,
-    idealMix: { V: 25, C: 25, F: 10, D: 40 },
-    priority: "Add accountable floor leadership without losing people sense.",
-    assessments: ["GemMatch profile", "12 Essentials: Understanding your potential", "Sales Personality Profiling Test"],
-    courses: ["Building and Managing a High-Performance Sales Team", "Mastering Key Performance Indicators"],
-    notes: "Look for a Determined primary or secondary who can coach, inspect pipeline behavior, and protect the service standard.",
-  },
-  {
-    title: "Bench Jeweler",
-    location: "Little Rock",
-    status: "Draft",
-    openings: 1,
-    pipeline: CANDIDATES.filter((c) => c.role === "Bench Jeweler").length,
-    idealMix: { V: 20, C: 5, F: 55, D: 20 },
-    priority: "Strengthen precision, craft quality, and repair consistency.",
-    assessments: ["GemMatch profile", "Jewelry Basic Knowledge Assessment"],
-    courses: ["Inventory Security in Retail Jewelry", "Diamond Product Knowledge Book"],
-    notes: "Foundation should be the strongest signal. Avoid candidates who need constant pace changes or heavy social selling.",
-  },
-];
+import { IconBriefcase, IconClipboardList, IconSchool, IconSend, IconUserPlus, IconX, IconCheck } from "@/components/icons";
 
 const STORE_ID = "store-sissys-little-rock";
 
-const STATUS_STYLE: Record<JobStatus, string> = {
-  Active: "bg-[#e1f5ee] text-[#0f6e56]",
-  Draft: "bg-[#eef2f7] text-[#5b6472]",
-  Paused: "bg-[#fff4e2] text-[#9a6a12]",
+type RawStatus = "draft" | "open" | "paused" | "closed";
+
+interface JobRecord {
+  id: string;
+  slug: string;
+  title: string;
+  location: string;
+  locationId: string | null;
+  employmentType: string;
+  compensationSummary: string;
+  description: string;
+  requirements: string[];
+  idealGemMatchMix: string[];
+  status: RawStatus;
+  openings: number;
+  views: number;
+  applyClicks: number;
+}
+
+interface JobItem {
+  job: JobRecord;
+  kpis: { applicants: number; uniqueApplicants: number; hired: number; activePipeline: number; views: number; applyClicks: number };
+}
+
+interface StoreLocation {
+  id: string;
+  name: string;
+}
+
+const STATUS_LABEL: Record<RawStatus, string> = { open: "Active", draft: "Draft", paused: "Paused", closed: "Closed" };
+const STATUS_STYLE: Record<RawStatus, string> = {
+  open: "bg-[#e1f5ee] text-[#0f6e56]",
+  draft: "bg-[#eef2f7] text-[#5b6472]",
+  paused: "bg-[#fff4e2] text-[#9a6a12]",
+  closed: "bg-[#fcebeb] text-[#a32d2d]",
 };
-
-function jobStatus(status?: string): JobStatus {
-  if (status === "draft") return "Draft";
-  if (status === "paused") return "Paused";
-  return "Active";
-}
-
-function titleMatches(apiTitle: string, roleTitle: string) {
-  return apiTitle.toLowerCase().includes(roleTitle.toLowerCase()) || roleTitle.toLowerCase().includes(apiTitle.toLowerCase());
-}
 
 function Stat({ label, value, sub }: { label: string; value: string | number; sub: string }) {
   return (
@@ -93,127 +57,216 @@ function Stat({ label, value, sub }: { label: string; value: string | number; su
   );
 }
 
-function StatusChip({ status }: { status: JobStatus }) {
-  return (
-    <span className={`inline-flex px-2.5 py-1 rounded-full text-[11.5px] font-medium ${STATUS_STYLE[status]}`}>
-      {status}
-    </span>
-  );
+function StatusChip({ status }: { status: RawStatus }) {
+  return <span className={`inline-flex px-2.5 py-1 rounded-full text-[11.5px] font-medium ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>;
 }
 
-function ProfileCard({ role }: { role: RoleProfile }) {
-  const posting = getPostingByTitle(role.title);
-  const k = posting ? postingKpis(posting) : null;
+function ProfileCard({ item }: { item: JobItem }) {
+  const { job, kpis } = item;
   return (
     <Panel>
       <div className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              {posting ? (
-                <Link href={`/jobs/${posting.slug}`} className="m-0 text-[16px] font-semibold text-head no-underline hover:text-primary">{role.title}</Link>
-              ) : (
-                <h3 className="m-0 text-[16px] font-semibold text-head">{role.title}</h3>
-              )}
-              <StatusChip status={role.status} />
+              <Link href={`/jobs/${job.slug}`} className="m-0 text-[16px] font-semibold text-head no-underline hover:text-primary">{job.title}</Link>
+              <StatusChip status={job.status} />
             </div>
-            <p className="m-0 mt-1 text-[12.5px] text-muted">{role.location} - {role.openings} opening{role.openings === 1 ? "" : "s"}</p>
-            {k && posting && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                <span className="text-[11.5px] bg-page border border-line rounded-full px-2.5 py-1 text-body">Running {posting.postedDaysAgo}d</span>
-                <span className="text-[11.5px] bg-page border border-line rounded-full px-2.5 py-1 text-body">{k.total} applicants</span>
-                <span className="text-[11.5px] bg-[#dff3e8] text-[#0f6e56] rounded-full px-2.5 py-1">{k.hired} hired</span>
-                {k.avgFit != null && <span className="text-[11.5px] bg-[#e8f1ff] text-primary rounded-full px-2.5 py-1">avg fit {k.avgFit}</span>}
-              </div>
-            )}
+            <p className="m-0 mt-1 text-[12.5px] text-muted">{job.location} - {job.openings} opening{job.openings === 1 ? "" : "s"}{job.employmentType ? ` · ${job.employmentType}` : ""}{job.compensationSummary ? ` · ${job.compensationSummary}` : ""}</p>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              <span className="text-[11.5px] bg-page border border-line rounded-full px-2.5 py-1 text-body">{kpis.applicants} applicant{kpis.applicants === 1 ? "" : "s"}</span>
+              <span className="text-[11.5px] bg-[#e8f1ff] text-primary rounded-full px-2.5 py-1">{kpis.activePipeline} in pipeline</span>
+              <span className="text-[11.5px] bg-[#dff3e8] text-[#0f6e56] rounded-full px-2.5 py-1">{kpis.hired} hired</span>
+              <span className="text-[11.5px] bg-page border border-line rounded-full px-2.5 py-1 text-body">{kpis.views} view{kpis.views === 1 ? "" : "s"}</span>
+              <span className="text-[11.5px] bg-page border border-line rounded-full px-2.5 py-1 text-body">{kpis.applyClicks} apply click{kpis.applyClicks === 1 ? "" : "s"}</span>
+            </div>
           </div>
-          <Link href={posting ? `/jobs/${posting.slug}` : "/applicants"} className="inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-2 text-[12.5px] font-medium text-body no-underline hover:bg-rowhover">
+          <Link href={`/jobs/${job.slug}`} className="inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-2 text-[12.5px] font-medium text-body no-underline hover:bg-rowhover shrink-0">
             <IconUserPlus size={15} /> View job
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-4 mt-4">
-          <div className="border border-line rounded-md bg-page px-3 py-3">
-            <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase text-muted mb-2">
-              <IconTargetArrow size={14} /> Ideal GemMatch mix
-            </div>
-            <MixBars mix={role.idealMix} />
-          </div>
-
-          <div className="space-y-3">
-            <div className="border border-[#cfe0fb] bg-[#eef4ff] rounded-md px-3 py-2.5 text-[12.5px] text-body">
-              <b className="text-primary">Hiring priority:</b> {role.priority}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {(job.description || job.requirements.length > 0) && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {job.description && (
+              <div className="border border-line rounded-md px-3 py-3 text-[12.5px] leading-relaxed text-body">{job.description}</div>
+            )}
+            {job.requirements.length > 0 && (
               <div className="border border-line rounded-md px-3 py-3">
-                <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-head mb-2"><IconClipboardList size={14} /> Required assessments</div>
+                <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-head mb-2"><IconClipboardList size={14} /> Requirements</div>
                 <ul className="m-0 pl-4 text-[12.5px] text-body leading-relaxed">
-                  {role.assessments.map((item) => <li key={item}>{item}</li>)}
+                  {job.requirements.map((r) => <li key={r}>{r}</li>)}
                 </ul>
               </div>
-              <div className="border border-line rounded-md px-3 py-3">
-                <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-head mb-2"><IconSchool size={14} /> Suggested courses</div>
-                <ul className="m-0 pl-4 text-[12.5px] text-body leading-relaxed">
-                  {role.courses.map((item) => <li key={item}>{item}</li>)}
-                </ul>
-              </div>
-            </div>
-
-            <p className="m-0 text-[12.5px] leading-relaxed text-body">{role.notes}</p>
+            )}
           </div>
-        </div>
+        )}
       </div>
     </Panel>
   );
 }
 
+const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Contract", "Seasonal"];
+
+function CreateJobModal({ locations, onClose, onCreated }: { locations: StoreLocation[]; onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({
+    title: "",
+    locationId: "",
+    location: "",
+    employmentType: "Full-time",
+    compensationSummary: "",
+    openings: "1",
+    description: "",
+    requirements: "",
+    status: "open" as RawStatus,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const canSubmit = form.title.trim().length > 0 && !saving;
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setSaving(true);
+    setError("");
+    const selectedLocation = locations.find((l) => l.id === form.locationId);
+    try {
+      const response = await fetch(`/api/stores/${STORE_ID}/jobs`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: form.title.trim(),
+          locationId: form.locationId || undefined,
+          location: selectedLocation?.name || form.location.trim() || undefined,
+          employmentType: form.employmentType,
+          compensationSummary: form.compensationSummary.trim(),
+          openings: Number(form.openings) || 1,
+          description: form.description.trim(),
+          requirements: form.requirements.split("\n").map((r) => r.trim()).filter(Boolean),
+          status: form.status,
+        }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Unable to create job");
+      }
+      onCreated();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to create job");
+      setSaving(false);
+    }
+  };
+
+  const input = "w-full border border-line rounded-md px-3 py-2 text-[13.5px] text-body outline-none focus:border-primary bg-white";
+  const label = "text-[12px] font-medium text-head mb-1 block";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-[560px] max-h-[90vh] overflow-y-auto rounded-lg border border-line bg-white shadow-xl">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-line sticky top-0 bg-white">
+          <h3 className="m-0 text-[15px] font-semibold text-head">New role profile</h3>
+          <button onClick={onClose} className="text-muted hover:text-head"><IconX size={18} /></button>
+        </div>
+        <div className="p-5 flex flex-col gap-4">
+          <div>
+            <label className={label}>Job title *</label>
+            <input className={input} value={form.title} onChange={set("title")} placeholder="Sales Associate" autoFocus />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label}>Location</label>
+              <select className={input} value={form.locationId} onChange={set("locationId")}>
+                <option value="">Select a location</option>
+                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={label}>Employment type</label>
+              <select className={input} value={form.employmentType} onChange={set("employmentType")}>
+                {EMPLOYMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label}>Compensation</label>
+              <input className={input} value={form.compensationSummary} onChange={set("compensationSummary")} placeholder="$60,000 – $85,000" />
+            </div>
+            <div>
+              <label className={label}>Openings</label>
+              <input className={input} type="number" min={1} value={form.openings} onChange={set("openings")} />
+            </div>
+          </div>
+          <div>
+            <label className={label}>Description</label>
+            <textarea className={`${input} h-20 resize-none`} value={form.description} onChange={set("description")} placeholder="What the role does and who thrives in it…" />
+          </div>
+          <div>
+            <label className={label}>Requirements (one per line)</label>
+            <textarea className={`${input} h-20 resize-none`} value={form.requirements} onChange={set("requirements")} placeholder={"Bench jewelry experience\nStone setting familiarity"} />
+          </div>
+          <div>
+            <label className={label}>Status</label>
+            <select className={input} value={form.status} onChange={set("status")}>
+              <option value="open">Active — published to the public careers page</option>
+              <option value="draft">Draft — not visible to applicants</option>
+            </select>
+          </div>
+          {error && <div className="rounded-md border border-[#f2c2c2] bg-[#fff4f4] px-3 py-2 text-[13px] text-[#a32d2d]">{error}</div>}
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button onClick={onClose} className="btn-outline px-4 py-2 text-[13px]">Cancel</button>
+            <button onClick={submit} disabled={!canSubmit} className={`inline-flex items-center gap-1.5 px-4 py-2 text-[13px] ${canSubmit ? "btn-grad" : "rounded-full bg-[#c2cbe0] text-white cursor-not-allowed"}`}>
+              <IconCheck size={15} /> {saving ? "Creating…" : "Create job"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function JobsPage() {
-  const [roles, setRoles] = useState(ROLE_PROFILES);
-  const active = roles.filter((role) => role.status === "Active").length;
-  const openings = roles.reduce((sum, role) => sum + role.openings, 0);
-  const pipeline = roles.reduce((sum, role) => sum + role.pipeline, 0);
+  const [items, setItems] = useState<JobItem[]>([]);
+  const [locations, setLocations] = useState<StoreLocation[]>([]);
+  const [locationFilter, setLocationFilter] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
   const publishedCourses = LEGACY_COURSES.filter((course) => course.status === "Published").length;
+
+  const loadJobs = useCallback(() => {
+    const params = locationFilter ? `?locationId=${encodeURIComponent(locationFilter)}` : "";
+    return fetch(`/api/stores/${STORE_ID}/jobs${params}`)
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((data: { items: JobItem[] }) => setItems(data.items || []))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
+  }, [locationFilter]);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/stores/${STORE_ID}/jobs`)
+    fetch(`/api/stores/${STORE_ID}/locations`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data: {
-        items: {
-          job: { title: string; location: string; status: string };
-          kpis: { applicants: number; activePipeline: number };
-        }[];
-      }) => {
-        if (cancelled) return;
-        setRoles((current) =>
-          current.map((role) => {
-            const item = data.items.find((candidate) => titleMatches(candidate.job.title, role.title));
-            if (!item) return role;
-            return {
-              ...role,
-              location: item.job.location.replace(", AR", ""),
-              status: jobStatus(item.job.status),
-              pipeline: item.kpis.activePipeline || item.kpis.applicants,
-            };
-          }),
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setRoles(ROLE_PROFILES);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .then((data: { items: StoreLocation[] }) => { if (!cancelled) setLocations(data.items || []); })
+      .catch(() => { if (!cancelled) setLocations([]); });
+    return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => { loadJobs(); }, [loadJobs]);
+
+  const active = useMemo(() => items.filter((i) => i.job.status === "open").length, [items]);
+  const openings = useMemo(() => items.reduce((sum, i) => sum + i.job.openings, 0), [items]);
+  const pipeline = useMemo(() => items.reduce((sum, i) => sum + i.kpis.activePipeline, 0), [items]);
 
   return (
     <div>
       <PageHeader
         title="Jobs"
-        subtitle="Role profiles, active openings, and assessment/training requirements for v2 hiring."
+        subtitle="Create role profiles and openings. Active jobs publish to your public careers page for candidates to apply."
         action={
-          <button className="btn-grad inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[12.5px]">
+          <button onClick={() => setShowCreate(true)} className="btn-grad inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[12.5px]">
             <IconBriefcase size={15} /> New role profile
           </button>
         }
@@ -222,21 +275,33 @@ export default function JobsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-[18px]">
         <Stat label="Active roles" value={active} sub="Open for candidates" />
         <Stat label="Open seats" value={openings} sub="Across role profiles" />
-        <Stat label="Pipeline" value={pipeline} sub="Candidates mapped to roles" />
+        <Stat label="Pipeline" value={pipeline} sub="Candidates in active pipeline" />
         <Stat label="Reusable content" value={LEGACY_ASSESSMENTS.length + publishedCourses} sub="Assessments plus courses" />
       </div>
 
+      {locations.length > 0 && (
+        <div className="flex items-center gap-2 mb-[18px]">
+          <span className="text-[12.5px] text-muted">Location</span>
+          <select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} className="border border-line rounded-md px-3 py-2 text-[13px] text-body bg-panel outline-none focus:border-primary">
+            <option value="">All locations ({locations.length})</option>
+            {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-[18px] items-start">
         <div className="space-y-[18px]">
-          {roles.length > 0 ? (
-            roles.map((role) => <ProfileCard key={role.title} role={role} />)
+          {loading ? (
+            <Panel><div className="p-10 text-center text-muted text-sm">Loading jobs…</div></Panel>
+          ) : items.length > 0 ? (
+            items.map((item) => <ProfileCard key={item.job.id} item={item} />)
           ) : (
             <Panel>
               <EmptyState
                 icon={<IconBriefcase size={20} />}
-                title="No role profiles yet"
-                message="Create a role profile to define its ideal GemMatch mix, required assessments, and openings."
-                action={<button className="btn-grad inline-flex items-center gap-1.5 px-4 py-2 text-[13px]"><IconBriefcase size={15} /> New role profile</button>}
+                title={locationFilter ? "No jobs for this location" : "No role profiles yet"}
+                message={locationFilter ? "Try a different location, or create a role profile for this location." : "Create your first role profile to define its openings, requirements, and publish it to your public careers page."}
+                action={<button onClick={() => setShowCreate(true)} className="btn-grad inline-flex items-center gap-1.5 px-4 py-2 text-[13px]"><IconBriefcase size={15} /> New role profile</button>}
               />
             </Panel>
           )}
@@ -245,9 +310,9 @@ export default function JobsPage() {
         <div className="space-y-[18px]">
           <Panel title="Role template rules">
             <div className="p-4 text-[12.5px] text-body leading-relaxed space-y-2">
-              <p className="m-0">A v2 job is a role profile plus one or more active openings. The role profile owns ideal GemMatch mix, required assessments, and suggested courses.</p>
+              <p className="m-0">A v2 job is a role profile plus one or more active openings. Active jobs publish to your public careers page where candidates apply.</p>
               <p className="m-0">Openings should stay lightweight: store, seat count, hiring stage, and candidate pipeline.</p>
-              <p className="m-0">Legacy content becomes reusable assessment or training requirements, not copied Bubble pages.</p>
+              <p className="m-0">Draft jobs stay private until you set them Active.</p>
             </div>
           </Panel>
 
@@ -267,6 +332,8 @@ export default function JobsPage() {
           </Panel>
         </div>
       </div>
+
+      {showCreate && <CreateJobModal locations={locations} onClose={() => setShowCreate(false)} onCreated={loadJobs} />}
     </div>
   );
 }
