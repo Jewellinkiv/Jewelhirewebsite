@@ -19,12 +19,15 @@ const NOTIFICATIONS = [
 ];
 
 const STORE_ID = "store-sissys-little-rock";
+// Neutral placeholder shown before the store's real settings load (and if the
+// load fails). Deliberately blank — never a specific store's name — so one
+// store's owner can't see another store's details.
 const FALLBACK_SETTINGS: StoreSettingsRecord = {
   storeId: STORE_ID,
   organization: {
-    company: "Sissy's Log Cabin",
-    primaryStore: "Little Rock, Arkansas",
-    defaultManager: "William Jones",
+    company: "",
+    primaryStore: "",
+    defaultManager: "",
   },
   workflow: PIPELINE,
   notifications: NOTIFICATIONS,

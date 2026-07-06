@@ -60,13 +60,15 @@ async function writeClipboardText(value: string) {
 }
 
 export default function PublicPageBuilder() {
+  // Store-identifying fields start blank (never another store's name) and are
+  // populated from the real config on load; generic layout/copy defaults remain.
   const [cfg, setCfg] = useState<PublicPageConfig>({
     templateId: T0.id,
-    logoText: "Sissy's Log Cabin",
+    logoText: "",
     theme: { ...T0.theme },
     jobLayout: T0.jobLayout,
     headline: "Build a career in fine jewelry.",
-    about: STORE.about,
+    about: "",
     hours: DEFAULT_HOURS.map((h) => ({ ...h })),
     showReviews: true,
     testimonials: DEFAULT_TESTIMONIALS.map((t) => ({ ...t })),
@@ -74,7 +76,7 @@ export default function PublicPageBuilder() {
   });
   const [slide, setSlide] = useState(0);
   const [notice, setNotice] = useState("");
-  const [publicSlug, setPublicSlug] = useState("sissys-log-cabin-careers");
+  const [publicSlug, setPublicSlug] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +85,7 @@ export default function PublicPageBuilder() {
       .then((data: PublicPageResponse) => {
         if (cancelled) return;
         setCfg(data.config);
-        setPublicSlug(data.page?.slug || data.store?.careersUrl || "sissys-log-cabin-careers");
+        setPublicSlug(data.page?.slug || data.store?.careersUrl || "");
       })
       .catch(() => undefined);
     return () => {
