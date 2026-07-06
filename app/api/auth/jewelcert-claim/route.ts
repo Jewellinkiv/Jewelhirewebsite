@@ -7,6 +7,7 @@ import {
 } from "@/lib/server/invite-claim";
 import { isStrongPassword, setPassword } from "@/lib/server/password-auth";
 import { findSessionForGoogleUser, isConfiguredAdminEmail, setSessionCookie } from "@/lib/server/auth";
+import { enforceRateLimit } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,8 @@ const CLAIMABLE = new Set(["sent", "started"]);
 
 // Preview: is this claim link valid, and does the email already have an account?
 export async function GET(request: Request) {
+  const limited = await enforceRateLimit(request, "jewelcert-claim-preview", { limit: 100, windowSeconds: 900 });
+  if (limited) return limited;
   const url = new URL(request.url);
   const inviteId = url.searchParams.get("inviteId") || "";
   const token = url.searchParams.get("t") || "";
@@ -29,6 +32,9 @@ export async function GET(request: Request) {
 
 // Claim: create the applicant's account (associate), set a password, log them in.
 export async function POST(request: Request) {
+  const limited = await enforceRateLimit(request, "jewelcert-claim", { limit: 12, windowSeconds: 900 });
+  if (limited) return limited;
+
   const body = await request.json().catch(() => ({}));
   const inviteId = typeof body.inviteId === "string" ? body.inviteId : "";
   const token = typeof body.token === "string" ? body.token : "";

@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { IconDiamond } from "@/components/icons";
+import { isStrongPassword } from "@/lib/password-policy";
 
 function ResetForm() {
   const token = useSearchParams().get("token") || "";
@@ -11,7 +12,7 @@ function ResetForm() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const strong = password.length >= 12 && /[A-Za-z]/.test(password) && /\d/.test(password);
+  const strong = isStrongPassword(password);
   const canSubmit = Boolean(token) && strong && password === confirm && !submitting;
 
   const submit = async (e: React.FormEvent) => {

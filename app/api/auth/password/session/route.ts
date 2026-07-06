@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { createSessionToken, SESSION_COOKIE } from "@/lib/server/auth";
+import { setSessionCookie } from "@/lib/server/auth";
 import { loginWithPassword } from "@/lib/server/password-auth";
+import { rateLimit } from "@/lib/server/rate-limit";
+import { clientIp } from "@/lib/server/request";
 import type { AuthSession } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
@@ -50,18 +52,19 @@ export async function POST(request: Request) {
   const password = typeof body.password === "string" ? body.password : "";
   const next = typeof body.next === "string" ? body.next : "/";
 
+  // Throttle password attempts per IP to blunt brute forcing. On limit, bounce
+  // back to the login form with a generic error rather than a raw 429.
+  const throttle = await rateLimit(`login:${clientIp(request)}`, 20, 900);
+  if (!throttle.ok) {
+    return redirectToLogin(request, next, "too_many");
+  }
+
   const result = await loginWithPassword({ email, password });
   if (!result.ok) {
     return redirectToLogin(request, next, result.code === "config" ? "password_config" : "password");
   }
 
   const response = NextResponse.redirect(new URL(destinationForSession(next, result.session), appBaseUrl(request)), { status: 303 });
-  response.cookies.set(SESSION_COOKIE, createSessionToken(result.session), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
+  setSessionCookie(response, result.session);
   return response;
 }

@@ -4,6 +4,9 @@ import { getPostgresPool } from "@/lib/server/postgres";
 import { findSessionForGoogleUser } from "@/lib/server/auth";
 import type { AuthSession } from "@/lib/server/auth";
 
+// Re-exported from the shared client/server policy so validation can't drift.
+export { isStrongPassword } from "@/lib/password-policy";
+
 const passwordKeyLength = 64;
 const passwordParams = {
   N: 16_384,
@@ -74,10 +77,6 @@ export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("base64url");
   const hash = await scrypt(password, salt, passwordKeyLength, passwordParams);
   return `scrypt$1$${passwordParams.N}$${passwordParams.r}$${passwordParams.p}$${salt}$${hash.toString("base64url")}`;
-}
-
-export function isStrongPassword(password: string) {
-  return password.length >= 12 && /[A-Za-z]/.test(password) && /\d/.test(password);
 }
 
 async function verifyPassword(password: string, stored: string): Promise<boolean> {

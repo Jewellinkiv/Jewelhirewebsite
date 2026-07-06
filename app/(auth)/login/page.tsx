@@ -98,6 +98,8 @@ function errorMessage(error: string) {
       return "That email and password could not be verified.";
     case "password_config":
       return "Email/password login is not configured for this environment yet.";
+    case "too_many":
+      return "Too many sign-in attempts. Please wait a few minutes and try again.";
     default:
       return "We could not complete sign in. Try again.";
   }

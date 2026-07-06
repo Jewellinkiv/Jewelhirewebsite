@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { isStrongPassword } from "@/lib/password-policy";
 
 type Preview = "loading" | "invalid" | "existing" | "new";
 
@@ -27,7 +28,7 @@ function ClaimForm() {
       .catch(() => setState("invalid"));
   }, [inviteId, token]);
 
-  const strong = password.length >= 12 && /[A-Za-z]/.test(password) && /\d/.test(password);
+  const strong = isStrongPassword(password);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

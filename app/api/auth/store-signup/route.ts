@@ -3,17 +3,18 @@ import { isConfiguredAdminEmail } from "@/lib/server/auth";
 import { userExistsForEmail } from "@/lib/server/invite-claim";
 import { createPendingStoreSignup } from "@/lib/server/store-signup";
 import { createStoreSignupCheckoutLink, getStoreOwnerBillingCheckoutReadiness } from "@/lib/server/stripe-billing";
+import { enforceRateLimit } from "@/lib/server/rate-limit";
+import { validEmail } from "@/lib/server/request";
 
 export const runtime = "nodejs";
-
-function validEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
 
 // Start a store-owner paid signup: capture the pending signup and hand back a
 // Stripe payment-link URL. The account is only provisioned once the webhook
 // confirms payment — see lib/server/store-signup.ts.
 export async function POST(request: Request) {
+  const limited = await enforceRateLimit(request, "store-signup", { limit: 12, windowSeconds: 3600 });
+  if (limited) return limited;
+
   const body = await request.json().catch(() => ({}));
   const companyName = typeof body.companyName === "string" ? body.companyName.trim() : "";
   const ownerName = typeof body.ownerName === "string" ? body.ownerName.trim() : "";

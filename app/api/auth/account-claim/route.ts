@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { consumeActionToken, invalidateActionTokens, isActionTokenValid } from "@/lib/server/action-tokens";
 import { isStrongPassword, setPassword } from "@/lib/server/password-auth";
 import { findSessionForGoogleUser, setSessionCookie } from "@/lib/server/auth";
+import { enforceRateLimit } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -14,12 +15,17 @@ function nextForRole(role?: string) {
 // GET: lightweight preview to tell the claim page whether the token is still
 // valid, WITHOUT consuming it. POST performs the one-shot consume + set password.
 export async function GET(request: Request) {
+  const limited = await enforceRateLimit(request, "account-claim-preview", { limit: 100, windowSeconds: 900 });
+  if (limited) return limited;
   const token = new URL(request.url).searchParams.get("token") || "";
   const valid = await isActionTokenValid({ purpose: "account_claim", token });
   return NextResponse.json({ valid });
 }
 
 export async function POST(request: Request) {
+  const limited = await enforceRateLimit(request, "account-claim", { limit: 12, windowSeconds: 900 });
+  if (limited) return limited;
+
   const body = await request.json().catch(() => ({}));
   const token = typeof body.token === "string" ? body.token : "";
   const password = typeof body.password === "string" ? body.password : "";

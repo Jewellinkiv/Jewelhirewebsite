@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { IconDiamond } from "@/components/icons";
+import { isStrongPassword } from "@/lib/password-policy";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -10,7 +11,7 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const strong = password.length >= 12 && /[A-Za-z]/.test(password) && /\d/.test(password);
+  const strong = isStrongPassword(password);
   const canSubmit = email.trim().length > 3 && strong && !submitting;
 
   const submit = async (e: React.FormEvent) => {
