@@ -16,6 +16,7 @@ function isPublicPath(pathname: string) {
     pathname === "/login" ||
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
+    pathname.startsWith("/jewelcert/claim/") ||
     pathname.startsWith("/api/auth/") ||
     pathname === "/api/stripe/webhook" ||
     pathname.startsWith("/api/public/") ||

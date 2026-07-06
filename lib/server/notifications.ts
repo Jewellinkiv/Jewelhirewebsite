@@ -1,3 +1,5 @@
+import { signInviteClaim } from "@/lib/server/invite-claim";
+
 type NotificationTemplate =
   | "public_application_confirmation"
   | "assessment_completed"
@@ -161,7 +163,9 @@ export async function notifyJewelCertInviteCreated(input: {
 }) {
   const itemCount = input.itemCount || 1;
   const countLabel = `${itemCount} item${itemCount === 1 ? "" : "s"}`;
-  const link = `${appUrl()}/portal/invites`;
+  // Deep link to the quick-claim page: new recipients set a password and start
+  // immediately; existing accounts are bounced to sign in from there.
+  const link = `${appUrl()}/jewelcert/claim/${input.inviteId}?t=${signInviteClaim(input.inviteId)}`;
   const name = input.recipientName?.trim() || "there";
   return sendNotification({
     template: "jewelcert_invite",
@@ -170,7 +174,7 @@ export async function notifyJewelCertInviteCreated(input: {
     textBody: [
       `Hi ${name},`,
       `You have a JewelHire assessment package ready with ${countLabel} to complete.`,
-      `Open your invite here: ${link}`,
+      `Start here: ${link}`,
     ].join("\n\n"),
     tag: "jewelcert-invite",
     metadata: {
