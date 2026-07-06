@@ -1,11 +1,13 @@
 type NotificationTemplate =
   | "public_application_confirmation"
   | "assessment_completed"
+  | "candidate_hired"
   | "billing_changed"
   | "team_user_invited"
   | "training_assignment"
   | "jewelcert_invite"
-  | "interview_scheduled";
+  | "interview_scheduled"
+  | "password_reset";
 
 type NotificationRecipient = {
   email?: string | null;
@@ -111,24 +113,37 @@ export async function sendNotification(input: SendNotificationInput): Promise<No
     return { status: "failed", provider: "postmark", reason: "postmark_not_configured" };
   }
 
-  const response = await fetch(POSTMARK_API_URL, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-      "X-Postmark-Server-Token": token,
-    },
-    body: JSON.stringify({
-      From: postmarkFromEmail(),
-      To: toEmail,
-      Subject: input.subject,
-      TextBody: input.textBody,
-      HtmlBody: input.htmlBody || bodyToHtml(input.textBody),
-      MessageStream: postmarkMessageStream(),
-      Tag: input.tag || input.template,
-      Metadata: scrubMetadata(input.metadata),
-    }),
-  });
+  // A notification is always a post-commit side-effect: callers create the invite /
+  // complete the assessment / confirm the hire and only then await this. A transient
+  // network error must therefore surface as a "failed" result (which every caller
+  // already attaches to its response body), NEVER as a rejected promise — an unhandled
+  // rejection here would bubble through withApiErrorHandling into a 500 on an
+  // already-committed write, telling the client the action failed (and on retry the
+  // idempotency guards would suppress the email). Mirrors the non-ok HTTP branch below
+  // and the hire route's explicit .catch(), centralized so every caller is covered.
+  let response: Response;
+  try {
+    response = await fetch(POSTMARK_API_URL, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        "X-Postmark-Server-Token": token,
+      },
+      body: JSON.stringify({
+        From: postmarkFromEmail(),
+        To: toEmail,
+        Subject: input.subject,
+        TextBody: input.textBody,
+        HtmlBody: input.htmlBody || bodyToHtml(input.textBody),
+        MessageStream: postmarkMessageStream(),
+        Tag: input.tag || input.template,
+        Metadata: scrubMetadata(input.metadata),
+      }),
+    });
+  } catch {
+    return { status: "failed", provider: "postmark", reason: "postmark_network_error" };
+  }
 
   if (!response.ok) {
     return { status: "failed", provider: "postmark", reason: `postmark_${response.status}` };
@@ -144,7 +159,8 @@ export async function notifyJewelCertInviteCreated(input: {
   storeId: string;
   itemCount: number;
 }) {
-  const countLabel = `${input.itemCount || 1} item${input.itemCount === 1 ? "" : "s"}`;
+  const itemCount = input.itemCount || 1;
+  const countLabel = `${itemCount} item${itemCount === 1 ? "" : "s"}`;
   const link = `${appUrl()}/portal/invites`;
   const name = input.recipientName?.trim() || "there";
   return sendNotification({
@@ -226,7 +242,7 @@ export async function notifyAssessmentCompleted(input: {
 }) {
   const candidateName = input.candidateName?.trim() || "A candidate";
   const role = input.jobTitle?.trim() || "the role";
-  const result = input.resultLabel?.trim() || "GemMatch";
+  const result = input.resultLabel?.trim() || "JewelCert";
   const name = input.recipientName?.trim() || "there";
   const link = input.recipientRole === "candidate" ? `${appUrl()}/portal/invites` : `${appUrl()}/applicants`;
   const subject =
@@ -257,6 +273,37 @@ export async function notifyAssessmentCompleted(input: {
       storeId: input.storeId,
       recipientRole: input.recipientRole,
       resultLabel: result,
+    },
+  });
+}
+
+export async function notifyCandidateHired(input: {
+  toEmail?: string | null;
+  recipientName?: string | null;
+  applicationId: string;
+  storeId: string;
+  role?: string | null;
+  jobTitle?: string | null;
+  storeName?: string | null;
+}) {
+  const name = input.recipientName?.trim() || "there";
+  const role = input.role?.trim() || input.jobTitle?.trim() || "the role";
+  const storeName = input.storeName?.trim() || "the store";
+  const link = `${appUrl()}/portal`;
+  return sendNotification({
+    template: "candidate_hired",
+    to: { email: input.toEmail, name },
+    subject: "You've been hired through JewelHire",
+    textBody: [
+      `Hi ${name},`,
+      `Great news — you have been hired as ${role} at ${storeName}.`,
+      `View your details here: ${link}`,
+    ].join("\n\n"),
+    tag: "candidate-hired",
+    metadata: {
+      applicationId: input.applicationId,
+      storeId: input.storeId,
+      role,
     },
   });
 }
@@ -292,6 +339,22 @@ export async function notifyTeamUserInvited(input: {
       role,
       resent: input.resent || false,
     },
+  });
+}
+
+export async function notifyPasswordReset(input: { toEmail?: string | null; name?: string | null; resetUrl: string }) {
+  const name = input.name?.trim() || "there";
+  return sendNotification({
+    template: "password_reset",
+    to: { email: input.toEmail, name },
+    subject: "Reset your JewelHire password",
+    textBody: [
+      `Hi ${name},`,
+      "We received a request to reset your JewelHire password. Use the link below to choose a new one. It expires in 60 minutes and can only be used once.",
+      input.resetUrl,
+      "If you didn't request this, you can safely ignore this email — your password won't change.",
+    ].join("\n\n"),
+    tag: "password-reset",
   });
 }
 

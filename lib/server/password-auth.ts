@@ -47,6 +47,29 @@ export async function loginWithPassword(input: { email: string; password: string
   }
 }
 
+// Create or replace a user's password (used by reset + signup/claim flows).
+export async function setPassword(userId: string, password: string): Promise<void> {
+  const hash = await hashPassword(password);
+  await getPostgresPool().query(
+    `insert into password_credentials (id, user_id, password_hash, created_at, updated_at)
+     values ($1, $2, $3, now(), now())
+     on conflict (user_id) do update set password_hash = excluded.password_hash, updated_at = now()`,
+    [`pwc-${userId}`, userId, hash],
+  );
+}
+
+// Look up an active user by email (for reset requests). Returns undefined
+// silently for unknown emails so callers don't leak account existence.
+export async function findActiveUserByEmail(
+  email: string,
+): Promise<{ id: string; email: string; name: string } | undefined> {
+  const result = await getPostgresPool().query<{ id: string; email: string; name: string }>(
+    `select id, email, name from users where email_normalized = $1 and status = 'active' limit 1`,
+    [normalizeEmail(email)],
+  );
+  return result.rows[0];
+}
+
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("base64url");
   const hash = await scrypt(password, salt, passwordKeyLength, passwordParams);

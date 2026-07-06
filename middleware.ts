@@ -14,6 +14,8 @@ function sessionOverrideEnabled() {
 function isPublicPath(pathname: string) {
   return (
     pathname === "/login" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
     pathname.startsWith("/api/auth/") ||
     pathname === "/api/stripe/webhook" ||
     pathname.startsWith("/api/public/") ||

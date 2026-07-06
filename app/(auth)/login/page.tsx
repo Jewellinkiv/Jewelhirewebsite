@@ -60,6 +60,9 @@ export default async function LoginPage(props: { searchParams?: Promise<{ next?:
           <button className="btn-grad w-full inline-flex items-center justify-center px-5 py-3 text-[14px]" data-testid="password-login-submit" type="submit">
             Sign in with email
           </button>
+          <div className="text-center">
+            <a href="/forgot-password" className="text-[12.5px] text-primary no-underline hover:underline">Forgot your password?</a>
+          </div>
         </form>
         <div className="relative my-5 text-center text-[12px] text-muted">
           <span className="bg-white px-3 relative z-10">or</span>
