@@ -1,0 +1,38 @@
+name: Deploy to Cloud Run
+
+# On every push to main, build with Google Cloud buildpacks and deploy to the
+# Cloud Run service `jewelhire`. Authentication is keyless via Workload Identity
+# Federation — GitHub's OIDC token is exchanged for short-lived GCP credentials,
+# so there is no long-lived service-account key stored in the repo.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write # required for WIF OIDC token
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: jewelhire-prod-20260626
+          workload_identity_provider: projects/806390481450/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: gh-actions-deploy@jewelhire-prod-20260626.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy jewelhire \
+            --source . \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --quiet
