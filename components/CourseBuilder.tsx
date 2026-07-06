@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Panel } from "@/components/ui";
+import { CloudinaryVideoUpload } from "@/components/CloudinaryVideoUpload";
 import { IconChevronLeft, IconPlus, IconX, IconPlayerPlay, IconClipboardList, IconFileText } from "@/components/icons";
 import type { ModuleType } from "@/lib/courses";
 
@@ -145,8 +146,8 @@ export function CourseBuilder({
 
               {m.type === "video" && (
                 <div>
-                  <label className={labelCls}>Video URL</label>
-                  <input value={m.videoUrl} onChange={(e) => patchModule(i, { videoUrl: e.target.value })} placeholder="https://…" className={field} />
+                  <label className={labelCls}>Video</label>
+                  <CloudinaryVideoUpload value={m.videoUrl} onChange={(url) => patchModule(i, { videoUrl: url })} fieldClass={field} />
                 </div>
               )}
 
