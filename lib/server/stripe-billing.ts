@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { notifyBillingChanged } from "@/lib/server/notifications";
 import { getPostgresPool } from "@/lib/server/postgres";
+import { provisionStoreFromPendingSignup } from "@/lib/server/store-signup";
 
 export type StripeWebhookVerification =
   | { ok: true; event: StripeWebhookEvent }
@@ -343,6 +344,13 @@ async function reconcileStripeSubscriptionEvent(event: StripeWebhookEvent, objec
             provider, provider_subscription_id, created_at, updated_at
           )
           values ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, 'stripe', $7, now(), now())
+          on conflict (id) do update set
+            status = excluded.status,
+            current_period_start = coalesce(excluded.current_period_start, subscriptions.current_period_start),
+            current_period_end = coalesce(excluded.current_period_end, subscriptions.current_period_end),
+            provider = 'stripe',
+            provider_subscription_id = excluded.provider_subscription_id,
+            updated_at = now()
         `,
         [`sub-${providerSubscriptionId}`, companyId, planId, status, currentPeriodStart, currentPeriodEnd, providerSubscriptionId],
       );
@@ -359,6 +367,20 @@ async function reconcileStripeSubscriptionEvent(event: StripeWebhookEvent, objec
 
 async function reconcileStripeCheckoutSession(event: StripeWebhookEvent, object: StripeObject) {
   const clientReferenceId = clientReferenceIdFor(object);
+
+  // Store-owner self-signup: the checkout was started from the signup form with a
+  // pending-signup id as client_reference_id. Provision the store now that payment
+  // is confirmed (idempotent across Stripe retries).
+  if (clientReferenceId.startsWith("psu-")) {
+    const result = await provisionStoreFromPendingSignup({
+      pendingId: clientReferenceId,
+      stripeReference: subscriptionIdFor(object) || object.id || null,
+    });
+    return result.provisioned
+      ? { reconciled: true, target: "store_signup", pendingId: clientReferenceId, companyId: result.companyId }
+      : { reconciled: false, reason: result.reason };
+  }
+
   const companyId = companyIdFor(object) || await companyIdByStoreId(clientReferenceId);
   const providerSubscriptionId = subscriptionIdFor(object);
   if (!companyId || !providerSubscriptionId) return { reconciled: false, reason: "missing_company_or_subscription" };
@@ -386,6 +408,11 @@ async function reconcileStripeCheckoutSession(event: StripeWebhookEvent, object:
             id, company_id, plan_id, status, provider, provider_subscription_id, created_at, updated_at
           )
           values ($1, $2, $3, $4, 'stripe', $5, now(), now())
+          on conflict (id) do update set
+            status = excluded.status,
+            provider = 'stripe',
+            provider_subscription_id = excluded.provider_subscription_id,
+            updated_at = now()
         `,
         [`sub-${providerSubscriptionId}`, companyId, planId, status, providerSubscriptionId],
       );
@@ -495,6 +522,24 @@ export function createStoreOwnerBillingLink(input: StoreOwnerBillingLinkInput) {
     url.searchParams.set("prefilled_promo_code", promotionCode);
   }
 
+  return url.toString();
+}
+
+// Build the Stripe payment-link URL for a store-owner self-signup, threading the
+// pending-signup id through client_reference_id so the webhook can provision.
+export function createStoreSignupCheckoutLink(input: { pendingId: string; promotionCode?: string | null }) {
+  const paymentLink = stripeStoreOwnerPaymentLink();
+  if (!paymentLink) return "";
+  const clientReferenceId = safeStripeClientReferenceId(input.pendingId);
+  if (!clientReferenceId) return "";
+
+  const url = new URL(paymentLink);
+  url.searchParams.set("client_reference_id", clientReferenceId);
+
+  const promotionCode = safeStripePromotionCode(input.promotionCode);
+  if (promotionCode && stripeAllowPromotionCodes()) {
+    url.searchParams.set("prefilled_promo_code", promotionCode);
+  }
   return url.toString();
 }
 

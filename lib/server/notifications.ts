@@ -9,7 +9,8 @@ type NotificationTemplate =
   | "training_assignment"
   | "jewelcert_invite"
   | "interview_scheduled"
-  | "password_reset";
+  | "password_reset"
+  | "store_owner_claim";
 
 type NotificationRecipient = {
   email?: string | null;
@@ -359,6 +360,33 @@ export async function notifyPasswordReset(input: { toEmail?: string | null; name
       "If you didn't request this, you can safely ignore this email — your password won't change.",
     ].join("\n\n"),
     tag: "password-reset",
+  });
+}
+
+export async function notifyStoreOwnerClaim(input: {
+  toEmail?: string | null;
+  name?: string | null;
+  companyName?: string | null;
+  token: string;
+  existingAccount?: boolean;
+}) {
+  const name = input.name?.trim() || "there";
+  const companyName = input.companyName?.trim() || "your store";
+  const claimUrl = `${appUrl()}/claim-account?token=${encodeURIComponent(input.token)}`;
+  return sendNotification({
+    template: "store_owner_claim",
+    to: { email: input.toEmail, name },
+    subject: `Your JewelHire store for ${companyName} is ready`,
+    textBody: [
+      `Hi ${name},`,
+      `Thanks for subscribing — ${companyName} is set up on JewelHire. Use the link below to set your password and sign in. It expires in 3 days and can only be used once.`,
+      claimUrl,
+      input.existingAccount
+        ? "You already had a JewelHire account with this email; setting a password here activates your new store."
+        : "If you didn't create this account, you can ignore this email.",
+    ].join("\n\n"),
+    tag: "store-owner-claim",
+    metadata: { companyName, existingAccount: input.existingAccount || false },
   });
 }
 

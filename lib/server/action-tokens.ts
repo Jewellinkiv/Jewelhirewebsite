@@ -50,6 +50,19 @@ export async function consumeActionToken(input: {
   return { userId: row.user_id, email: row.email_normalized };
 }
 
+// Non-consuming validity check — used by claim/reset pages to decide whether to
+// show the set-password form without burning the single use.
+export async function isActionTokenValid(input: { purpose: ActionPurpose; token: string }): Promise<boolean> {
+  if (!input.token) return false;
+  const found = await getPostgresPool().query<{ id: string }>(
+    `select id from auth_action_tokens
+     where purpose = $1 and token_hash = $2 and used_at is null and expires_at > now()
+     limit 1`,
+    [input.purpose, hashToken(input.token)],
+  );
+  return Boolean(found.rows[0]);
+}
+
 // Invalidate any outstanding tokens of a purpose for a user (e.g. when a new
 // reset is requested, or after a successful password change).
 export async function invalidateActionTokens(purpose: ActionPurpose, userId: string): Promise<void> {

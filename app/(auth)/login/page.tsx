@@ -79,8 +79,11 @@ export default async function LoginPage(props: { searchParams?: Promise<{ next?:
             Google sign-in needs OAuth or Firebase credentials configured before live login can start.
           </div>
         )}
-        <p className="text-center text-[12.5px] text-muted mt-6 mb-0">
+        <p className="text-center text-[12.5px] text-muted mt-6 mb-1">
           New here? <a href="/signup" className="text-primary no-underline hover:underline">Create an applicant account</a>
+        </p>
+        <p className="text-center text-[12.5px] text-muted mt-0 mb-0">
+          Own a store? <a href="/signup/store" className="text-primary no-underline hover:underline">Start your store on JewelHire</a>
         </p>
       </section>
     </main>
