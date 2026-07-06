@@ -80,7 +80,7 @@ export default function ApplyFlow(props: { params: Promise<{ job: string }> }) {
           <span className="ml-3 flex-1 max-w-[420px] text-[12px] text-muted bg-white border border-line rounded-md px-3 py-1.5">{STORE.careersUrl}/apply</span>
         </div>
 
-        <div className="p-8">
+        <div className="p-4 sm:p-8">
           {!submitted ? (
             <>
               <div className="text-[12px] font-bold uppercase tracking-[0.1em] text-primary mb-2">Apply · {STORE.name}</div>
@@ -88,14 +88,14 @@ export default function ApplyFlow(props: { params: Promise<{ job: string }> }) {
               <p className="text-[13px] text-muted mt-1 mb-6">{job.type} · {job.location} · {job.salary}</p>
 
               {/* stepper */}
-              <div className="flex items-center gap-2 mb-7">
+              <div className="flex flex-wrap items-center gap-y-2 gap-x-2 mb-7">
                 {STEPS.map((s, i) => (
                   <div key={s} className="flex items-center gap-2">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
                       i < step ? "bg-[#1f9e75] text-white" : i === step ? "bg-primary text-white" : "bg-[#eef1f7] text-muted"
                     }`}>{i < step ? <IconCheck size={13} /> : i + 1}</div>
                     <span className={`text-[12.5px] ${i === step ? "font-semibold text-head" : "text-muted"}`}>{s}</span>
-                    {i < STEPS.length - 1 && <span className="w-8 h-px bg-line mx-1" />}
+                    {i < STEPS.length - 1 && <span className="w-4 sm:w-8 h-px bg-line mx-1" />}
                   </div>
                 ))}
               </div>
@@ -103,9 +103,9 @@ export default function ApplyFlow(props: { params: Promise<{ job: string }> }) {
               {/* step 1 */}
               {step === 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div><label className={label}>Full name</label><input className={input} value={form.name} onChange={set("name")} placeholder="Maya Chen" /></div>
-                  <div><label className={label}>Email</label><input className={input} value={form.email} onChange={set("email")} placeholder="you@email.com" /></div>
-                  <div><label className={label}>Phone</label><input className={input} value={form.phone} onChange={set("phone")} placeholder="(501) 555-0148" /></div>
+                  <div><label className={label}>Full name</label><input className={input} value={form.name} onChange={set("name")} autoComplete="name" placeholder="Maya Chen" /></div>
+                  <div><label className={label}>Email</label><input className={input} type="email" inputMode="email" autoComplete="email" value={form.email} onChange={set("email")} placeholder="you@email.com" /></div>
+                  <div><label className={label}>Phone</label><input className={input} type="tel" inputMode="tel" autoComplete="tel" value={form.phone} onChange={set("phone")} placeholder="(501) 555-0148" /></div>
                   <div><label className={label}>Location</label><input className={input} value={form.location} onChange={set("location")} placeholder="Little Rock, AR" /></div>
                   <div className="sm:col-span-2"><label className={label}>Resume headline</label><input className={input} value={form.headline} onChange={set("headline")} placeholder="Luxury sales & clienteling, 6 years" /></div>
                 </div>
@@ -175,7 +175,10 @@ export default function ApplyFlow(props: { params: Promise<{ job: string }> }) {
                 {step < STEPS.length - 1 ? (
                   <button onClick={() => setStep(step + 1)} className="btn-grad inline-flex items-center gap-1.5 px-5 py-2.5 text-[14px] ml-auto">Continue <IconChevronRight size={16} /></button>
                 ) : (
-                  <button onClick={submit} disabled={!canSubmit || submitting} title={canSubmit ? "" : "Add your name and a valid email"} className={`inline-flex items-center gap-1.5 px-5 py-2.5 text-[14px] ml-auto ${canSubmit && !submitting ? "btn-grad" : "rounded-full bg-[#c2cbe0] text-white cursor-not-allowed"}`}><IconCheck size={16} /> {submitting ? "Submitting..." : "Submit application"}</button>
+                  <div className="flex flex-col items-end gap-1.5 ml-auto">
+                    <button onClick={submit} disabled={!canSubmit || submitting} title={canSubmit ? "" : "Add your name and a valid email"} className={`inline-flex items-center gap-1.5 px-5 py-2.5 text-[14px] ${canSubmit && !submitting ? "btn-grad" : "rounded-full bg-[#c2cbe0] text-white cursor-not-allowed"}`}><IconCheck size={16} /> {submitting ? "Submitting..." : "Submit application"}</button>
+                    {!canSubmit && <span className="text-[12px] text-muted">Enter your name and a valid email to continue.</span>}
+                  </div>
                 )}
               </div>
             </>

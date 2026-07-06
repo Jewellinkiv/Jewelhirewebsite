@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Panel } from "@/components/ui";
+import { PageLoading, ErrorState } from "@/components/states";
 import { useCurrentSessionUser } from "@/lib/client-session";
-import { SEED_APPLICATIONS, STAGE_META, ApplicationStage } from "@/lib/my-applications";
+import { STAGE_META, ApplicationStage } from "@/lib/my-applications";
 import { IconBriefcase, IconCalendar, IconClipboardList, IconChevronRight, IconCheck } from "@/components/icons";
 
 const TONE: Record<string, string> = {
@@ -30,6 +31,7 @@ interface Row {
 
 interface ApiApplicationItem {
   application: { id: string; stage: ApplicationStage; submittedAt: string; createdAt: string };
+  store?: { id: string; name: string };
   job?: { title: string; location: string };
 }
 
@@ -48,14 +50,10 @@ function nextStepHref(stage: ApplicationStage) {
   return undefined;
 }
 
-function seedRows(): Row[] {
-  return SEED_APPLICATIONS;
-}
-
 function apiRows(items: ApiApplicationItem[]): Row[] {
   return items.map((item) => ({
     id: item.application.id,
-    store: "Sissy's Log Cabin",
+    store: item.store?.name || "the store",
     storeLocation: item.job?.location || "",
     role: item.job?.title || "Jewelry role",
     stage: item.application.stage,
@@ -70,7 +68,8 @@ function apiRows(items: ApiApplicationItem[]): Row[] {
 }
 
 export default function AssociateHome() {
-  const [apps, setApps] = useState<Row[]>(seedRows);
+  const [apps, setApps] = useState<Row[]>([]);
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
   const user = useCurrentSessionUser();
 
   useEffect(() => {
@@ -78,15 +77,29 @@ export default function AssociateHome() {
     fetch("/api/applicant/applications")
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Unable to load applications"))))
       .then((body) => {
-        if (!cancelled) setApps(apiRows(body.items || []));
+        if (!cancelled) {
+          setApps(apiRows(body.items || []));
+          setStatus("loaded");
+        }
       })
       .catch(() => {
-        if (!cancelled) setApps(seedRows());
+        if (!cancelled) setStatus("error");
       });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  if (status === "loading") return <PageLoading title="Loading your portal…" />;
+  if (status === "error") {
+    return (
+      <div>
+        <h1 className="text-[22px] font-semibold text-head m-0">Welcome back, {user.name.split(" ")[0]}</h1>
+        <p className="mt-1 mb-5 text-muted text-[13.5px]">Here's where things stand across the stores you applied to.</p>
+        <Panel><ErrorState message="We couldn't load this — please refresh." /></Panel>
+      </div>
+    );
+  }
 
   const active = apps.filter((a) => ACTIVE.includes(a.stage));
   const todos = apps.filter((a) => TODO.includes(a.stage));

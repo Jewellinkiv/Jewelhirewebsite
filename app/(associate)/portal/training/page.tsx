@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Panel } from "@/components/ui";
-import { EmptyState } from "@/components/states";
+import { EmptyState, ErrorState, SkeletonCard } from "@/components/states";
 import { CourseBadge } from "@/components/CourseBadge";
-import { ASSOC_TRAINING, TrainingAssignment } from "@/lib/associate-portal";
+import { TrainingAssignment } from "@/lib/associate-portal";
 import type { EarnedBadge, PublicCourse } from "@/lib/courses";
 import { IconSchool, IconCheck, IconPlayerPlay, IconCertificate, IconChevronRight, IconDiamond } from "@/components/icons";
 
@@ -16,7 +16,8 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default function PortalTrainingPage() {
-  const [items, setItems] = useState<TrainingAssignment[]>(ASSOC_TRAINING);
+  const [items, setItems] = useState<TrainingAssignment[]>([]);
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
   const [badges, setBadges] = useState<EarnedBadge[]>([]);
   const [courses, setCourses] = useState<PublicCourse[]>([]);
 
@@ -25,10 +26,13 @@ export default function PortalTrainingPage() {
     fetch("/api/applicant/training")
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Unable to load training"))))
       .then((body) => {
-        if (!cancelled) setItems(body.items || []);
+        if (!cancelled) {
+          setItems(body.items || []);
+          setStatus("loaded");
+        }
       })
       .catch(() => {
-        if (!cancelled) setItems(ASSOC_TRAINING);
+        if (!cancelled) setStatus("error");
       });
     // Earned course badges + the courses available to browse by default.
     fetch("/api/applicant/badges")
@@ -73,13 +77,21 @@ export default function PortalTrainingPage() {
       <h1 className="text-[22px] font-semibold text-head m-0">Training</h1>
       <p className="mt-1 mb-5 text-muted text-[13.5px]">Courses assigned to you. Finishing one adds a credential to your resume.</p>
 
-      {packages.length === 0 && (
+      {status === "loading" && (
+        <div className="mb-[18px] flex flex-col gap-[18px]"><SkeletonCard /><SkeletonCard /></div>
+      )}
+
+      {status === "error" && (
+        <Panel className="mb-[18px]"><ErrorState message="We couldn't load your training — please refresh." /></Panel>
+      )}
+
+      {status === "loaded" && packages.length === 0 && (
         <Panel className="mb-[18px]">
           <EmptyState icon={<IconSchool size={20} />} title="No training assigned yet" message="When a store assigns you a course or training package, it appears here — and finishing one adds a credential to your resume." />
         </Panel>
       )}
 
-      {packages.map((pkg) => (
+      {status === "loaded" && packages.map((pkg) => (
         <Panel key={pkg} title={pkg} icon={<IconSchool size={16} />} className="mb-[18px]">
           <div className="divide-y divide-[#eef1f6]">
             {items.filter((t) => t.package === pkg).map((t) => (
@@ -135,6 +147,7 @@ export default function PortalTrainingPage() {
         )}
       </Panel>
 
+      {status !== "error" && (
       <Panel title={`Credentials earned (${credentials.length})`} icon={<IconCertificate size={16} />}>
         {credentials.length > 0 ? (
           <div className="p-4 flex flex-wrap gap-2">
@@ -146,6 +159,7 @@ export default function PortalTrainingPage() {
           <div className="px-4 py-8 text-center text-muted text-[13px]">Complete a course to earn your first credential.</div>
         )}
       </Panel>
+      )}
     </div>
   );
 }

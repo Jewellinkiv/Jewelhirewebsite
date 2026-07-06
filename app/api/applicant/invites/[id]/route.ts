@@ -61,7 +61,7 @@ export const GET = withApiErrorHandling(async function GET(
       ? await listPostgresApplicantInvites(email, null)
       : getApplicantStore().listApplicantInvites(email);
   const invite = invites.find((i) => i.id === params.id) as
-    | { id: string; kind: string; status: string; assessmentPackageId?: string; job?: { title?: string } }
+    | { id: string; kind: string; status: string; assessmentPackageId?: string; job?: { title?: string }; store?: { name?: string } }
     | undefined;
 
   if (!invite || invite.kind !== "JewelCert") {
@@ -92,7 +92,7 @@ export const GET = withApiErrorHandling(async function GET(
   });
 
   return NextResponse.json({
-    invite: { id: invite.id, status: invite.status, role: invite.job?.title || "this role" },
+    invite: { id: invite.id, status: invite.status, role: invite.job?.title || "this role", store: invite.store?.name || "the store" },
     items,
   });
 });

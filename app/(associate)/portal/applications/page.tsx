@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Panel } from "@/components/ui";
-import { EmptyState } from "@/components/states";
+import { EmptyState, ErrorState, SkeletonCard } from "@/components/states";
 import { IconBriefcase } from "@/components/icons";
-import { SEED_APPLICATIONS, STAGE_META, STAGE_FLOW, ApplicationStage } from "@/lib/my-applications";
+import { STAGE_META, STAGE_FLOW, ApplicationStage } from "@/lib/my-applications";
 
 const TONE: Record<string, string> = {
   active: "bg-[#e8f1ff] text-primary",
@@ -33,6 +33,10 @@ interface ApiApplicationItem {
     submittedAt: string;
     createdAt: string;
   };
+  store?: {
+    id: string;
+    name: string;
+  };
   job?: {
     title: string;
     location: string;
@@ -52,22 +56,10 @@ function nextStep(stage: ApplicationStage) {
   return undefined;
 }
 
-function toSeedRows(): Row[] {
-  return SEED_APPLICATIONS.map((a) => ({
-    id: a.id,
-    store: a.store,
-    storeLocation: a.storeLocation,
-    role: a.role,
-    stage: a.stage,
-    submittedAt: a.submittedAt,
-    nextStep: a.nextStep,
-  }));
-}
-
 function toApiRows(items: ApiApplicationItem[]): Row[] {
   return items.map((item) => ({
     id: item.application.id,
-    store: "Sissy's Log Cabin",
+    store: item.store?.name || "the store",
     storeLocation: item.job?.location,
     role: item.job?.title || "Jewelry role",
     stage: item.application.stage,
@@ -108,17 +100,21 @@ function Card({ a }: { a: Row }) {
 }
 
 export default function ApplicationsPage() {
-  const [all, setAll] = useState<Row[]>(toSeedRows);
+  const [all, setAll] = useState<Row[]>([]);
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/applicant/applications")
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Unable to load applications"))))
       .then((body) => {
-        if (!cancelled) setAll(toApiRows(body.items || []));
+        if (!cancelled) {
+          setAll(toApiRows(body.items || []));
+          setStatus("loaded");
+        }
       })
       .catch(() => {
-        if (!cancelled) setAll(toSeedRows());
+        if (!cancelled) setStatus("error");
       });
     return () => {
       cancelled = true;
@@ -133,6 +129,12 @@ export default function ApplicationsPage() {
       <h1 className="text-[22px] font-semibold text-head m-0">My applications</h1>
       <p className="mt-1 mb-5 text-muted text-[13.5px]">Only the stores you applied to — private to you.</p>
 
+      {status === "loading" ? (
+        <div className="flex flex-col gap-[18px]"><SkeletonCard /><SkeletonCard /></div>
+      ) : status === "error" ? (
+        <Panel><ErrorState message="We couldn't load your applications — please refresh." /></Panel>
+      ) : (
+      <>
       <Panel title={`Active (${open.length})`} className="mb-[18px]">
         {open.length > 0 ? (
           <div>{open.map((a) => <Card key={a.id} a={a} />)}</div>
@@ -149,6 +151,8 @@ export default function ApplicationsPage() {
       <Panel title={`History (${past.length})`}>
         {past.length > 0 ? <div>{past.map((a) => <Card key={a.id} a={a} />)}</div> : <div className="px-4 py-8 text-center text-muted text-[13px]">No past applications.</div>}
       </Panel>
+      </>
+      )}
     </div>
   );
 }

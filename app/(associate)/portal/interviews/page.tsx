@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Panel } from "@/components/ui";
-import { ASSOC_INTERVIEWS, AssociateInterview } from "@/lib/associate-portal";
+import { ErrorState, SkeletonCard } from "@/components/states";
+import { AssociateInterview } from "@/lib/associate-portal";
 import { IconCalendar, IconCheck, IconX, IconVideo, IconMapPin, IconLink, IconUserPlus } from "@/components/icons";
 
 const RSVP_STYLE: Record<string, string> = {
@@ -18,6 +19,7 @@ interface ApiInterview {
   locationDetails: string;
   status: "scheduled" | "completed" | "cancelled" | "no_show";
   outcome?: string;
+  store?: { id: string; name: string };
   job?: { title: string };
 }
 
@@ -36,7 +38,7 @@ function toInterview(item: ApiInterview): AssociateInterview {
   const rsvp = item.outcome?.includes("accepted") ? "Accepted" : item.status === "cancelled" ? "Declined" : "Pending";
   return {
     id: item.id,
-    store: "Sissy's Log Cabin",
+    store: item.store?.name || "the store",
     role: item.job?.title || "Jewelry role",
     startIso: item.startsAt,
     when: new Date(item.startsAt).toLocaleString("en-US", {
@@ -56,17 +58,21 @@ function toInterview(item: ApiInterview): AssociateInterview {
 }
 
 export default function PortalInterviewsPage() {
-  const [seed, setSeed] = useState<AssociateInterview[]>(ASSOC_INTERVIEWS);
+  const [seed, setSeed] = useState<AssociateInterview[]>([]);
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/applicant/interviews")
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Unable to load interviews"))))
       .then((body) => {
-        if (!cancelled) setSeed((body.items || []).map(toInterview));
+        if (!cancelled) {
+          setSeed((body.items || []).map(toInterview));
+          setStatus("loaded");
+        }
       })
       .catch(() => {
-        if (!cancelled) setSeed(ASSOC_INTERVIEWS);
+        if (!cancelled) setStatus("error");
       });
     return () => {
       cancelled = true;
@@ -89,7 +95,9 @@ export default function PortalInterviewsPage() {
       <p className="mt-1 mb-5 text-muted text-[13.5px]">Confirm the times that work for you. The store is notified when you respond.</p>
 
       <div className="flex flex-col gap-[18px]">
-        {list.map((i) => (
+        {status === "loading" && <><SkeletonCard /><SkeletonCard /></>}
+        {status === "error" && <Panel><ErrorState message="We couldn't load your interviews — please refresh." /></Panel>}
+        {status === "loaded" && list.map((i) => (
           <Panel key={i.id}>
             <div className="p-4">
               <div className="flex items-start gap-3">
@@ -137,7 +145,7 @@ export default function PortalInterviewsPage() {
             </div>
           </Panel>
         ))}
-        {list.length === 0 && <Panel><div className="px-4 py-8 text-center text-muted text-[13px]">No interview invites yet.</div></Panel>}
+        {status === "loaded" && list.length === 0 && <Panel><div className="px-4 py-8 text-center text-muted text-[13px]">No interview invites yet.</div></Panel>}
       </div>
     </div>
   );

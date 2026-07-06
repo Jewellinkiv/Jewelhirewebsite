@@ -89,6 +89,7 @@ interface ApplicationSummaryRow {
   total_count: string;
   application_id: string;
   store_id: string;
+  store_name: string | null;
   job_id: string | null;
   applicant_profile_id: string;
   source: ApplicationRecord["source"];
@@ -256,6 +257,7 @@ interface StoreInterviewListRow extends InterviewRow {
 }
 
 interface ApplicantInterviewListRow extends StoreInterviewListRow {
+  store_name: string | null;
   source: ApplicationRecord["source"];
   stage: ApplicationStage;
   status_reason: string | null;
@@ -434,6 +436,10 @@ export interface PostgresApplicationSummary {
   storeId: string;
   jobId: string;
   applicantProfileId: string;
+  store?: {
+    id: string;
+    name: string;
+  };
   application: ApplicationRecord;
   applicant: ApplicantProfileRecord;
   job?: {
@@ -1746,6 +1752,7 @@ function mapApplicationSummary(row: ApplicationSummaryRow): PostgresApplicationS
     storeId: row.store_id,
     jobId: row.job_id || "",
     applicantProfileId: row.applicant_profile_id,
+    store: row.store_name ? { id: row.store_id, name: row.store_name } : undefined,
     application: {
       id: row.application_id,
       storeId: row.store_id,
@@ -2175,6 +2182,7 @@ function mapStoreInterviewListItem(row: StoreInterviewListRow) {
 function mapApplicantInterviewListItem(row: ApplicantInterviewListRow) {
   return {
     ...mapInterview(row),
+    store: row.store_name ? { id: row.store_id, name: row.store_name } : undefined,
     application: {
       id: row.application_id,
       storeId: row.store_id,
@@ -5164,6 +5172,7 @@ export async function listPostgresApplicantApplications(email?: string | null) {
         count(*) over()::text as total_count,
         a.id as application_id,
         a.store_id,
+        s.name as store_name,
         a.job_id,
         a.applicant_profile_id,
         a.source,
@@ -5194,6 +5203,7 @@ export async function listPostgresApplicantApplications(email?: string | null) {
         coalesce(notes.note_count, 0)::text as note_count
       from applications a
       join applicant_profiles ap on ap.id = a.applicant_profile_id
+      left join stores s on s.id = a.store_id
       left join public_jobs pj on pj.id = a.job_id
       left join lateral (
         select status
@@ -6605,6 +6615,7 @@ export async function listPostgresApplicantInterviews(email?: string | null, sta
         i.id,
         i.application_id,
         i.store_id,
+        s.name as store_name,
         i.scheduled_by_user_id,
         i.interviewer_user_ids,
         i.starts_at::text,
@@ -6644,6 +6655,7 @@ export async function listPostgresApplicantInterviews(email?: string | null, sta
       from interviews i
       join applications a on a.id = i.application_id
       join applicant_profiles ap on ap.id = a.applicant_profile_id
+      left join stores s on s.id = i.store_id
       left join public_jobs pj on pj.id = a.job_id
       where ap.email_normalized = $1
         and ($2::text is null or i.status = $2)

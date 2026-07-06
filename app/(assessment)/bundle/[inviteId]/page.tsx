@@ -5,8 +5,6 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { IconCheck, IconChevronLeft, IconChevronRight, IconDiamond, IconClipboardList, IconSchool } from "@/components/icons";
 
-const STORE = "Sissy's Log Cabin";
-
 interface BundleItem {
   key: string;
   type: "profile" | "course" | "test" | "assessment";
@@ -34,6 +32,7 @@ export default function BundlePage() {
   const inviteId = String(params.inviteId || "");
   const [load, setLoad] = useState<"loading" | "ready" | "notfound">("loading");
   const [role, setRole] = useState("this role");
+  const [store, setStore] = useState("the store");
   const [items, setItems] = useState<BundleItem[]>([]);
 
   useEffect(() => {
@@ -43,6 +42,7 @@ export default function BundlePage() {
       .then((d) => {
         if (cancelled) return;
         setRole(d.invite?.role || "this role");
+        setStore(d.invite?.store || "the store");
         setItems(d.items || []);
         setLoad("ready");
       })
@@ -75,8 +75,8 @@ export default function BundlePage() {
     <div className="flex-1 flex flex-col py-6">
       <Link href="/portal/invites" className="inline-flex items-center gap-1 text-[12.5px] text-muted hover:text-body mb-3 no-underline"><IconChevronLeft size={14} /> Invites</Link>
       <div className="mb-1 text-[12px] font-medium text-primary uppercase tracking-wide">JewelCert · {role}</div>
-      <h1 className="m-0 text-[22px] sm:text-[24px] font-semibold text-head leading-tight">Your JewelCert for {STORE}</h1>
-      <p className="mt-2 text-[14px] text-body">Complete each part below. Your results are shared only with {STORE}. {doneCount} of {items.length} done.</p>
+      <h1 className="m-0 text-[22px] sm:text-[24px] font-semibold text-head leading-tight">Your JewelCert for {store}</h1>
+      <p className="mt-2 text-[14px] text-body">Complete each part below. Your results are shared only with {store}. {doneCount} of {items.length} done.</p>
 
       <div className="mt-5 flex flex-col gap-3">
         {items.map((item) => (

@@ -2,9 +2,24 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Panel } from "@/components/ui";
-import { CourseCredential, Education, Experience, SEED_RESUME, Resume } from "@/lib/resume";
+import { ErrorState, SkeletonCard } from "@/components/states";
+import { CourseCredential, Education, Experience, Resume } from "@/lib/resume";
 import { RESUME_TEMPLATES, ResumeTemplate } from "@/lib/resume-templates";
 import { IconFileText, IconCheck, IconUser, IconBriefcase, IconSchool, IconCertificate } from "@/components/icons";
+
+// An empty resume — the starting point before real data loads. No fabricated
+// placeholder content: fields stay blank until the applicant's own resume arrives.
+const EMPTY_RESUME: Resume = {
+  fullName: "",
+  headline: "",
+  location: "",
+  email: "",
+  summary: "",
+  experience: [],
+  education: [],
+  skills: [],
+  courseCredentials: [],
+};
 
 const input = "w-full border border-line rounded-md px-3 py-2 text-[13px] text-body outline-none focus:border-primary bg-white";
 const readonlyInput = `${input} bg-[#f8fafc] text-muted`;
@@ -26,38 +41,34 @@ interface ResumeApiResponse {
 }
 
 function asExperience(items: string[] | undefined): Experience[] {
-  return (items?.length ? items : SEED_RESUME.experience.map((item) => `${item.title} · ${item.company} · ${item.period} · ${item.detail}`)).map((item, index) => {
+  return (items || []).map((item, index) => {
     const [title = item, company = "", period = "", detail = ""] = item.split(" · ");
     return { id: `exp-${index}`, title, company, period, detail };
   });
 }
 
 function asEducation(items: string[] | undefined): Education[] {
-  return (items?.length ? items : SEED_RESUME.education.map((item) => `${item.credential} · ${item.school} · ${item.year}`)).map((item, index) => {
+  return (items || []).map((item, index) => {
     const [credential = item, school = "", year = ""] = item.split(" · ");
     return { id: `edu-${index}`, credential, school, year };
   });
 }
 
 function asCredential(id: string): CourseCredential {
-  const known = SEED_RESUME.courseCredentials.find((credential) => credential.id === id || credential.title === id);
-  return known || { id, title: id.replace(/^tr\d+$/, "Completed training"), issuer: "JewelHire", completed: true };
+  return { id, title: id.replace(/^tr\d+$/, "Completed training"), issuer: "JewelHire", completed: true };
 }
 
 function fromApi(body: ResumeApiResponse): Resume {
   return {
-    fullName: body.profile.fullName,
-    headline: body.profile.resumeHeadline,
-    location: body.profile.location,
-    email: body.profile.email,
-    summary: body.resume?.summary || SEED_RESUME.summary,
+    fullName: body.profile.fullName || "",
+    headline: body.profile.resumeHeadline || "",
+    location: body.profile.location || "",
+    email: body.profile.email || "",
+    summary: body.resume?.summary || "",
     experience: asExperience(body.resume?.workExperience),
     education: asEducation(body.resume?.education),
-    skills: body.resume?.skills?.length ? body.resume.skills : SEED_RESUME.skills,
-    courseCredentials: [
-      ...SEED_RESUME.courseCredentials.filter((credential) => !credential.completed),
-      ...(body.resume?.courseCredentialIds || SEED_RESUME.courseCredentials.filter((credential) => credential.completed).map((credential) => credential.id)).map(asCredential),
-    ],
+    skills: body.resume?.skills || [],
+    courseCredentials: (body.resume?.courseCredentialIds || []).map(asCredential),
   };
 }
 
@@ -77,9 +88,10 @@ function toApi(resume: Resume, lookupEmail: string) {
 }
 
 export default function PortalResumePage() {
-  const [resume, setResume] = useState<Resume>(SEED_RESUME);
+  const [resume, setResume] = useState<Resume>(EMPTY_RESUME);
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
   const [tpl, setTpl] = useState<ResumeTemplate>(RESUME_TEMPLATES[0]);
-  const [lookupEmail, setLookupEmail] = useState(SEED_RESUME.email);
+  const [lookupEmail, setLookupEmail] = useState("");
   const [badges, setBadges] = useState<{ courseId: string; badgeLabel: string; badgeColor: string }[]>([]);
   const hydrated = useRef(false);
   const set = (k: keyof Resume, v: string) => setResume((r) => ({ ...r, [k]: v }));
@@ -99,10 +111,13 @@ export default function PortalResumePage() {
         const next = fromApi(body);
         setResume(next);
         setLookupEmail(next.email);
+        setStatus("loaded");
+        // Only enable auto-save once real data has loaded — never persist the
+        // empty starting state (or a failed load) back over the applicant's resume.
         hydrated.current = true;
       })
       .catch(() => {
-        hydrated.current = true;
+        setStatus("error");
       });
   }, []);
 
@@ -125,6 +140,16 @@ export default function PortalResumePage() {
       <h1 className="text-[22px] font-semibold text-head m-0">Resume</h1>
       <p className="mt-1 mb-5 text-muted text-[13.5px]">Edit your details, pick a template, and your completed training shows up automatically.</p>
 
+      {status === "loading" && (
+        <div className="flex flex-col gap-[18px]"><SkeletonCard /><SkeletonCard /></div>
+      )}
+
+      {status === "error" && (
+        <Panel><ErrorState message="We couldn't load your resume — please refresh." /></Panel>
+      )}
+
+      {status === "loaded" && (
+      <>
       {/* template gallery */}
       <Panel title="Template" icon={<IconFileText size={16} />} className="mb-[18px]">
         <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -195,6 +220,8 @@ export default function PortalResumePage() {
           </div>
         </Panel>
       </div>
+      </>
+      )}
     </div>
   );
 }

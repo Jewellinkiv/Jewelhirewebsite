@@ -6,8 +6,6 @@ import Link from "next/link";
 import { CUSTOM_ASSESSMENTS, AssessmentQuestion, CustomAssessment } from "@/lib/custom-assessments";
 import { IconCheck, IconChevronLeft, IconChevronRight, IconClock, IconLock, IconClipboardList, IconPlayerPlay } from "@/components/icons";
 
-const STORE = "Sissy's Log Cabin";
-
 const SCALE = [
   { value: 1, label: "Strongly disagree" },
   { value: 2, label: "Disagree" },
@@ -21,6 +19,7 @@ interface ApiInvite {
   kind: string;
   status: string;
   job?: { title: string };
+  store?: { name?: string };
 }
 
 // The invite carries a kind but not its questions, so map the kind to a seeded
@@ -41,6 +40,7 @@ export default function AssessmentTestPage() {
   const inviteId = String(params.inviteId || "");
   const [kind, setKind] = useState("Knowledge check");
   const [role, setRole] = useState("this role");
+  const [store, setStore] = useState("the store");
   const [step, setStep] = useState<Step>("intro");
   const [answers, setAnswers] = useState<Record<string, number | string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -59,6 +59,7 @@ export default function AssessmentTestPage() {
         if (match) {
           if (match.kind) setKind(match.kind);
           if (match.job?.title) setRole(match.job.title);
+          if (match.store?.name) setStore(match.store.name);
         }
       })
       .catch(() => {});
@@ -86,7 +87,7 @@ export default function AssessmentTestPage() {
         <div className="text-center max-w-[380px]">
           <span className="w-14 h-14 rounded-full bg-[#e1f5ee] text-[#0f6e56] inline-flex items-center justify-center mb-4"><IconCheck size={26} /></span>
           <h1 className="m-0 text-[19px] font-semibold text-head">You&apos;re all set</h1>
-          <p className="mt-2 text-[13.5px] text-muted">Your {assessment.kind.toLowerCase()} was sent to {STORE}. Your responses are shared only with them — thanks for taking the time.</p>
+          <p className="mt-2 text-[13.5px] text-muted">Your {assessment.kind.toLowerCase()} was sent to {store}. Your responses are shared only with them — thanks for taking the time.</p>
           <Link href="/portal/invites" className="btn-grad inline-flex items-center gap-1.5 mt-5 px-5 py-2.5 text-[13.5px] no-underline">Back to invites <IconChevronRight size={15} /></Link>
         </div>
       </div>
@@ -105,7 +106,7 @@ export default function AssessmentTestPage() {
         <div className="mt-5 rounded-xl border border-line bg-white divide-y divide-[#eef1f6]">
           <Row icon={<IconClipboardList size={17} />} title={`${questions.length} question${questions.length === 1 ? "" : "s"}`} note="One question per screen — go at your own pace." />
           <Row icon={<IconClock size={17} />} title={`About ${minutes} minutes`} note="No timer. You can move back and change answers." />
-          <Row icon={<IconLock size={17} />} title="Private to the store" note={isKnowledge ? `Only ${STORE} sees your results. You won't get a score here.` : `Only ${STORE} sees your responses. There are no right or wrong answers.`} />
+          <Row icon={<IconLock size={17} />} title="Private to the store" note={isKnowledge ? `Only ${store} sees your results. You won't get a score here.` : `Only ${store} sees your responses. There are no right or wrong answers.`} />
         </div>
 
         <div className="mt-auto pt-6">

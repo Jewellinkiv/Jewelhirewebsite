@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Panel } from "@/components/ui";
-import { ASSOC_INVITES, AssociateInvite } from "@/lib/associate-portal";
+import { ErrorState, SkeletonCard } from "@/components/states";
+import { AssociateInvite } from "@/lib/associate-portal";
 import { IconClipboardList, IconCheck, IconDiamond, IconChevronRight } from "@/components/icons";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -19,6 +20,7 @@ interface ApiInvite {
   assessmentPackageId?: string;
   sentAt?: string;
   createdAt?: string;
+  store?: { id: string; name: string; location?: string };
   job?: { title: string };
 }
 
@@ -52,7 +54,7 @@ function formatDate(value?: string) {
 function toInvite(item: ApiInvite): PortalInvite {
   return {
     id: item.id,
-    store: "Sissy's Log Cabin",
+    store: item.store?.name || "the store",
     role: item.job?.title || "Jewelry role",
     kind: item.kind,
     sentAt: formatDate(item.sentAt || item.createdAt),
@@ -63,7 +65,8 @@ function toInvite(item: ApiInvite): PortalInvite {
 }
 
 export default function InvitesPage() {
-  const [seed, setSeed] = useState<PortalInvite[]>(ASSOC_INVITES);
+  const [seed, setSeed] = useState<PortalInvite[]>([]);
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
 
   useEffect(() => {
     let cancelled = false;
@@ -75,7 +78,7 @@ export default function InvitesPage() {
         // still-draft invite would otherwise render in the "To complete" list
         // with a working Start button — letting an applicant open an assessment
         // that expired or was never sent. Keep sent/started/completed only.
-        if (!cancelled)
+        if (!cancelled) {
           setSeed(
             ((body.items || []) as ApiInvite[])
               .filter(
@@ -84,9 +87,11 @@ export default function InvitesPage() {
               )
               .map(toInvite),
           );
+          setStatus("loaded");
+        }
       })
       .catch(() => {
-        if (!cancelled) setSeed(ASSOC_INVITES);
+        if (!cancelled) setStatus("error");
       });
     return () => {
       cancelled = true;
@@ -102,6 +107,12 @@ export default function InvitesPage() {
       <h1 className="text-[22px] font-semibold text-head m-0">Invites</h1>
       <p className="mt-1 mb-5 text-muted text-[13.5px]">Assessments stores asked you to complete. Your results are shared only with that store.</p>
 
+      {status === "loading" ? (
+        <div className="flex flex-col gap-[18px]"><SkeletonCard /><SkeletonCard /></div>
+      ) : status === "error" ? (
+        <Panel><ErrorState message="We couldn't load your invites — please refresh." /></Panel>
+      ) : (
+      <>
       <Panel title={`To complete (${todo.length})`} icon={<IconClipboardList size={16} />} className="mb-[18px]">
         {todo.length > 0 ? (
           <div className="divide-y divide-[#eef1f6]">
@@ -139,6 +150,8 @@ export default function InvitesPage() {
           <div className="px-4 py-8 text-center text-muted text-[13px]">Nothing completed yet.</div>
         )}
       </Panel>
+      </>
+      )}
     </div>
   );
 }

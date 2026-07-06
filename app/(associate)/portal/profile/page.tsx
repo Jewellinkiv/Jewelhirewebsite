@@ -16,7 +16,7 @@ export default function PortalProfilePage() {
   const user = useCurrentSessionUser();
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
-  const [phone, setPhone] = useState("(501) 555-0148");
+  const [phone, setPhone] = useState("");
   const [prefs, setPrefs] = useState<Prefs>({ invites: true, interviews: true, status: true, marketing: false });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -111,7 +111,7 @@ export default function PortalProfilePage() {
             <div className="p-4 space-y-3">
               <Field label="Full name"><input className={input} value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} /></Field>
               <Field label="Email"><input className={readonlyInput} value={email} readOnly /></Field>
-              <Field label="Phone"><input className={input} value={phone} onChange={(e) => { setPhone(e.target.value); setSaved(false); }} /></Field>
+              <Field label="Phone"><input className={input} value={phone} placeholder="Add a phone number" onChange={(e) => { setPhone(e.target.value); setSaved(false); }} /></Field>
               <button onClick={saveProfile} disabled={saving} className="btn-grad inline-flex items-center gap-1.5 px-4 py-2 text-[13px] disabled:opacity-60">
                 {saved ? <><IconCheck size={15} /> Saved</> : saving ? "Saving..." : "Save changes"}
               </button>

@@ -255,6 +255,7 @@ export function summarizeApplication(application: ApplicationRecord) {
   return {
     application,
     applicant: profile,
+    store: inviteStore(application.storeId),
     job,
     screening: {
       jewelcertStatus: jewelcert?.status || "not_sent",
@@ -457,6 +458,14 @@ export function getApplicantHome(email?: string | null) {
   };
 }
 
+// Resolve an invite's storeId to its display name so the applicant-facing
+// invite shape carries a store the same way postgres does (see
+// listPostgresApplicantInvites). Local seeding only holds the default store.
+function inviteStore(storeId: string) {
+  const name = storeId === DEFAULT_STORE_ID ? "Sissy's Log Cabin" : "the store";
+  return { id: storeId, name, location: undefined as string | undefined };
+}
+
 export function listApplicantInvites(email?: string | null) {
   const profile = getApplicantProfile(email);
   if (!profile) return [];
@@ -475,6 +484,7 @@ export function listApplicantInvites(email?: string | null) {
         job: PUBLIC_JOBS.find(
           (job) => job.id === state().applications.find((application) => application.id === invite.applicationId)?.jobId,
         ),
+        store: inviteStore(invite.storeId),
       })),
     ...state()
       .gemmatchInvites.filter((invite) => applicationIds.includes(invite.applicationId))
@@ -486,6 +496,7 @@ export function listApplicantInvites(email?: string | null) {
         job: PUBLIC_JOBS.find(
           (job) => job.id === state().applications.find((application) => application.id === invite.applicationId)?.jobId,
         ),
+        store: inviteStore(invite.storeId),
       })),
   ].sort((a, b) => b.sortAt.localeCompare(a.sortAt));
 }
@@ -500,6 +511,7 @@ export function listApplicantInterviews(email?: string | null) {
     .interviews.filter((interview) => applicationIds.includes(interview.applicationId))
     .map((interview) => ({
       ...interview,
+      store: inviteStore(interview.storeId),
       application: state().applications.find((application) => application.id === interview.applicationId),
       job: PUBLIC_JOBS.find(
         (job) => job.id === state().applications.find((application) => application.id === interview.applicationId)?.jobId,
