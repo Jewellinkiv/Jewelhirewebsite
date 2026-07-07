@@ -12,8 +12,6 @@ const PROVIDERS: { id: Provider; name: string; sub: string; account: string }[] 
   { id: "microsoft", name: "Microsoft Outlook", sub: "Microsoft 365 / Exchange", account: "hiring@sissyslogcabin.com" },
 ];
 
-const STORE_ID = "store-sissys-little-rock";
-
 function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
   return (
     <label className="flex items-center justify-between gap-3 py-2 cursor-pointer" onClick={onClick}>
@@ -28,7 +26,7 @@ function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; labe
 type CalConnection = { provider: Provider; accountEmail: string | null; connectedAt: string };
 type CalState = { connections: CalConnection[]; configured: { google: boolean; microsoft: boolean } };
 
-export function CalendarEmailSettings() {
+export function CalendarEmailSettings({ storeId }: { storeId: string }) {
   const [cal, setCal] = useState<CalState>({ connections: [], configured: { google: false, microsoft: false } });
   const [fromName, setFromName] = useState(INVITE_SETTINGS.fromName);
   const [replyTo, setReplyTo] = useState(INVITE_SETTINGS.replyTo);
@@ -48,7 +46,7 @@ export function CalendarEmailSettings() {
 
   const refreshCalendar = async () => {
     try {
-      const r = await fetch(`/api/integrations/calendar?storeId=${STORE_ID}`);
+      const r = await fetch(`/api/integrations/calendar?storeId=${encodeURIComponent(storeId)}`);
       if (r.ok) setCal(await r.json());
     } catch {
       // leave prior state
@@ -57,7 +55,14 @@ export function CalendarEmailSettings() {
 
   // Load real calendar connection status, and surface the OAuth callback result.
   useEffect(() => {
-    refreshCalendar();
+    let cancelled = false;
+    let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+    fetch(`/api/integrations/calendar?storeId=${encodeURIComponent(storeId)}`)
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((data: CalState) => {
+        if (!cancelled) setCal(data);
+      })
+      .catch(() => {});
     const params = new URLSearchParams(window.location.search);
     const outcome = params.get("calendar");
     if (outcome) {
@@ -67,17 +72,21 @@ export function CalendarEmailSettings() {
         forbidden: "You don't have access to connect this store's calendar.",
         error: "We couldn't connect that calendar. Please try again.",
       };
-      setNotice(messages[outcome] || "");
+      noticeTimer = setTimeout(() => setNotice(messages[outcome] || ""), 0);
       const url = new URL(window.location.href);
       url.searchParams.delete("calendar");
       url.searchParams.delete("provider");
       window.history.replaceState({}, "", url.toString());
     }
-  }, []);
+    return () => {
+      cancelled = true;
+      if (noticeTimer) clearTimeout(noticeTimer);
+    };
+  }, [storeId]);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/stores/${STORE_ID}/invite-settings`)
+    fetch(`/api/stores/${storeId}/invite-settings`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: { inviteSettings: typeof INVITE_SETTINGS }) => {
         if (cancelled) return;
@@ -97,10 +106,10 @@ export function CalendarEmailSettings() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [storeId]);
 
   const saveInviteSettings = async (patch: Partial<typeof INVITE_SETTINGS>) => {
-    const response = await fetch(`/api/stores/${STORE_ID}/invite-settings`, {
+    const response = await fetch(`/api/stores/${storeId}/invite-settings`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -128,11 +137,11 @@ export function CalendarEmailSettings() {
 
   const connectProvider = (provider: Provider) => {
     // Full-page redirect into the provider OAuth consent screen.
-    window.location.href = `/api/integrations/calendar/${provider}/start?storeId=${encodeURIComponent(STORE_ID)}`;
+    window.location.assign(`/api/integrations/calendar/${provider}/start?storeId=${encodeURIComponent(storeId)}`);
   };
 
   const disconnectProvider = async (provider: Provider) => {
-    const response = await fetch(`/api/integrations/calendar?storeId=${encodeURIComponent(STORE_ID)}&provider=${provider}`, { method: "DELETE" });
+    const response = await fetch(`/api/integrations/calendar?storeId=${encodeURIComponent(storeId)}&provider=${provider}`, { method: "DELETE" });
     if (!response.ok) {
       setNotice("Calendar could not be disconnected.");
       return;

@@ -7,9 +7,8 @@ import { IconUserPlus, IconCheck, IconX, IconLock } from "@/components/icons";
 
 const initialsOf = (n: string) => n.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 const input = "border border-line rounded-md px-3 py-2 text-[13px] text-body outline-none focus:border-primary bg-white";
-const STORE_ID = "store-sissys-little-rock";
 
-export function UsersSettings() {
+export function UsersSettings({ storeId }: { storeId: string }) {
   const [users, setUsers] = useState<ManagerUser[]>(MANAGER_USERS);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -19,7 +18,7 @@ export function UsersSettings() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/stores/${STORE_ID}/users`)
+    fetch(`/api/stores/${storeId}/users`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: { items: ManagerUser[] }) => {
         if (!cancelled) setUsers(data.items);
@@ -30,11 +29,11 @@ export function UsersSettings() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [storeId]);
 
   const addUser = async () => {
     if (!name.trim() || !email.trim()) return;
-    const response = await fetch(`/api/stores/${STORE_ID}/users`, {
+    const response = await fetch(`/api/stores/${storeId}/users`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: name.trim(), email: email.trim(), role }),
@@ -62,7 +61,7 @@ export function UsersSettings() {
 
   const transferAdmin = async (id: string) => {
     const target = users.find((x) => x.id === id);
-    const response = await fetch(`/api/stores/${STORE_ID}/transfer-admin`, {
+    const response = await fetch(`/api/stores/${storeId}/transfer-admin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ toUserId: id }),

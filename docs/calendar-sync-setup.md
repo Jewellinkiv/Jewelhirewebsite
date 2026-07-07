@@ -34,7 +34,8 @@ OAuth tokens are stored **encrypted** (AES-256-GCM, keyed off `AUTH_SECRET`).
    `GOOGLE_CALENDAR_CLIENT_SECRET` if set, otherwise falls back to the existing
    login `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. Simplest: add the calendar
    scopes to the existing login client (users re-consent). Otherwise create a
-   dedicated client and set the `GOOGLE_CALENDAR_*` env vars on Cloud Run.
+   dedicated client and mount `GOOGLE_CALENDAR_CLIENT_ID` plus the
+   secret-backed `GOOGLE_CALENDAR_CLIENT_SECRET` on Cloud Run.
 
 ### 2. Microsoft Outlook
 1. Azure AD → App registration (can reuse the existing `OUTLOOK_CLIENT_ID`).
@@ -42,12 +43,18 @@ OAuth tokens are stored **encrypted** (AES-256-GCM, keyed off `AUTH_SECRET`).
    `offline_access` → grant admin consent.
 3. Redirect URI:
    `https://app.jewelhire.com/api/integrations/calendar/microsoft/callback`
-4. Prod already has `OUTLOOK_CLIENT_ID` / `OUTLOOK_CLIENT_SECRET` /
-   `OUTLOOK_TENANT_ID`.
+4. Mount `OUTLOOK_CLIENT_ID`, secret-backed `OUTLOOK_CLIENT_SECRET`, and
+   `OUTLOOK_TENANT_ID` on Cloud Run. `OUTLOOK_TENANT_ID=common` works for a
+   multi-tenant app; use the directory tenant id for a single-tenant app.
 
 ### 3. Deploy
-Apply migration `0010` to prod, then deploy the branch. No new required secret —
-token encryption derives its key from the existing `AUTH_SECRET`.
+Apply migration `0010` to prod, then deploy the branch. No new encryption secret
+is required — token encryption derives its key from the existing `AUTH_SECRET`.
+Provider client secrets still need to be mounted if the provider is enabled.
+
+Relevant env vars are listed in `.env.example`, and `qa:config` treats
+`GOOGLE_CALENDAR_CLIENT_SECRET` and `OUTLOOK_CLIENT_SECRET` as private if they
+are mounted.
 
 ## Test checklist (once creds are live)
 1. Settings → Connect Google → consent → returns to `/settings?calendar=connected`;

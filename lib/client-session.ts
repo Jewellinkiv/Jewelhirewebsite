@@ -7,6 +7,8 @@ type ApiSession = {
   name?: string;
   email?: string;
   role?: SessionUser["role"];
+  activeStoreId?: string;
+  storeIds?: string[];
 };
 
 function initials(name: string) {
@@ -41,4 +43,24 @@ export function useCurrentSessionUser() {
   }, []);
 
   return user;
+}
+
+export function useActiveStoreId(fallbackStoreId = "store-sissys-little-rock") {
+  const [storeId, setStoreId] = useState(fallbackStoreId);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((session: ApiSession) => {
+        const nextStoreId = session.activeStoreId || session.storeIds?.[0];
+        if (!cancelled && nextStoreId) setStoreId(nextStoreId);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return storeId;
 }
