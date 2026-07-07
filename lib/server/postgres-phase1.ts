@@ -20,7 +20,8 @@ import { ACTIVITY, CAREERS, floorRead, LOCATION_FLOORS } from "@/lib/dashboard";
 import { CalProvider, INVITE_SETTINGS, InviteSettings, PROVIDER_LABEL } from "@/lib/invite-settings";
 import { CERT_COMPONENTS, CERT_COURSES } from "@/lib/jewelcert";
 import { getPostgresCourseTitles } from "@/lib/server/postgres-courses";
-import { ADJECTIVES, fitFor, Mix, PROFILE_ORDER, ProfileCode, PROFILES, score as scoreGemMatch, TYPE_BY_PAIR } from "@/lib/gemmatch";
+import { fitFor, Mix, PROFILE_ORDER, ProfileCode, PROFILES, TYPE_BY_PAIR } from "@/lib/gemmatch";
+import { ADJECTIVES, score as scoreGemMatch } from "@/lib/server/gemmatch-scoring";
 import type { AssessmentKind, AssessmentQuestion, CustomAssessment } from "@/lib/custom-assessments";
 import type {
   CourseCompletionTest,

@@ -28,7 +28,8 @@ import {
   NoteType,
 } from "@/lib/applicant-lifecycle";
 import { ASSOC_TRAINING, TrainingAssignment } from "@/lib/associate-portal";
-import { ADJECTIVES, Mix, PROFILE_ORDER, ProfileCode, PROFILES, score as scoreGemMatch, TYPE_BY_PAIR } from "@/lib/gemmatch";
+import { Mix, PROFILE_ORDER, ProfileCode, PROFILES, TYPE_BY_PAIR } from "@/lib/gemmatch";
+import { ADJECTIVES, score as scoreGemMatch } from "@/lib/server/gemmatch-scoring";
 import { CERT_COMPONENTS, CERT_COURSES } from "@/lib/jewelcert";
 import { listStoreAssessments } from "@/lib/local-assessment-store";
 import { SESSION } from "@/lib/session";

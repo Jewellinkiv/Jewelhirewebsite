@@ -30,13 +30,10 @@ export const TYPE_BY_PAIR: Record<ProfileCode, Record<string, string>> = {
   D: { V: "Visionary Leader", C: "Sales Strategist", F: "Master Analyst" },
 };
 
-// 48 adjectives, 12 per profile (single-pass, pick 10).
-export const ADJECTIVES: { text: string; profile: ProfileCode }[] = [
-  ...["Strategic","Analytical","Big-picture","Inventive","Curious","Logical","Insightful","Systematic","Innovative","Perceptive","Visionary","Problem-solving"].map((t) => ({ text: t, profile: "V" as const })),
-  ...["Friendly","Outgoing","Warm","Persuasive","Charming","Expressive","Sociable","Enthusiastic","Engaging","Empathetic","Encouraging","Optimistic"].map((t) => ({ text: t, profile: "C" as const })),
-  ...["Dependable","Patient","Organized","Careful","Consistent","Detailed","Reliable","Methodical","Loyal","Precise","Diligent","Helpful"].map((t) => ({ text: t, profile: "F" as const })),
-  ...["Competitive","Ambitious","Bold","Confident","Driven","Persistent","Decisive","Assertive","Tenacious","Self-motivated","Goal-oriented","Closer"].map((t) => ({ text: t, profile: "D" as const })),
-];
+// The adjective -> trait map (the assessment ANSWER KEY) and score() live in
+// lib/server/gemmatch-scoring — server only. This module is imported by client
+// components (for PROFILES/types), so the key must not be here or it ships to
+// the browser. The taker uses the text-only lib/gemmatch-adjectives.
 
 export interface GemMatchResult {
   mix: Mix;
@@ -44,29 +41,6 @@ export interface GemMatchResult {
   secondary: ProfileCode;
   type: string;
   clarity: string;
-}
-
-// Reference scoring: single capped pass. Counts adjective picks -> mix -> type.
-export function score(pickedAdjectiveTexts: string[]): GemMatchResult {
-  const raw: Mix = { V: 0, C: 0, F: 0, D: 0 };
-  for (const text of pickedAdjectiveTexts) {
-    const adj = ADJECTIVES.find((a) => a.text === text);
-    if (adj) raw[adj.profile] += 1;
-  }
-  const total = pickedAdjectiveTexts.length || 1;
-  const mix = Object.fromEntries(
-    PROFILE_ORDER.map((p) => [p, Math.round((100 * raw[p]) / total)])
-  ) as Mix;
-  const ranked = [...PROFILE_ORDER].sort((a, b) => mix[b] - mix[a]);
-  const primary = ranked[0];
-  const secondary = ranked[1];
-  return {
-    mix,
-    primary,
-    secondary,
-    type: TYPE_BY_PAIR[primary][secondary] ?? PROFILES[primary].name,
-    clarity: clarityLabel(mix[primary], PROFILES[primary].name),
-  };
 }
 
 export function clarityLabel(primaryPct: number, primaryName: string): string {
