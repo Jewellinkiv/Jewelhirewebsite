@@ -85,6 +85,19 @@ export function fitTier(score: number): FitTier {
   return "Poor fit";
 }
 
+// Job-aware fit: how much of the candidate's real mix falls in the traits the
+// job wants (idealGemMatchMix). No ideal set -> fall back to the primary's share.
+export function fitFor(mix: Mix, idealMix: ProfileCode[] | null | undefined): { fitScore: number; tier: FitTier } {
+  let raw: number;
+  if (idealMix && idealMix.length) {
+    raw = idealMix.reduce((sum, p) => sum + (mix[p] || 0), 0);
+  } else {
+    raw = Math.max(mix.V, mix.C, mix.F, mix.D);
+  }
+  const fitScore = Math.max(0, Math.min(100, Math.round(raw)));
+  return { fitScore, tier: fitTier(fitScore) };
+}
+
 export interface FitBreakdown {
   fitScore: number;
   tier: FitTier;

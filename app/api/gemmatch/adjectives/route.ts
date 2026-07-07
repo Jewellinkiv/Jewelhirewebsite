@@ -1,26 +1,9 @@
 import { NextResponse } from "next/server";
-import { ADJECTIVES, PROFILES } from "@/lib/gemmatch";
+import { ADJECTIVE_ITEMS } from "@/lib/gemmatch-adjectives";
 
-function adjectiveId(text: string) {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
-
+// Returns adjectives as TEXT ONLY — never the profile/trait each word scores
+// into. Exposing that mapping (as this used to) hands the assessment answer key
+// to the client. Scoring is server-side (see /api/gemmatch/responses).
 export function GET() {
-  const items = ADJECTIVES.map((adjective) => {
-    const profile = PROFILES[adjective.profile];
-    return {
-      id: adjectiveId(adjective.text),
-      text: adjective.text,
-      profile: adjective.profile,
-      profileName: profile.name,
-      lane: profile.lane,
-      color: profile.color,
-    };
-  });
-
-  return NextResponse.json({
-    count: items.length,
-    profiles: PROFILES,
-    items,
-  });
+  return NextResponse.json({ count: ADJECTIVE_ITEMS.length, items: ADJECTIVE_ITEMS });
 }

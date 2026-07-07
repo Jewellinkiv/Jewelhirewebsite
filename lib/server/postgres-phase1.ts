@@ -20,7 +20,7 @@ import { ACTIVITY, CAREERS, floorRead, LOCATION_FLOORS } from "@/lib/dashboard";
 import { CalProvider, INVITE_SETTINGS, InviteSettings, PROVIDER_LABEL } from "@/lib/invite-settings";
 import { CERT_COMPONENTS, CERT_COURSES } from "@/lib/jewelcert";
 import { getPostgresCourseTitles } from "@/lib/server/postgres-courses";
-import { ADJECTIVES, Mix, PROFILE_ORDER, ProfileCode, PROFILES, score as scoreGemMatch, TYPE_BY_PAIR } from "@/lib/gemmatch";
+import { ADJECTIVES, fitFor, Mix, PROFILE_ORDER, ProfileCode, PROFILES, score as scoreGemMatch, TYPE_BY_PAIR } from "@/lib/gemmatch";
 import type { AssessmentKind, AssessmentQuestion, CustomAssessment } from "@/lib/custom-assessments";
 import type {
   CourseCompletionTest,
@@ -207,6 +207,8 @@ interface GemMatchInviteRow {
   status: GemMatchInviteRecord["status"];
   result_profile_code: GemMatchInviteRecord["resultProfileCode"] | null;
   fit_rating: GemMatchInviteRecord["fitRating"] | null;
+  result_mix?: Mix | null;
+  fit_score?: number | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -2117,6 +2119,8 @@ function mapGemMatchInvite(row: GemMatchInviteRow): GemMatchInviteRecord {
     status: row.status,
     resultProfileCode: row.result_profile_code || undefined,
     fitRating: row.fit_rating || undefined,
+    resultMix: row.result_mix ?? undefined,
+    fitScore: row.fit_score ?? undefined,
     completedAt: optional(row.completed_at),
     createdAt: row.created_at,
   };
@@ -3606,8 +3610,19 @@ export async function completePostgresGemMatchResponse(input: { inviteId: string
     // matching the local runtime (completeGemMatchResponse). Without this guard
     // scoreGemMatch([]) returns "V" (stable-sort of an all-zero mix), which would
     // diverge from local's "F" fallback for the same empty submission.
-    const primary: ProfileCode = pickedTexts.length ? scoreGemMatch(pickedTexts).primary : "F";
-    const fitRating = primary === "C" || primary === "F" ? "Strong fit" : "Good fit";
+    const scored = pickedTexts.length ? scoreGemMatch(pickedTexts) : null;
+    const primary: ProfileCode = scored?.primary ?? "F";
+    // The candidate's REAL trait mix — persisted so managers see the actual
+    // distribution, not a canned one reconstructed from just the primary letter.
+    const resultMix: Mix = scored?.mix ?? { V: 0, C: 0, F: 0, D: 0 };
+    // Job-aware fit: score the candidate's mix against the job's ideal traits
+    // (idealGemMatchMix) instead of the old hardcode keyed only on the primary.
+    const idealRow = await client.query<{ ideal_gemmatch_mix: JsonArray | null }>(
+      `select pj.ideal_gemmatch_mix from applications a left join public_jobs pj on pj.id = a.job_id where a.id = $1`,
+      [invite.application_id],
+    );
+    const idealMix = (idealRow.rows[0]?.ideal_gemmatch_mix as ProfileCode[] | null) || null;
+    const { fitScore, tier: fitRating } = fitFor(resultMix, idealMix);
     const timestamp = new Date().toISOString();
     const stageEventId = id("event");
     const domainEventId = id("event");
@@ -3623,13 +3638,15 @@ export async function completePostgresGemMatchResponse(input: { inviteId: string
         set status = 'completed',
             result_profile_code = $1,
             fit_rating = $2,
-            completed_at = $3
-        where id = $4
+            result_mix = $3::jsonb,
+            fit_score = $4,
+            completed_at = $5
+        where id = $6
         returning
           id, application_id, store_id, sent_by_user_id, status, result_profile_code, fit_rating,
           created_at::text, completed_at::text
       `,
-      [primary, fitRating, timestamp, invite.id],
+      [primary, fitRating, JSON.stringify(resultMix), fitScore, timestamp, invite.id],
     );
 
     // Completing the pick-10 profile is not the same as completing the whole JewelCert
@@ -5539,7 +5556,7 @@ async function getPostgresApplicationDetailWithClient(client: PoolClient, input:
     `
       select
         id, application_id, store_id, sent_by_user_id, status, result_profile_code, fit_rating,
-        created_at::text, completed_at::text
+        result_mix, fit_score, created_at::text, completed_at::text
       from gemmatch_invites
       where application_id = $1
       order by created_at desc
@@ -6099,13 +6116,10 @@ export async function getPostgresStoreApplicantDetail(identifier: string, storeI
       ? {
           type: gemMatchLabel(resultProfile),
           primary: (resultProfile || "C") as ProfileCode,
-          mix: {
-            V: resultProfile === "V" ? 55 : 20,
-            C: resultProfile === "C" ? 55 : 20,
-            F: resultProfile === "F" ? 55 : 20,
-            D: resultProfile === "D" ? 40 : 20,
-          },
-          fitScore: gemMatchFitScore(latestGemMatch.fitRating),
+          // The candidate's REAL trait distribution when we have it; older
+          // pre-migration rows fall back to the approximate profileMix.
+          mix: latestGemMatch.resultMix ?? profileMix(resultProfile),
+          fitScore: latestGemMatch.fitScore ?? gemMatchFitScore(latestGemMatch.fitRating),
           tier: latestGemMatch.fitRating || "Good fit",
         }
       : undefined,

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ADJECTIVES } from "@/lib/gemmatch";
+import { ADJECTIVE_ITEMS } from "@/lib/gemmatch-adjectives";
 import { IconCheck, IconChevronLeft, IconChevronRight, IconClock, IconLock, IconPlayerPlay } from "@/components/icons";
 
 const PICK_TARGET = 10;
@@ -34,7 +34,7 @@ export default function JewelCertTestPage() {
   const params = useParams();
   const inviteId = String(params.inviteId || "");
   const [step, setStep] = useState<Step>("intro");
-  const [order] = useState(() => shuffled(ADJECTIVES));
+  const [order] = useState(() => shuffled(ADJECTIVE_ITEMS));
   const [picked, setPicked] = useState<string[]>([]);
   const [role, setRole] = useState("this role");
   const [store, setStore] = useState("the store");

@@ -1,7 +1,7 @@
 // Backend-shaped Phase 1 applicant lifecycle seed data.
 // This mirrors docs/applicant-lifecycle-model.md and keeps applicants store-scoped.
 
-import { FitTier, ProfileCode } from "./gemmatch";
+import { FitTier, Mix, ProfileCode } from "./gemmatch";
 
 export type PublicPageStatus = "draft" | "published" | "paused";
 export type PublicJobStatus = "draft" | "open" | "paused" | "closed";
@@ -127,6 +127,8 @@ export interface GemMatchInviteRecord {
   status: InviteStatus;
   resultProfileCode?: ProfileCode;
   fitRating?: FitTier;
+  resultMix?: Mix;
+  fitScore?: number;
   completedAt?: string;
   createdAt: string;
 }
