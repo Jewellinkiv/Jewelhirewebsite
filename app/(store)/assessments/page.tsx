@@ -8,6 +8,7 @@ import { LEGACY_ASSESSMENTS } from "@/lib/legacy";
 import { AssessmentResult, COMPLETED_RESULTS } from "@/lib/assessment-results";
 import { CustomAssessment, CUSTOM_ASSESSMENTS } from "@/lib/custom-assessments";
 import { IconPlus, IconClipboardList, IconDiamond } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
 // A default assessment from the platform catalog (JewelCert + admin/legacy tests).
 interface DefaultAssessment {
@@ -34,16 +35,17 @@ const DEFAULT_LIBRARY_FALLBACK: DefaultAssessment[] = [
 ];
 
 export default function Page() {
-  const [customAssessments, setCustomAssessments] = useState<CustomAssessment[]>(CUSTOM_ASSESSMENTS);
-  const [completedResults, setCompletedResults] = useState<AssessmentResult[]>(COMPLETED_RESULTS);
+  const STORE_ID = useActiveStoreId("store-sissys-little-rock");
+  const [customAssessments, setCustomAssessments] = useState<CustomAssessment[]>([]);
+  const [completedResults, setCompletedResults] = useState<AssessmentResult[]>([]);
   const [defaultLibrary, setDefaultLibrary] = useState<DefaultAssessment[]>(DEFAULT_LIBRARY_FALLBACK);
 
   useEffect(() => {
     let cancelled = false;
     Promise.all([
       fetch("/api/assessments").then((response) => (response.ok ? response.json() : Promise.reject())),
-      fetch("/api/stores/store-sissys-little-rock/assessments").then((response) => (response.ok ? response.json() : Promise.reject())),
-      fetch("/api/stores/store-sissys-little-rock/assessment-results").then((response) => (response.ok ? response.json() : Promise.reject())),
+      fetch(`/api/stores/${STORE_ID}/assessments`).then((response) => (response.ok ? response.json() : Promise.reject())),
+      fetch(`/api/stores/${STORE_ID}/assessment-results`).then((response) => (response.ok ? response.json() : Promise.reject())),
     ])
       .then(([catalog, storeAssessments, results]) => {
         if (cancelled) return;
@@ -52,16 +54,12 @@ export default function Page() {
         setCompletedResults(results.items);
       })
       .catch(() => {
-        if (!cancelled) {
-          setDefaultLibrary(DEFAULT_LIBRARY_FALLBACK);
-          setCustomAssessments(CUSTOM_ASSESSMENTS);
-          setCompletedResults(COMPLETED_RESULTS);
-        }
+        if (!cancelled) setDefaultLibrary(DEFAULT_LIBRARY_FALLBACK);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [STORE_ID]);
 
   const typeChip = (type: string) =>
     type === "Knowledge check" ? "bg-[#e1f5ee] text-[#0f6e56]" : "bg-[#e8f1ff] text-primary";

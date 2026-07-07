@@ -6,11 +6,13 @@ import { PageHeader } from "@/components/common";
 import { Panel } from "@/components/ui";
 import { AssessmentKind, QuestionType, AssessmentQuestion, QUESTION_TYPE_LABEL } from "@/lib/custom-assessments";
 import { IconPlus, IconX, IconCheck, IconChevronLeft, IconClipboardList } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
 const KINDS: AssessmentKind[] = ["Knowledge check", "Trait profile", "Skills check"];
 const input = "border border-line rounded-md px-3 py-2 text-[13px] text-body outline-none focus:border-primary bg-white w-full";
 
 export default function NewAssessmentPage() {
+  const STORE_ID = useActiveStoreId("store-sissys-little-rock");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [kind, setKind] = useState<AssessmentKind>("Knowledge check");
@@ -45,7 +47,7 @@ export default function NewAssessmentPage() {
       setNotice("Add a title and at least one question first.");
       return;
     }
-    const response = await fetch("/api/stores/store-sissys-little-rock/assessments", {
+    const response = await fetch(`/api/stores/${STORE_ID}/assessments`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

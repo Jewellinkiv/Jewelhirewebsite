@@ -5,12 +5,14 @@ import Link from "next/link";
 import { PageHeader } from "@/components/common";
 import { TeamMemberModal } from "@/components/TeamMemberModal";
 import { Panel, TypeLabel } from "@/components/ui";
-import { LOCATIONS, Location, TEAM_MEMBERS, TeamMemberLoc } from "@/lib/team-locations";
+import { Location, TeamMemberLoc } from "@/lib/team-locations";
 import { IconSend, IconX, IconUserPlus, IconMapPin } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
 export default function TeamPage() {
-  const [members, setMembers] = useState<TeamMemberLoc[]>(TEAM_MEMBERS);
-  const [locations, setLocations] = useState<Location[]>(LOCATIONS);
+  const STORE_ID = useActiveStoreId("store-sissys-little-rock");
+  const [members, setMembers] = useState<TeamMemberLoc[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [loc, setLoc] = useState<string>("all");
   const [adding, setAdding] = useState(false);
 
@@ -20,24 +22,19 @@ export default function TeamPage() {
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      fetch("/api/stores/store-sissys-little-rock/locations").then((response) => (response.ok ? response.json() : Promise.reject())),
-      fetch("/api/stores/store-sissys-little-rock/team").then((response) => (response.ok ? response.json() : Promise.reject())),
+      fetch(`/api/stores/${STORE_ID}/locations`).then((response) => (response.ok ? response.json() : Promise.reject())),
+      fetch(`/api/stores/${STORE_ID}/team`).then((response) => (response.ok ? response.json() : Promise.reject())),
     ])
       .then(([locationsData, teamData]: [{ items: Location[] }, { members: TeamMemberLoc[] }]) => {
         if (cancelled) return;
         setLocations(locationsData.items);
         setMembers(teamData.members);
       })
-      .catch(() => {
-        if (!cancelled) {
-          setLocations(LOCATIONS);
-          setMembers(TEAM_MEMBERS);
-        }
-      });
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [STORE_ID]);
 
   const reassign = async (mid: string, locationId: string) => {
     setMembers((ms) => ms.map((m) => (m.id === mid ? { ...m, locationId } : m)));
