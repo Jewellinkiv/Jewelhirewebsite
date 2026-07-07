@@ -1,24 +1,17 @@
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/common";
 import { Panel, Radar, MixBars, TypeLabel } from "@/components/ui";
 import { IconUserPlus, IconSend } from "@/components/icons";
-import { useActiveStoreId } from "@/lib/client-session";
+import { getSessionContext } from "@/lib/server/access-control";
+import { getTeamStore } from "@/lib/server/stores/team-store";
 import { Mix, PROFILES, PROFILE_ORDER, ProfileCode } from "@/lib/gemmatch";
 
-const FALLBACK_STORE_ID = "store-sissys-little-rock";
-
-interface TeamMember {
-  id: string;
-  name: string;
-  initials: string;
-  role: string;
-  type: string;
-  primary: ProfileCode | null;
-  status: string;
-}
+// Server Component: the team's mix, floor type, and gaps are fetched on the
+// server and rendered into the HTML. Earlier this was a client page that fetched
+// in useEffect; on a hard load the effect never fired (the page hydrated as a
+// streamed Suspense child and its effect was dropped), leaving a permanent
+// "Loading…". Rendering server-side removes that dependency entirely — the data
+// is in the first paint. The page is display-only, so no client code is needed.
 
 const STATUS_STYLE: Record<string, string> = {
   Active: "bg-[#e1f5ee] text-[#0f6e56]",
@@ -26,8 +19,7 @@ const STATUS_STYLE: Record<string, string> = {
   New: "bg-[#e8f1ff] text-primary",
 };
 
-// Suggested hire for a trait the floor is short on — used to turn a gap into an
-// actionable "hire next" line.
+// Suggested hire for a trait the floor is short on.
 const HIRE_FOR: Record<ProfileCode, string> = {
   V: "a Visionary (Architect / Innovator) to add strategy and fresh ideas",
   C: "a Connector (Luxury Advisor) for warmth and clienteling",
@@ -37,80 +29,22 @@ const HIRE_FOR: Record<ProfileCode, string> = {
 
 const EVEN_SHARE = 100 / PROFILE_ORDER.length; // 25% if each trait were equal
 
-// Team trait mix = the distribution of members' primary traits. Only members
-// with a completed assessment (a primary) count toward the mix.
-function computeMix(members: TeamMember[]): { mix: Mix; assessed: number } {
-  const counts: Mix = { V: 0, C: 0, F: 0, D: 0 };
-  let assessed = 0;
-  for (const m of members) {
-    if (m.primary && counts[m.primary] !== undefined) {
-      counts[m.primary] += 1;
-      assessed += 1;
-    }
-  }
-  if (!assessed) return { mix: { V: 0, C: 0, F: 0, D: 0 }, assessed: 0 };
-  const mix = Object.fromEntries(
-    PROFILE_ORDER.map((p) => [p, Math.round((100 * counts[p]) / assessed)]),
-  ) as Mix;
-  return { mix, assessed };
-}
+export default async function TeamMapPage() {
+  const session = await getSessionContext().catch(() => null);
+  const storeId = session?.activeStoreId || session?.storeIds?.[0] || "store-sissys-little-rock";
 
-export default function TeamMapPage() {
-  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
-  const [members, setMembers] = useState<TeamMember[] | null>(null);
-  const [error, setError] = useState(false);
+  const teamStore = getTeamStore();
+  const [members, composition] = await Promise.all([
+    Promise.resolve(teamStore.listStoreTeamMembers({ storeId })),
+    Promise.resolve(teamStore.getTeamComposition({ storeId })),
+  ]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setMembers(null);
-    setError(false);
-    fetch(`/api/stores/${STORE_ID}/team`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((body) => {
-        if (cancelled) return;
-        setMembers((body.members || body.items || []) as TeamMember[]);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [STORE_ID]);
-
-  const { mix, assessed, ranked, rich, short } = useMemo(() => {
-    const list = members || [];
-    const { mix, assessed } = computeMix(list);
-    const ranked = [...PROFILE_ORDER].sort((a, b) => mix[b] - mix[a]);
-    // Rich = traits meaningfully above an even split; short = meaningfully below.
-    const rich = ranked.filter((p) => mix[p] > EVEN_SHARE);
-    const short = [...ranked].reverse().filter((p) => mix[p] < EVEN_SHARE * 0.6);
-    return { mix, assessed, ranked, rich, short };
-  }, [members]);
-
-  const floorType = assessed ? `${PROFILES[ranked[0]].name}-led` : "—";
-
-  if (error) {
-    return (
-      <div className="max-w-[940px]">
-        <PageHeader title="Team map" subtitle="The whole team's mix, floor type, and where you're rich vs. short." />
-        <Panel title="Team mix">
-          <div className="p-6 text-[13px] text-muted">We couldn&apos;t load your team right now. Please refresh to try again.</div>
-        </Panel>
-      </div>
-    );
-  }
-
-  if (members === null) {
-    return (
-      <div className="max-w-[940px]">
-        <PageHeader title="Team map" subtitle="The whole team's mix, floor type, and where you're rich vs. short." />
-        <Panel title="Team mix">
-          <div className="p-6 text-[13px] text-muted">Loading your team…</div>
-        </Panel>
-      </div>
-    );
-  }
+  const mix: Mix = composition.mix;
+  const assessed = members.length;
+  const ranked = [...PROFILE_ORDER].sort((a, b) => mix[b] - mix[a]);
+  const rich = ranked.filter((p) => mix[p] > EVEN_SHARE);
+  const short = [...ranked].reverse().filter((p) => mix[p] < EVEN_SHARE * 0.6);
+  const floorType = composition.floorType;
 
   return (
     <div className="max-w-[940px]">
@@ -120,19 +54,13 @@ export default function TeamMapPage() {
         {/* 1 · Team mix */}
         <Panel title={assessed ? `Team mix · ${floorType} floor` : "Team mix"}>
           {assessed ? (
-            <>
-              <div className="p-4 grid grid-cols-1 md:grid-cols-[260px_1fr] gap-5 items-center">
-                <div className="max-w-[260px] mx-auto w-full"><Radar mix={mix} size={240} /></div>
-                <MixBars mix={mix} />
-              </div>
-              <p className="px-4 pb-3 -mt-1 text-[12px] text-muted">
-                Based on {assessed} assessed {assessed === 1 ? "member" : "members"}
-                {members.length > assessed ? ` (${members.length - assessed} not yet assessed)` : ""}.
-              </p>
-            </>
+            <div className="p-4 grid grid-cols-1 md:grid-cols-[260px_1fr] gap-5 items-center">
+              <div className="max-w-[260px] mx-auto w-full"><Radar mix={mix} size={240} /></div>
+              <MixBars mix={mix} />
+            </div>
           ) : (
             <div className="p-6 text-[13px] text-muted">
-              No completed assessments yet. Once your team takes JewelCert, their trait mix shows here.
+              No team members yet. Hired applicants show up here with their JewelCert mix.
             </div>
           )}
         </Panel>
@@ -202,7 +130,7 @@ export default function TeamMapPage() {
                         {m.primary ? <TypeLabel primary={m.primary} type={m.type} /> : <span className="text-muted">Not assessed</span>}
                       </td>
                       <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
-                        <span className={`text-[11px] font-medium px-2 py-1 rounded-full whitespace-nowrap ${STATUS_STYLE[m.status] || "bg-[#eef1f6] text-muted"}`}>{m.status}</span>
+                        <span className={`text-[11px] font-medium px-2 py-1 rounded-full whitespace-nowrap ${STATUS_STYLE[m.status ?? ""] || "bg-[#eef1f6] text-muted"}`}>{m.status ?? "Active"}</span>
                       </td>
                       <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
                         <Link href="/send-jewelcert" title="Send JewelCert" className="w-8 h-8 rounded-md border border-line text-muted hover:bg-rowhover hover:text-primary flex items-center justify-center"><IconSend size={16} /></Link>
