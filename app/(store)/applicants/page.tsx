@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/common";
 import { Panel } from "@/components/ui";
 import { APPLICANTS, AppStatus, ApplicantNote } from "@/lib/applicants";
 import { IconSearch, IconFileText, IconChevronDown, IconUser } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
 const STATUS_STYLE: Record<AppStatus, string> = {
   Active: "bg-[#e8f1ff] text-primary",
@@ -14,7 +15,7 @@ const STATUS_STYLE: Record<AppStatus, string> = {
   Withdrawn: "bg-[#eef2f7] text-[#5b6472]",
 };
 
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -47,19 +48,22 @@ function fromApi(row: any) {
 }
 
 export default function ApplicantsPage() {
-  const [applicants, setApplicants] = useState(APPLICANTS);
+  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
+  // Start empty (not seeded with demo applicants) so we never flash fake data;
+  // real applicants for THIS store load below.
+  const [applicants, setApplicants] = useState<typeof APPLICANTS>([]);
+  const [loaded, setLoaded] = useState(false);
   const [q, setQ] = useState("");
   const [scope, setScope] = useState<"All" | "Active" | "Past">("All");
   const [role, setRole] = useState("All");
-  const [openId, setOpenId] = useState<string | null>("maya-chen");
-  const [notes, setNotes] = useState<Record<string, ApplicantNote[]>>(
-    Object.fromEntries(APPLICANTS.map((a) => [a.id, a.notes]))
-  );
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [notes, setNotes] = useState<Record<string, ApplicantNote[]>>({});
   const [draft, setDraft] = useState("");
   const roles = useMemo(() => ["All", ...Array.from(new Set(applicants.map((a) => a.role)))], [applicants]);
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     fetch(`/api/stores/${STORE_ID}/applicants`)
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Unable to load applicants"))))
       .then((body) => {
@@ -68,12 +72,15 @@ export default function ApplicantsPage() {
         setApplicants(next);
         setNotes(Object.fromEntries(next.map((a: typeof APPLICANTS[number]) => [a.id, a.notes])));
         if (next.length > 0) setOpenId(next[0].id);
+        setLoaded(true);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setLoaded(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [STORE_ID]);
 
   const rows = useMemo(() => {
     return applicants.filter((a) => {
@@ -177,7 +184,8 @@ export default function ApplicantsPage() {
               </div>
             );
           })}
-          {rows.length === 0 && <div className="px-4 py-10 text-center text-muted text-[13px]">No applicants match your search.</div>}
+          {!loaded && <div className="px-4 py-10 text-center text-muted text-[13px]">Loading applicants…</div>}
+          {loaded && rows.length === 0 && <div className="px-4 py-10 text-center text-muted text-[13px]">No applicants match your search.</div>}
         </div>
       </Panel>
     </div>

@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/common";
 import { Panel } from "@/components/ui";
-import { INTERVIEWS, Interview, InterviewType, InterviewStatus } from "@/lib/interviews";
+import { Interview, InterviewType, InterviewStatus } from "@/lib/interviews";
 import { APPLICANTS } from "@/lib/applicants";
 import { INVITE_SETTINGS, PROVIDER_LABEL } from "@/lib/invite-settings";
 import { IconCalendar, IconCheck, IconX, IconPlus, IconSend, IconUserPlus, IconSettings, IconVideo, IconMail } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
 const TYPE_STYLE: Record<InterviewType, string> = {
   "In-person": "bg-[#e8f1ff] text-primary",
@@ -22,7 +23,7 @@ const STATUS_STYLE: Record<InterviewStatus, string> = {
 
 const ROLES = ["Sales Associate", "Sales Manager", "Bench Jeweler", "Bridal Specialist", "Repair Coordinator"];
 const ACTIVE_APPLICANTS = APPLICANTS.filter((a) => a.status === "Active");
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 const PUBLIC_STORE_SLUG = "sissys-log-cabin-careers";
 const DEFAULT_JOB_ID = "job-luxury-sales-associate";
 const initialsOf = (n: string) => n.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
@@ -69,8 +70,12 @@ function statusToApi(status: InterviewStatus) {
 }
 
 export default function InterviewsPage() {
+  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
   const [inviteSettings, setInviteSettings] = useState(INVITE_SETTINGS);
-  const [list, setList] = useState<Interview[]>(INTERVIEWS);
+  // Start empty (not seeded with demo interviews) so we never flash another
+  // store's data; real interviews for THIS store load below.
+  const [list, setList] = useState<Interview[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [notice, setNotice] = useState("");
@@ -111,10 +116,11 @@ export default function InterviewsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [STORE_ID]);
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     fetch(`/api/stores/${STORE_ID}/interviews`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: {
@@ -138,14 +144,15 @@ export default function InterviewsPage() {
           notes: item.interview.outcome || "",
           meetLink: item.interview.locationType === "video" ? item.interview.locationDetails : undefined,
         })));
+        setLoaded(true);
       })
       .catch(() => {
-        if (!cancelled) setList(INTERVIEWS);
+        if (!cancelled) setLoaded(true);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [STORE_ID]);
 
   const openModal = () => {
     setDraft((d) => ({ ...d, meetLink: genMeet(connected) }));
@@ -280,14 +287,15 @@ export default function InterviewsPage() {
       <Panel title={`Upcoming (${upcoming.length})`} icon={<IconCalendar size={16} />} className="mb-4">
         <div className="divide-y divide-[#eef1f6]">
           {upcoming.map((i) => <Row key={i.id} i={i} onComplete={() => setStatus(i.id, "Completed")} onNoShow={() => setStatus(i.id, "No-show")} />)}
-          {upcoming.length === 0 && <div className="px-4 py-8 text-center text-muted text-[13px]">No upcoming interviews.</div>}
+          {!loaded && <div className="px-4 py-8 text-center text-muted text-[13px]">Loading interviews…</div>}
+          {loaded && upcoming.length === 0 && <div className="px-4 py-8 text-center text-muted text-[13px]">No upcoming interviews.</div>}
         </div>
       </Panel>
 
       <Panel title={`Past (${past.length})`}>
         <div className="divide-y divide-[#eef1f6]">
           {past.map((i) => <Row key={i.id} i={i} />)}
-          {past.length === 0 && <div className="px-4 py-8 text-center text-muted text-[13px]">No past interviews.</div>}
+          {loaded && past.length === 0 && <div className="px-4 py-8 text-center text-muted text-[13px]">No past interviews.</div>}
         </div>
       </Panel>
 

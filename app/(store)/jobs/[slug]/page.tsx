@@ -5,8 +5,9 @@ import Link from "next/link";
 import { Panel } from "@/components/ui";
 import { EmptyState } from "@/components/states";
 import { IconClock, IconUsers, IconUserPlus, IconBriefcase, IconTargetArrow, IconLink, IconX, IconCheck } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 
 type RawStatus = "draft" | "open" | "paused" | "closed";
 
@@ -92,7 +93,7 @@ function stageLabel(stage: string) {
   return stage === "gemmatch" || stage === "GemMatch" ? "JewelCert profile" : stage;
 }
 
-function EditJobModal({ job, onClose, onSaved }: { job: JobRecord; onClose: () => void; onSaved: () => void }) {
+function EditJobModal({ storeId, job, onClose, onSaved }: { storeId: string; job: JobRecord; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
     title: job.title,
     location: job.location,
@@ -117,7 +118,7 @@ function EditJobModal({ job, onClose, onSaved }: { job: JobRecord; onClose: () =
     setSaving(true);
     setError("");
     try {
-      const response = await fetch(`/api/stores/${STORE_ID}/jobs/${job.slug}`, {
+      const response = await fetch(`/api/stores/${storeId}/jobs/${job.slug}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -210,6 +211,7 @@ function EditJobModal({ job, onClose, onSaved }: { job: JobRecord; onClose: () =
 
 export default function JobDetail(props: { params: Promise<{ slug: string }> }) {
   const params = use(props.params);
+  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
   const [job, setJob] = useState<JobRecord | null>(null);
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [applicants, setApplicants] = useState<ApplicantRow[]>([]);
@@ -231,7 +233,7 @@ export default function JobDetail(props: { params: Promise<{ slug: string }> }) 
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
-  }, [params.slug]);
+  }, [STORE_ID, params.slug]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -323,7 +325,7 @@ export default function JobDetail(props: { params: Promise<{ slug: string }> }) 
         )}
       </Panel>
 
-      {showEdit && <EditJobModal job={job} onClose={() => setShowEdit(false)} onSaved={load} />}
+      {showEdit && <EditJobModal storeId={STORE_ID} job={job} onClose={() => setShowEdit(false)} onSaved={load} />}
     </div>
   );
 }

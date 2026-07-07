@@ -1,10 +1,12 @@
 "use client";
 
 import { CourseBuilder } from "@/components/CourseBuilder";
+import { useActiveStoreId } from "@/lib/client-session";
 
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 
 export default function NewStoreCoursePage() {
+  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
   return (
     <CourseBuilder
       endpoint={`/api/stores/${STORE_ID}/courses`}

@@ -7,6 +7,7 @@ import { Panel } from "@/components/ui";
 import { CANDIDATES } from "@/lib/data";
 import { LEGACY_ASSESSMENTS, LEGACY_COURSE_TOTALS } from "@/lib/legacy";
 import { IconClipboardList, IconSchool, IconSend, IconUserPlus } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
 type InviteStatus = "Sent" | "Opened" | "Started" | "Completed" | "Expired";
 
@@ -70,7 +71,7 @@ type QueueInvite = {
   sent: string;
   due: string;
 };
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 
 const STATUS_STYLE: Record<InviteStatus, string> = {
   Sent: "bg-[#eef2f7] text-[#5b6472]",
@@ -123,13 +124,18 @@ function Stat({ label, value, sub }: { label: string; value: string | number; su
 }
 
 export default function CertInvitationsPage() {
-  const [invites, setInvites] = useState<QueueInvite[]>(INVITES);
+  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
+  // Start empty (not seeded with demo invites) so we never flash another store's
+  // data; real invites for THIS store load below.
+  const [invites, setInvites] = useState<QueueInvite[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const pending = invites.filter((invite) => invite.status !== "Completed" && invite.status !== "Expired").length;
   const completed = invites.filter((invite) => invite.status === "Completed").length;
   const candidateMap = new Map(CANDIDATES.map((candidate) => [candidate.id, candidate]));
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     fetch(`/api/stores/${STORE_ID}/invites`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: {
@@ -152,15 +158,16 @@ export default function CertInvitationsPage() {
             sent: item.sent,
             due: item.due,
           })));
+          setLoaded(true);
         }
       })
       .catch(() => {
-        if (!cancelled) setInvites(INVITES);
+        if (!cancelled) setLoaded(true);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [STORE_ID]);
 
   return (
     <div>
@@ -217,6 +224,8 @@ export default function CertInvitationsPage() {
                   </tr>
                 );
               })}
+              {!loaded && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted text-[13px]">Loading invitations…</td></tr>}
+              {loaded && invites.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted text-[13px]">No invitations yet.</td></tr>}
             </tbody>
           </table></div>
         </Panel>

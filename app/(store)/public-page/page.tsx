@@ -12,6 +12,7 @@ import {
   IconStar, IconMapPin, IconDiamond, IconChevronLeft, IconChevronRight,
   IconPlus, IconX, IconPalette, IconLink,
 } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
 function Stars({ rating, size = 15, color = "#f0a500" }: { rating: number; size?: number; color?: string }) {
   return (
@@ -26,7 +27,7 @@ function Stars({ rating, size = 15, color = "#f0a500" }: { rating: number; size?
 }
 
 const T0 = TEMPLATES[0];
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 
 type PublicPageResponse = {
   page?: StorePublicPageRecord;
@@ -60,6 +61,7 @@ async function writeClipboardText(value: string) {
 }
 
 export default function PublicPageBuilder() {
+  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
   // Store-identifying fields start blank (never another store's name) and are
   // populated from the real config on load; generic layout/copy defaults remain.
   const [cfg, setCfg] = useState<PublicPageConfig>({
@@ -91,7 +93,7 @@ export default function PublicPageBuilder() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [STORE_ID]);
 
   const applyTemplate = (id: string) => {
     const t = TEMPLATES.find((x) => x.id === id)!;

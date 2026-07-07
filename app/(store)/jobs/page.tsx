@@ -7,8 +7,9 @@ import { Panel } from "@/components/ui";
 import { LEGACY_ASSESSMENTS, LEGACY_COURSES } from "@/lib/legacy";
 import { EmptyState } from "@/components/states";
 import { IconBriefcase, IconClipboardList, IconSchool, IconSend, IconUserPlus, IconX, IconCheck } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 
 type RawStatus = "draft" | "open" | "paused" | "closed";
 
@@ -108,7 +109,7 @@ function ProfileCard({ item }: { item: JobItem }) {
 
 const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Contract", "Seasonal"];
 
-function CreateJobModal({ locations, onClose, onCreated }: { locations: StoreLocation[]; onClose: () => void; onCreated: () => void }) {
+function CreateJobModal({ storeId, locations, onClose, onCreated }: { storeId: string; locations: StoreLocation[]; onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({
     title: "",
     locationId: "",
@@ -132,7 +133,7 @@ function CreateJobModal({ locations, onClose, onCreated }: { locations: StoreLoc
     setError("");
     const selectedLocation = locations.find((l) => l.id === form.locationId);
     try {
-      const response = await fetch(`/api/stores/${STORE_ID}/jobs`, {
+      const response = await fetch(`/api/stores/${storeId}/jobs`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -229,6 +230,7 @@ function CreateJobModal({ locations, onClose, onCreated }: { locations: StoreLoc
 }
 
 export default function JobsPage() {
+  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
   const [items, setItems] = useState<JobItem[]>([]);
   const [locations, setLocations] = useState<StoreLocation[]>([]);
   const [locationFilter, setLocationFilter] = useState("");
@@ -243,7 +245,7 @@ export default function JobsPage() {
       .then((data: { items: JobItem[] }) => setItems(data.items || []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, [locationFilter]);
+  }, [STORE_ID, locationFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -252,7 +254,7 @@ export default function JobsPage() {
       .then((data: { items: StoreLocation[] }) => { if (!cancelled) setLocations(data.items || []); })
       .catch(() => { if (!cancelled) setLocations([]); });
     return () => { cancelled = true; };
-  }, []);
+  }, [STORE_ID]);
 
   useEffect(() => { loadJobs(); }, [loadJobs]);
 
@@ -333,7 +335,7 @@ export default function JobsPage() {
         </div>
       </div>
 
-      {showCreate && <CreateJobModal locations={locations} onClose={() => setShowCreate(false)} onCreated={loadJobs} />}
+      {showCreate && <CreateJobModal storeId={STORE_ID} locations={locations} onClose={() => setShowCreate(false)} onCreated={loadJobs} />}
     </div>
   );
 }

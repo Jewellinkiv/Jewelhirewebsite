@@ -7,11 +7,13 @@ import { Panel } from "@/components/ui";
 import { CourseBadgeChip } from "@/components/CourseBadge";
 import { IconPlus, IconSchool, IconCheck, IconX, IconDiamond } from "@/components/icons";
 import { moduleSummary, type StoreCourse, type PublicCourse } from "@/lib/courses";
+import { useActiveStoreId } from "@/lib/client-session";
 
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 const STATUS: Record<string, string> = { Published: "bg-[#e1f5ee] text-[#0f6e56]", Draft: "bg-[#fff4e2] text-[#9a6a12]" };
 
 export default function StoreCoursesPage() {
+  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
   const [own, setOwn] = useState<StoreCourse[]>([]);
   const [library, setLibrary] = useState<PublicCourse[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -39,7 +41,7 @@ export default function StoreCoursesPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [STORE_ID]);
 
   const togglePublish = async (c: StoreCourse) => {
     setBusyId(c.id);

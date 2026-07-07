@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/common";
 import { Radar } from "@/components/ui";
 import { TEAM_MIX, FLOOR_TYPE } from "@/lib/data";
 import { PROFILES } from "@/lib/gemmatch";
-import { floorRead, DASH_KPIS, CAREERS, LOCATION_FLOORS, ACTIVITY, DashKpi, FloorRead } from "@/lib/dashboard";
+import { floorRead, CAREERS, LOCATION_FLOORS, ACTIVITY, DashKpi, FloorRead } from "@/lib/dashboard";
 import {
   IconDiamond,
   IconLink,
@@ -17,6 +17,7 @@ import {
   IconUserPlus,
   IconCalendar,
 } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
 const ACT_ICON = {
   apply: <IconUserPlus size={16} />,
@@ -24,14 +25,17 @@ const ACT_ICON = {
   interview: <IconCalendar size={16} />,
 };
 
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 
-const fallbackDashboard = {
-  floor: floorRead(TEAM_MIX, FLOOR_TYPE, 9, 11),
-  kpis: DASH_KPIS,
-  careers: CAREERS,
-  locations: LOCATION_FLOORS,
-  activity: ACTIVITY,
+// Neutral empty shape shown while the store's real dashboard loads (and if the
+// load fails). Deliberately blank — never another store's seeded demo data — so
+// one store's owner can't flash-see another store's numbers.
+const emptyDashboard = {
+  floor: floorRead({ V: 0, C: 0, F: 0, D: 0 }, FLOOR_TYPE, 0, 0),
+  kpis: dashboardKpis({}),
+  careers: { ...CAREERS, status: "", views30d: 0, visitors: 0, applyRate: 0, url: "", trend: [0, 0] },
+  locations: [] as typeof LOCATION_FLOORS,
+  activity: [] as typeof ACTIVITY,
 };
 
 function dashboardKpis(raw: {
@@ -51,9 +55,11 @@ function dashboardKpis(raw: {
 }
 
 export default function Dashboard() {
+  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
   const router = useRouter();
   const [routeChecked, setRouteChecked] = useState(false);
-  const [dashboard, setDashboard] = useState(fallbackDashboard);
+  const [dashboard, setDashboard] = useState(emptyDashboard);
+  const [loaded, setLoaded] = useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState("all");
   const floor = dashboard.floor;
   const untested = floor.total - floor.tested;
@@ -113,17 +119,21 @@ export default function Dashboard() {
             locations: data.locations,
             activity: data.activity,
           });
+          setLoaded(true);
         }
       })
       .catch(() => {
-        if (!cancelled) setDashboard(fallbackDashboard);
+        if (!cancelled) {
+          setDashboard(emptyDashboard);
+          setLoaded(true);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [selectedLocationId]);
+  }, [STORE_ID, selectedLocationId]);
 
-  if (!routeChecked) {
+  if (!routeChecked || !loaded) {
     return null;
   }
 

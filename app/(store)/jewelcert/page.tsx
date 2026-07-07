@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/common";
 import { Panel, FitBadge, TypeLabel } from "@/components/ui";
 import { GEMMATCH_SENT, SendStatus } from "@/lib/gemmatch-sent";
 import { IconSend } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
 const STATUS_STYLE: Record<SendStatus, string> = {
   Sent: "bg-[#fff4e2] text-[#9a6a12]",
@@ -14,16 +15,21 @@ const STATUS_STYLE: Record<SendStatus, string> = {
 };
 
 type JewelCertRow = (typeof GEMMATCH_SENT)[number];
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 
 export default function JewelCertSentPage() {
+  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
   const [status, setStatus] = useState<SendStatus | "All">("All");
-  const [allRows, setAllRows] = useState<JewelCertRow[]>(GEMMATCH_SENT);
+  // Start empty (not seeded with demo rows) so we never flash another store's
+  // data; real rows for THIS store load below.
+  const [allRows, setAllRows] = useState<JewelCertRow[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const rows = allRows.filter((r) => status === "All" || r.status === status);
   const count = (s: SendStatus) => allRows.filter((r) => r.status === s).length;
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     fetch(`/api/stores/${STORE_ID}/gemmatch-invites`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: {
@@ -50,15 +56,16 @@ export default function JewelCertSentPage() {
             fitScore: item.fitScore,
             fitTier: item.fitTier,
           })));
+          setLoaded(true);
         }
       })
       .catch(() => {
-        if (!cancelled) setAllRows(GEMMATCH_SENT);
+        if (!cancelled) setLoaded(true);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [STORE_ID]);
 
   return (
     <div>
@@ -109,7 +116,8 @@ export default function JewelCertSentPage() {
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted text-[13px]">None match.</td></tr>}
+            {!loaded && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted text-[13px]">Loading JewelCert sends…</td></tr>}
+            {loaded && rows.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted text-[13px]">None match.</td></tr>}
           </tbody>
         </table></div>
       </Panel>

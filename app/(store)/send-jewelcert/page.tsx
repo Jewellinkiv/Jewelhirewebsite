@@ -6,9 +6,10 @@ import { Panel } from "@/components/ui";
 import { CERT_COMPONENTS, CERT_COURSES, CertComponent, CertCourseRef, ComponentKind } from "@/lib/jewelcert";
 import { APPLICANTS } from "@/lib/applicants";
 import { IconSend, IconDiamond, IconTargetArrow, IconClipboardList, IconSchool, IconCheck } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
 const ACTIVE = APPLICANTS.filter((a) => a.status === "Active");
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 const PUBLIC_STORE_SLUG = "sissys-log-cabin-careers";
 const DEFAULT_JOB_ID = "job-luxury-sales-associate";
 
@@ -76,6 +77,7 @@ function deliveryNotice(notification?: NotificationResult): DeliveryNotice {
 }
 
 export default function SendJewelCert() {
+  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
   const [components, setComponents] = useState<CertComponent[]>(CERT_COMPONENTS);
   const [courseOptions, setCourseOptions] = useState<CertCourseRef[]>(CERT_COURSES);
   const [mode, setMode] = useState<"existing" | "new">("existing");

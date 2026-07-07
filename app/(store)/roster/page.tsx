@@ -7,8 +7,9 @@ import { TeamMemberModal } from "@/components/TeamMemberModal";
 import { Panel, TypeLabel } from "@/components/ui";
 import { TEAM } from "@/lib/data";
 import { PROFILES, ProfileCode } from "@/lib/gemmatch";
-import { LOCATIONS, Location } from "@/lib/team-locations";
+import { Location } from "@/lib/team-locations";
 import { IconClipboardList, IconSchool, IconSend, IconTargetArrow, IconUserPlus, IconUsersGroup } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 
 type TeamStatus = "Active" | "Onboarding" | "Needs review";
 
@@ -31,7 +32,7 @@ const ROSTER = TEAM.map((member, index) => {
 
 type RosterMember = (typeof ROSTER)[number];
 
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 
 const BADGE: Record<ProfileCode, string> = {
   V: "bg-[#e8f1ff] text-primary",
@@ -65,8 +66,12 @@ function Stat({ label, value, sub }: { label: string; value: string | number; su
 }
 
 export default function RosterPage() {
-  const [roster, setRoster] = useState<RosterMember[]>(ROSTER);
-  const [locations, setLocations] = useState<Location[]>(LOCATIONS);
+  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
+  // Start empty (not seeded with demo team) so we never flash another store's
+  // fake roster; real members for THIS store load below.
+  const [roster, setRoster] = useState<RosterMember[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [adding, setAdding] = useState(false);
   const counts = roster.reduce<Record<ProfileCode, number>>(
     (acc, member) => {
@@ -78,6 +83,7 @@ export default function RosterPage() {
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     Promise.all([
       fetch(`/api/stores/${STORE_ID}/locations`).then((response) => (response.ok ? response.json() : Promise.reject())),
       fetch(`/api/stores/${STORE_ID}/team`).then((response) => (response.ok ? response.json() : Promise.reject())),
@@ -86,17 +92,15 @@ export default function RosterPage() {
         if (cancelled) return;
         setLocations(locationsData.items);
         setRoster(teamData.members);
+        setLoaded(true);
       })
       .catch(() => {
-        if (!cancelled) {
-          setLocations(LOCATIONS);
-          setRoster(ROSTER);
-        }
+        if (!cancelled) setLoaded(true);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [STORE_ID]);
 
   return (
     <div>
@@ -159,6 +163,12 @@ export default function RosterPage() {
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[12.5px] text-body max-w-[220px]">{member.nextAction}</td>
                 </tr>
               ))}
+              {!loaded && (
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-muted text-[13px]">Loading roster…</td></tr>
+              )}
+              {loaded && roster.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-muted text-[13px]">No team members yet. Add your first team member to build your roster.</td></tr>
+              )}
             </tbody>
           </table></div>
         </Panel>
