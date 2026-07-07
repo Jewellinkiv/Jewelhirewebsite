@@ -5,6 +5,7 @@ import { createPostgresNewCandidateInterview } from "@/lib/server/postgres-phase
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
 import { notifyInterviewScheduled } from "@/lib/server/notifications";
+import { scheduleInterviewCalendar } from "@/lib/server/calendar";
 
 const locationTypes = new Set(["in_store", "phone", "video"]);
 
@@ -47,7 +48,18 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
       startsAt: result.interview.startsAt,
       locationDetails: result.interview.locationDetails,
     });
-    return NextResponse.json({ ...result, notification }, { status: 201 });
+    const calendar = await scheduleInterviewCalendar({
+      storeId: result.interview.storeId,
+      interviewId: result.interview.id,
+      startsAt: result.interview.startsAt,
+      endsAt: (result.interview as { endsAt?: string }).endsAt,
+      durationMinutes: Number.isFinite(Number(body?.duration)) ? Number(body.duration) : undefined,
+      role: body?.role,
+      candidateName: body?.name,
+      candidateEmail: body?.email,
+      locationDetails: result.interview.locationDetails,
+    });
+    return NextResponse.json({ ...result, notification, calendar }, { status: 201 });
   }
 
   const result = getApplicantStore().createNewCandidateInterview({

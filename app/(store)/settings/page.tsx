@@ -7,6 +7,7 @@ import { CalendarEmailSettings } from "@/components/CalendarEmailSettings";
 import { UsersSettings } from "@/components/UsersSettings";
 import { SaveButton } from "@/components/SaveButton";
 import { IconArrowUpRight, IconBell, IconBriefcase, IconProgress, IconSettings } from "@/components/icons";
+import { useActiveStoreId } from "@/lib/client-session";
 import { StoreSettingsRecord } from "@/lib/local-settings-store";
 
 const PIPELINE = ["Applied", "Cert sent", "JewelCert done", "In review", "Interview", "Offer", "Hired"];
@@ -18,21 +19,23 @@ const NOTIFICATIONS = [
   { label: "New strong-fit candidate", channel: "Email + in-app", owner: "Manager" },
 ];
 
-const STORE_ID = "store-sissys-little-rock";
+const FALLBACK_STORE_ID = "store-sissys-little-rock";
 // Neutral placeholder shown before the store's real settings load (and if the
 // load fails). Deliberately blank — never a specific store's name — so one
 // store's owner can't see another store's details.
-const FALLBACK_SETTINGS: StoreSettingsRecord = {
-  storeId: STORE_ID,
-  organization: {
-    company: "",
-    primaryStore: "",
-    defaultManager: "",
-  },
-  workflow: PIPELINE,
-  notifications: NOTIFICATIONS,
-  updatedAt: new Date().toISOString(),
-};
+function fallbackSettings(storeId: string): StoreSettingsRecord {
+  return {
+    storeId,
+    organization: {
+      company: "",
+      primaryStore: "",
+      defaultManager: "",
+    },
+    workflow: PIPELINE,
+    notifications: NOTIFICATIONS,
+    updatedAt: new Date().toISOString(),
+  };
+}
 
 function SettingRow({ label, value, helper }: { label: string; value: string; helper: string }) {
   return (
@@ -46,7 +49,7 @@ function SettingRow({ label, value, helper }: { label: string; value: string; he
   );
 }
 
-function BillingSettings() {
+function BillingSettings({ storeId }: { storeId: string }) {
   const [configured, setConfigured] = useState(false);
   const [allowPromotionCodes, setAllowPromotionCodes] = useState(true);
   const [promotionCode, setPromotionCode] = useState("");
@@ -55,7 +58,7 @@ function BillingSettings() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/stores/${STORE_ID}/billing/checkout`)
+    fetch(`/api/stores/${storeId}/billing/checkout`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: { configured: boolean; allowPromotionCodes: boolean }) => {
         if (!cancelled) {
@@ -72,12 +75,12 @@ function BillingSettings() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [storeId]);
 
   const openCheckout = async () => {
     setLoading(true);
     setStatus("");
-    const response = await fetch(`/api/stores/${STORE_ID}/billing/checkout`, {
+    const response = await fetch(`/api/stores/${storeId}/billing/checkout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ promotionCode: promotionCode.trim() || undefined }),
@@ -130,25 +133,26 @@ function BillingSettings() {
 }
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<StoreSettingsRecord>(FALLBACK_SETTINGS);
+  const storeId = useActiveStoreId(FALLBACK_STORE_ID);
+  const [settings, setSettings] = useState<StoreSettingsRecord>(() => fallbackSettings(FALLBACK_STORE_ID));
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/stores/${STORE_ID}/settings`)
+    fetch(`/api/stores/${storeId}/settings`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: { settings: StoreSettingsRecord }) => {
         if (!cancelled) setSettings(data.settings);
       })
       .catch(() => {
-        if (!cancelled) setSettings(FALLBACK_SETTINGS);
+        if (!cancelled) setSettings(fallbackSettings(storeId));
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [storeId]);
 
   const saveSettings = async () => {
-    const response = await fetch(`/api/stores/${STORE_ID}/settings`, {
+    const response = await fetch(`/api/stores/${storeId}/settings`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -170,11 +174,11 @@ export default function SettingsPage() {
         action={<SaveButton onSave={saveSettings} />}
       />
 
-      <UsersSettings />
+      <UsersSettings storeId={storeId} />
 
-      <CalendarEmailSettings />
+      <CalendarEmailSettings storeId={storeId} />
 
-      <BillingSettings />
+      <BillingSettings storeId={storeId} />
 
       <Panel title="Organization" icon={<IconBriefcase size={16} />} className="mb-[18px]">
         <div className="px-4">

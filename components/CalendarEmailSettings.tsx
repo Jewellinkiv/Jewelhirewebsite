@@ -12,8 +12,6 @@ const PROVIDERS: { id: Provider; name: string; sub: string; account: string }[] 
   { id: "microsoft", name: "Microsoft Outlook", sub: "Microsoft 365 / Exchange", account: "hiring@sissyslogcabin.com" },
 ];
 
-const STORE_ID = "store-sissys-little-rock";
-
 function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
   return (
     <label className="flex items-center justify-between gap-3 py-2 cursor-pointer" onClick={onClick}>
@@ -25,8 +23,11 @@ function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; labe
   );
 }
 
-export function CalendarEmailSettings() {
-  const [connected, setConnected] = useState<Provider | null>(INVITE_SETTINGS.calendarProvider);
+type CalConnection = { provider: Provider; accountEmail: string | null; connectedAt: string };
+type CalState = { connections: CalConnection[]; configured: { google: boolean; microsoft: boolean } };
+
+export function CalendarEmailSettings({ storeId }: { storeId: string }) {
+  const [cal, setCal] = useState<CalState>({ connections: [], configured: { google: false, microsoft: false } });
   const [fromName, setFromName] = useState(INVITE_SETTINGS.fromName);
   const [replyTo, setReplyTo] = useState(INVITE_SETTINGS.replyTo);
   const [timezone, setTimezone] = useState(INVITE_SETTINGS.timezone);
@@ -40,16 +41,56 @@ export function CalendarEmailSettings() {
   const [notice, setNotice] = useState("");
 
   const input = "border border-line rounded-md px-3 py-2 text-[13px] text-body outline-none focus:border-primary bg-white w-full";
-  const activeAccount = PROVIDERS.find((p) => p.id === connected)?.account;
+  const connectedProvider: Provider | null = cal.connections[0]?.provider ?? null;
+  const activeAccount = cal.connections[0]?.accountEmail ?? undefined;
+
+  const refreshCalendar = async () => {
+    try {
+      const r = await fetch(`/api/integrations/calendar?storeId=${encodeURIComponent(storeId)}`);
+      if (r.ok) setCal(await r.json());
+    } catch {
+      // leave prior state
+    }
+  };
+
+  // Load real calendar connection status, and surface the OAuth callback result.
+  useEffect(() => {
+    let cancelled = false;
+    let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+    fetch(`/api/integrations/calendar?storeId=${encodeURIComponent(storeId)}`)
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((data: CalState) => {
+        if (!cancelled) setCal(data);
+      })
+      .catch(() => {});
+    const params = new URLSearchParams(window.location.search);
+    const outcome = params.get("calendar");
+    if (outcome) {
+      const messages: Record<string, string> = {
+        connected: "Calendar connected.",
+        denied: "Calendar connection was cancelled.",
+        forbidden: "You don't have access to connect this store's calendar.",
+        error: "We couldn't connect that calendar. Please try again.",
+      };
+      noticeTimer = setTimeout(() => setNotice(messages[outcome] || ""), 0);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("calendar");
+      url.searchParams.delete("provider");
+      window.history.replaceState({}, "", url.toString());
+    }
+    return () => {
+      cancelled = true;
+      if (noticeTimer) clearTimeout(noticeTimer);
+    };
+  }, [storeId]);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/stores/${STORE_ID}/invite-settings`)
+    fetch(`/api/stores/${storeId}/invite-settings`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: { inviteSettings: typeof INVITE_SETTINGS }) => {
         if (cancelled) return;
         const settings = data.inviteSettings;
-        setConnected(settings.calendarProvider);
         setFromName(settings.fromName);
         setReplyTo(settings.replyTo);
         setTimezone(settings.timezone);
@@ -65,14 +106,14 @@ export function CalendarEmailSettings() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [storeId]);
 
   const saveInviteSettings = async (patch: Partial<typeof INVITE_SETTINGS>) => {
-    const response = await fetch(`/api/stores/${STORE_ID}/invite-settings`, {
+    const response = await fetch(`/api/stores/${storeId}/invite-settings`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        calendarProvider: connected,
+        calendarProvider: connectedProvider,
         account: activeAccount ?? INVITE_SETTINGS.account,
         fromName,
         replyTo,
@@ -94,15 +135,19 @@ export function CalendarEmailSettings() {
     setNotice("Invite settings saved.");
   };
 
-  const toggleProvider = async (provider: Provider, on: boolean) => {
-    const response = await fetch(`/api/stores/${STORE_ID}/integrations/${provider}`, { method: on ? "DELETE" : "POST" });
+  const connectProvider = (provider: Provider) => {
+    // Full-page redirect into the provider OAuth consent screen.
+    window.location.assign(`/api/integrations/calendar/${provider}/start?storeId=${encodeURIComponent(storeId)}`);
+  };
+
+  const disconnectProvider = async (provider: Provider) => {
+    const response = await fetch(`/api/integrations/calendar?storeId=${encodeURIComponent(storeId)}&provider=${provider}`, { method: "DELETE" });
     if (!response.ok) {
-      setNotice("Calendar connection could not be updated locally.");
+      setNotice("Calendar could not be disconnected.");
       return;
     }
-    const data = await response.json() as { inviteSettings: typeof INVITE_SETTINGS };
-    setConnected(data.inviteSettings.calendarProvider);
-    setNotice(on ? "Calendar disconnected." : `${PROVIDERS.find((p) => p.id === provider)?.name} connected.`);
+    await refreshCalendar();
+    setNotice(`${PROVIDERS.find((p) => p.id === provider)?.name} disconnected.`);
   };
 
   const preview = note
@@ -126,7 +171,9 @@ export function CalendarEmailSettings() {
             <div className="text-[12px] font-semibold uppercase tracking-wide text-muted mb-2">Connected calendar</div>
             <div className="space-y-2">
               {PROVIDERS.map((p) => {
-                const on = connected === p.id;
+                const conn = cal.connections.find((c) => c.provider === p.id);
+                const on = Boolean(conn);
+                const configured = cal.configured[p.id];
                 return (
                   <div key={p.id} className={`flex items-center gap-3 rounded-md border px-3 py-2.5 ${on ? "border-accent bg-[#f3f7ff]" : "border-line"}`}>
                     <span className={`w-8 h-8 rounded-md flex items-center justify-center ${on ? "bg-[#e8f1ff] text-primary" : "bg-[#eef2f7] text-muted"}`}><IconCalendar size={16} /></span>
@@ -135,19 +182,24 @@ export function CalendarEmailSettings() {
                         {p.name}
                         {on && <span className="text-[10.5px] font-medium text-[#0f6e56] bg-[#e1f5ee] px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"><IconCheck size={11} /> Connected</span>}
                       </div>
-                      <div className="text-[11.5px] text-muted">{on ? p.account : p.sub}</div>
+                      <div className="text-[11.5px] text-muted truncate">{on ? conn?.accountEmail || "Connected account" : p.sub}</div>
                     </div>
-                    <button
-                      onClick={() => toggleProvider(p.id, on)}
-                      className={`ml-auto text-[12px] px-3 py-1.5 rounded-md border ${on ? "border-line text-muted hover:bg-rowhover" : "btn-grad border-transparent text-white"}`}
-                    >
-                      {on ? "Disconnect" : "Connect"}
-                    </button>
+                    {on ? (
+                      <button onClick={() => disconnectProvider(p.id)} className="ml-auto text-[12px] px-3 py-1.5 rounded-md border border-line text-muted hover:bg-rowhover">
+                        Disconnect
+                      </button>
+                    ) : configured ? (
+                      <button onClick={() => connectProvider(p.id)} className="ml-auto text-[12px] px-3 py-1.5 rounded-md border btn-grad border-transparent text-white">
+                        Connect
+                      </button>
+                    ) : (
+                      <span className="ml-auto text-[11px] text-muted" title="This provider isn't configured on the server yet.">Unavailable</span>
+                    )}
                   </div>
                 );
               })}
             </div>
-            <p className="text-[11.5px] text-muted mt-2">Connecting writes interviews to your calendar and reads busy times to avoid double-booking.</p>
+            <p className="text-[11.5px] text-muted mt-2">Connecting writes new interviews to your calendar and checks your busy times to avoid double-booking.</p>
           </div>
 
           <div>
@@ -162,7 +214,7 @@ export function CalendarEmailSettings() {
                 <input className={input} type="email" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} />
               </div>
               <div className="text-[11.5px] text-muted flex items-center gap-1.5">
-                <IconMail size={13} /> Invites send from {activeAccount ?? "your connected account"} via {connected === "microsoft" ? "Outlook" : "Gmail"}.
+                <IconMail size={13} /> Invites send from {activeAccount ?? "your connected account"} via {connectedProvider === "microsoft" ? "Outlook" : "Gmail"}.
               </div>
             </div>
           </div>
