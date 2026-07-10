@@ -41,6 +41,7 @@ type ApiApplicationItem = {
     jewelcertStatus: "not_sent" | "sent" | "started" | "completed" | "expired" | "cancelled";
     gemmatchProfile?: ProfileCode;
     gemmatchFit?: string;
+    gemmatchFitScore?: number;
   };
   nextInterview?: { startsAt: string };
   noteCount: number;
@@ -95,7 +96,9 @@ function toPipelineApplicant(item: ApiApplicationItem): PipelineApplicant {
       ? {
           type: profile === "C" ? "Luxury Advisor" : profile === "F" ? "Master Craftsman" : profile === "D" ? "Sales Strategist" : "Trailblazer",
           primary: profile,
-          fitScore: item.screening.gemmatchFit === "Strong fit" ? 88 : item.screening.gemmatchFit === "Poor fit" ? 32 : 74,
+          // Real persisted score; the tier-derived numbers are only a fallback
+          // for pre-migration rows.
+          fitScore: item.screening.gemmatchFitScore ?? (item.screening.gemmatchFit === "Strong fit" ? 88 : item.screening.gemmatchFit === "Poor fit" ? 32 : 74),
           tier: (item.screening.gemmatchFit as FitTier) || "Good fit",
         }
       : undefined,

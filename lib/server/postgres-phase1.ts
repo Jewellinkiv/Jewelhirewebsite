@@ -116,6 +116,7 @@ interface ApplicationSummaryRow {
   gemmatch_status: string | null;
   gemmatch_profile: string | null;
   gemmatch_fit: string | null;
+  gemmatch_fit_score: number | null;
   interview_status: string | null;
   next_interview_at: string | null;
   note_count: string;
@@ -455,6 +456,7 @@ export interface PostgresApplicationSummary {
     gemmatchStatus: string;
     gemmatchProfile?: string;
     gemmatchFit?: string;
+    gemmatchFitScore?: number;
   };
   nextInterview?: {
     startsAt: string;
@@ -1794,6 +1796,7 @@ function mapApplicationSummary(row: ApplicationSummaryRow): PostgresApplicationS
       gemmatchStatus: row.gemmatch_status || "not_sent",
       gemmatchProfile: optional(row.gemmatch_profile),
       gemmatchFit: optional(row.gemmatch_fit),
+      gemmatchFitScore: row.gemmatch_fit_score ?? gemmatchFitScore(optional(row.gemmatch_fit)),
     },
     nextInterview: row.next_interview_at
       ? {
@@ -5003,6 +5006,7 @@ async function listPostgresApplicationSummariesWithClient(client: PoolClient, in
         gm.status as gemmatch_status,
         gm.result_profile_code as gemmatch_profile,
         gm.fit_rating as gemmatch_fit,
+        gm.fit_score as gemmatch_fit_score,
         i.status as interview_status,
         i.starts_at::text as next_interview_at,
         coalesce(notes.note_count, 0)::text as note_count
@@ -5216,6 +5220,7 @@ export async function listPostgresApplicantApplications(email?: string | null) {
         gm.status as gemmatch_status,
         gm.result_profile_code as gemmatch_profile,
         gm.fit_rating as gemmatch_fit,
+        gm.fit_score as gemmatch_fit_score,
         i.status as interview_status,
         i.starts_at::text as next_interview_at,
         coalesce(notes.note_count, 0)::text as note_count
