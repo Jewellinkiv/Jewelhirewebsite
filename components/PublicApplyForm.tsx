@@ -141,15 +141,19 @@ export function PublicApplyForm({
 
       {error ? <p className="mt-4 mb-0 text-[13px] text-red-600">{error}</p> : null}
 
-      <button
-        type="submit"
-        disabled={!canSubmit || submitting}
-        className={`mt-5 w-full sm:w-auto px-8 py-3 text-[14px] rounded-full inline-flex items-center justify-center ${
-          canSubmit && !submitting ? "btn-grad" : "bg-[#cfd6e0] text-white font-bold cursor-not-allowed"
-        }`}
-      >
-        {submitting ? "Submitting…" : "Submit application"}
-      </button>
+      {/* own row — as a sibling inline element it rendered on the same line as
+          the "Add experience" toggle and overlapped it */}
+      <div className="mt-5">
+        <button
+          type="submit"
+          disabled={!canSubmit || submitting}
+          className={`w-full sm:w-auto px-8 py-3 text-[14px] rounded-full inline-flex items-center justify-center ${
+            canSubmit && !submitting ? "btn-grad" : "bg-[#cfd6e0] text-white font-bold cursor-not-allowed"
+          }`}
+        >
+          {submitting ? "Submitting…" : "Submit application"}
+        </button>
+      </div>
       <p className="mt-3 mb-0 text-[12px] text-muted">Your application is shared only with {storeName}.</p>
     </form>
   );

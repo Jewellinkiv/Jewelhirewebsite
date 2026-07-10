@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/common";
 import { Panel } from "@/components/ui";
 import { CERT_COMPONENTS, CERT_COURSES, CertComponent, CertCourseRef, ComponentKind } from "@/lib/jewelcert";
-import { APPLICANTS } from "@/lib/applicants";
 import { IconSend, IconDiamond, IconTargetArrow, IconClipboardList, IconSchool, IconCheck } from "@/components/icons";
 import { useActiveStoreId } from "@/lib/client-session";
 
-const ACTIVE = APPLICANTS.filter((a) => a.status === "Active");
 const FALLBACK_STORE_ID = "store-sissys-little-rock";
-const PUBLIC_STORE_SLUG = "sissys-log-cabin-careers";
-const DEFAULT_JOB_ID = "job-luxury-sales-associate";
+
+// A real applicant in this store, keyed by their application id — the invite
+// API takes applicationId directly, so no name-matching round trip is needed.
+// (This page used to list a static demo roster and look the real application
+// up by searching the demo NAME — real applicants never appeared at all.)
+type RecipientOption = { applicationId: string; name: string; role: string };
 
 type NotificationStatus = "disabled" | "dry_run" | "sent" | "skipped" | "failed";
 
@@ -76,12 +79,20 @@ function deliveryNotice(notification?: NotificationResult): DeliveryNotice {
   };
 }
 
-export default function SendJewelCert() {
+function SendJewelCert() {
   const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
+  // ?applicationId= preselects the recipient (the applicant-detail "Send
+  // JewelCert" action passes it so the owner isn't re-picking from a list).
+  const preselectedApplicationId = useSearchParams().get("applicationId") || "";
   const [components, setComponents] = useState<CertComponent[]>(CERT_COMPONENTS);
   const [courseOptions, setCourseOptions] = useState<CertCourseRef[]>(CERT_COURSES);
+  const [recipients, setRecipients] = useState<RecipientOption[] | null>(null);
+  // The store's published careers page (slug + a default open job) — needed to
+  // create an application for a brand-new candidate. Resolved per store, not
+  // hardcoded (the old page pinned every store's sends to Sissy's careers page).
+  const [careers, setCareers] = useState<{ slug: string; jobId: string } | null | "loading">("loading");
   const [mode, setMode] = useState<"existing" | "new">("existing");
-  const [applicantId, setApplicantId] = useState(ACTIVE[0]?.id ?? "");
+  const [selectedApplicationId, setSelectedApplicationId] = useState(preselectedApplicationId);
   const [newC, setNewC] = useState({ first: "", last: "", email: "" });
   const [comps, setComps] = useState<Set<string>>(new Set());
   const [courses, setCourses] = useState<Set<string>>(new Set());
@@ -111,17 +122,68 @@ export default function SendJewelCert() {
     };
   }, []);
 
+  // Real applicants for this store (the recipient list).
+  useEffect(() => {
+    let cancelled = false;
+    setRecipients(null);
+    fetch(`/api/stores/${STORE_ID}/applicants`)
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((body) => {
+        if (cancelled) return;
+        const options: RecipientOption[] = ((body.items || []) as Array<{ applicationId?: string; name?: string; role?: string }>)
+          .filter((item) => item.applicationId)
+          .map((item) => ({ applicationId: item.applicationId as string, name: item.name || "Applicant", role: item.role || "Jewelry role" }));
+        setRecipients(options);
+        setSelectedApplicationId((current) => {
+          if (current && options.some((o) => o.applicationId === current)) return current;
+          return options[0]?.applicationId ?? "";
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setRecipients([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [STORE_ID]);
+
+  // Careers page slug + a default open job, for the new-candidate path.
+  useEffect(() => {
+    let cancelled = false;
+    setCareers("loading");
+    fetch(`/api/stores/${STORE_ID}/public-page`)
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((page) => {
+        const slug = page?.slug || page?.page?.slug;
+        if (!slug) return Promise.reject();
+        return fetch(`/api/public/stores/${slug}`)
+          .then((response) => (response.ok ? response.json() : Promise.reject()))
+          .then((data) => {
+            if (cancelled) return;
+            const jobId = (data.jobs || [])[0]?.id;
+            setCareers(jobId ? { slug, jobId } : null);
+          });
+      })
+      .catch(() => {
+        if (!cancelled) setCareers(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [STORE_ID]);
+
   const toggle = (set: Set<string>, id: string, fn: (s: Set<string>) => void) => {
     const next = new Set(set); next.has(id) ? next.delete(id) : next.add(id); fn(next);
   };
 
+  const selected = (recipients || []).find((r) => r.applicationId === selectedApplicationId);
   const recipientName = mode === "existing"
-    ? ACTIVE.find((a) => a.id === applicantId)?.name ?? "—"
+    ? selected?.name ?? "—"
     : `${newC.first} ${newC.last}`.trim() || "New candidate";
-  const recipientOk = mode === "existing" ? !!applicantId : !!newC.email.trim();
+  const newCandidateReady = careers !== "loading" && careers !== null;
+  const recipientOk = mode === "existing" ? !!selected : !!newC.email.trim() && newCandidateReady;
   const total = comps.size + courses.size;
   const canSend = recipientOk && total > 0;
-  const recipientRole = mode === "existing" ? ACTIVE.find((a) => a.id === applicantId)?.role ?? "Sales Associate" : "Sales Associate";
 
   const send = async () => {
     if (!canSend || sending) return;
@@ -131,18 +193,16 @@ export default function SendJewelCert() {
     try {
       let applicationId = "";
       if (mode === "existing") {
-        const applicant = ACTIVE.find((a) => a.id === applicantId);
-        const response = await fetch(`/api/store/applications?q=${encodeURIComponent(applicant?.name || "")}`);
-        const body = await response.json();
-        applicationId = body.items?.[0]?.application?.id || "";
+        applicationId = selectedApplicationId;
       } else {
+        if (careers === "loading" || careers === null) throw new Error("Publish your careers page (with an open job) to invite new candidates");
         const name = `${newC.first} ${newC.last}`.trim();
-        const response = await fetch(`/api/public/stores/${PUBLIC_STORE_SLUG}/applications`, {
+        const response = await fetch(`/api/public/stores/${careers.slug}/applications`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            jobId: DEFAULT_JOB_ID,
-            profile: { name, email: newC.email.trim(), headline: recipientRole, summary: "Created from store JewelCert send." },
+            jobId: careers.jobId,
+            profile: { name, email: newC.email.trim(), summary: "Created from store JewelCert send." },
           }),
         });
         const body = await response.json();
@@ -174,7 +234,6 @@ export default function SendJewelCert() {
   };
 
   const input = "w-full border border-line rounded-md px-3 py-2.5 text-[14px] text-body outline-none focus:border-primary bg-white";
-  const label = "text-[12px] font-semibold text-head mb-1.5 block";
 
   if (sent) {
     const deliveryClass =
@@ -219,15 +278,26 @@ export default function SendJewelCert() {
                 ))}
               </div>
               {mode === "existing" ? (
-                <select className={input} value={applicantId} onChange={(e) => setApplicantId(e.target.value)}>
-                  {ACTIVE.map((a) => <option key={a.id} value={a.id}>{a.name} · {a.role}</option>)}
-                </select>
+                recipients === null ? (
+                  <div className="text-[13px] text-muted px-1 py-2">Loading applicants…</div>
+                ) : recipients.length === 0 ? (
+                  <div className="text-[13px] text-muted px-1 py-2">No applicants yet — applications from your careers page show up here, or use “New candidate”.</div>
+                ) : (
+                  <select className={input} value={selectedApplicationId} onChange={(e) => setSelectedApplicationId(e.target.value)}>
+                    {recipients.map((r) => <option key={r.applicationId} value={r.applicationId}>{r.name} · {r.role}</option>)}
+                  </select>
+                )
               ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <input className={input} placeholder="First name" value={newC.first} onChange={(e) => setNewC({ ...newC, first: e.target.value })} />
-                  <input className={input} placeholder="Last name" value={newC.last} onChange={(e) => setNewC({ ...newC, last: e.target.value })} />
-                  <input className={input + " col-span-2"} placeholder="Email" value={newC.email} onChange={(e) => setNewC({ ...newC, email: e.target.value })} />
-                </div>
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input className={input} placeholder="First name" value={newC.first} onChange={(e) => setNewC({ ...newC, first: e.target.value })} />
+                    <input className={input} placeholder="Last name" value={newC.last} onChange={(e) => setNewC({ ...newC, last: e.target.value })} />
+                    <input className={input + " col-span-2"} placeholder="Email" value={newC.email} onChange={(e) => setNewC({ ...newC, email: e.target.value })} />
+                  </div>
+                  {careers === null ? (
+                    <p className="mt-2 mb-0 text-[12px] text-[#8a4b10]">Publish your careers page with at least one open job to invite brand-new candidates.</p>
+                  ) : null}
+                </>
               )}
             </div>
           </Panel>
@@ -297,5 +367,14 @@ export default function SendJewelCert() {
         </Panel>
       </div>
     </div>
+  );
+}
+
+// useSearchParams requires a Suspense boundary in the app router.
+export default function SendJewelCertPage() {
+  return (
+    <Suspense fallback={null}>
+      <SendJewelCert />
+    </Suspense>
   );
 }

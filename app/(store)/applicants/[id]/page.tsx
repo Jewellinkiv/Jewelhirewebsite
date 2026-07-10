@@ -90,6 +90,9 @@ export default function ApplicantProfilePage(props: { params: Promise<{ id: stri
   );
   const [prof, setProf] = useState<ApplicantProfile>(seededProfile);
   const [missing, setMissing] = useState(false);
+  // Real application id (from the detail API) so actions like Send JewelCert
+  // carry the recipient instead of dropping the owner on an unscoped composer.
+  const [applicationId, setApplicationId] = useState("");
   const [notes, setNotes] = useState<ApplicantNote[]>(seeded?.notes || []);
   const [draft, setDraft] = useState("");
   const addNote = async () => {
@@ -111,6 +114,7 @@ export default function ApplicantProfilePage(props: { params: Promise<{ id: stri
       .then((body) => {
         if (cancelled) return;
         const mapped = mapApiDetail(body);
+        if (typeof body.applicationId === "string") setApplicationId(body.applicationId);
         setRec(mapped.rec);
         setProf(mapped.prof);
         setNotes(mapped.rec.notes);
@@ -240,7 +244,7 @@ export default function ApplicantProfilePage(props: { params: Promise<{ id: stri
 
           <Panel title="Actions">
             <div className="p-4 flex flex-col gap-2">
-              <Link href="/send-jewelcert" className="flex items-center gap-2.5 px-3 py-2.5 border border-line rounded-md no-underline text-body text-[13px] hover:bg-rowhover hover:border-accent"><span className="text-primary"><IconSend size={17} /></span> Send JewelCert</Link>
+              <Link href={applicationId ? `/send-jewelcert?applicationId=${encodeURIComponent(applicationId)}` : "/send-jewelcert"} className="flex items-center gap-2.5 px-3 py-2.5 border border-line rounded-md no-underline text-body text-[13px] hover:bg-rowhover hover:border-accent"><span className="text-primary"><IconSend size={17} /></span> Send JewelCert</Link>
               <Link href="/interviews" className="flex items-center gap-2.5 px-3 py-2.5 border border-line rounded-md no-underline text-body text-[13px] hover:bg-rowhover hover:border-accent"><span className="text-primary"><IconCalendar size={17} /></span> Schedule interview</Link>
               <Link href={`/hire/${rec.id}`} className="flex items-center gap-2.5 px-3 py-2.5 border border-line rounded-md no-underline text-body text-[13px] hover:bg-rowhover hover:border-accent"><span className="text-primary"><IconUserPlus size={17} /></span> Hire → add to team</Link>
             </div>
