@@ -5,7 +5,6 @@ import Link from "next/link";
 import { PageHeader } from "@/components/common";
 import { Panel } from "@/components/ui";
 import { Interview, InterviewType, InterviewStatus } from "@/lib/interviews";
-import { APPLICANTS } from "@/lib/applicants";
 import { INVITE_SETTINGS, PROVIDER_LABEL } from "@/lib/invite-settings";
 import { IconCalendar, IconCheck, IconX, IconPlus, IconSend, IconUserPlus, IconSettings, IconVideo, IconMail } from "@/components/icons";
 import { useActiveStoreId } from "@/lib/client-session";
@@ -22,10 +21,9 @@ const STATUS_STYLE: Record<InterviewStatus, string> = {
 };
 
 const ROLES = ["Sales Associate", "Sales Manager", "Bench Jeweler", "Bridal Specialist", "Repair Coordinator"];
-const ACTIVE_APPLICANTS = APPLICANTS.filter((a) => a.status === "Active");
 const FALLBACK_STORE_ID = "store-sissys-little-rock";
-const PUBLIC_STORE_SLUG = "sissys-log-cabin-careers";
-const DEFAULT_JOB_ID = "job-luxury-sales-associate";
+// Real applicants for this store (recipient options), keyed by application id.
+type RecipientOption = { applicationId: string; name: string; initials: string; role: string; linkable: boolean };
 const initialsOf = (n: string) => n.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
 const meetProviderLabel = (p: "google" | "microsoft" | null) => (p === "microsoft" ? "Microsoft Teams" : "Google Meet");
@@ -80,7 +78,7 @@ export default function InterviewsPage() {
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [notice, setNotice] = useState("");
   const [draft, setDraft] = useState({
-    applicantId: ACTIVE_APPLICANTS[0]?.id ?? "",
+    applicantId: "",
     date: "",
     time: "",
     duration: INVITE_SETTINGS.defaultDuration,
@@ -96,6 +94,58 @@ export default function InterviewsPage() {
     guests: [] as string[],
     notes: "",
   });
+
+  const [recipients, setRecipients] = useState<RecipientOption[]>([]);
+  // The store's published careers page + first open job — used to create an
+  // application when scheduling a brand-new candidate (was hardcoded to
+  // Sissy's careers page, sending every store's new candidates there).
+  const [careers, setCareers] = useState<{ slug: string; jobId: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/stores/${STORE_ID}/applicants`)
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((body) => {
+        if (cancelled) return;
+        const options: RecipientOption[] = ((body.items || []) as Array<{ applicationId?: string; name?: string; initials?: string; role?: string; linkable?: boolean }>)
+          .filter((item) => item.applicationId)
+          .map((item) => ({
+            applicationId: item.applicationId as string,
+            name: item.name || "Applicant",
+            initials: item.initials || "AP",
+            role: item.role || "Jewelry role",
+            linkable: item.linkable !== false,
+          }));
+        setRecipients(options);
+        setDraft((current) => (current.applicantId ? current : { ...current, applicantId: options[0]?.applicationId ?? "" }));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [STORE_ID]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCareers(null);
+    fetch(`/api/stores/${STORE_ID}/public-page`)
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((page) => {
+        const slug = page?.slug || page?.page?.slug;
+        if (!slug) return Promise.reject();
+        return fetch(`/api/public/stores/${slug}`)
+          .then((response) => (response.ok ? response.json() : Promise.reject()))
+          .then((data) => {
+            if (cancelled) return;
+            const jobId = (data.jobs || [])[0]?.id;
+            if (jobId) setCareers({ slug, jobId });
+          });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [STORE_ID]);
 
   const connected = inviteSettings.calendarProvider;
 
@@ -181,19 +231,20 @@ export default function InterviewsPage() {
     if (!canSubmit) return;
     const meetLink = draft.type === "Video" && draft.addMeet ? draft.meetLink : undefined;
     const guests = draft.guests.length ? draft.guests : undefined;
-    const role = mode === "existing" ? ACTIVE_APPLICANTS.find((x) => x.id === draft.applicantId)?.role ?? draft.role : draft.role;
+    const role = mode === "existing" ? recipients.find((x) => x.applicationId === draft.applicantId)?.role ?? draft.role : draft.role;
     let applicationId = "";
     if (mode === "existing") {
-      const applicant = ACTIVE_APPLICANTS.find((x) => x.id === draft.applicantId);
-      const response = await fetch(`/api/store/applications?q=${encodeURIComponent(applicant?.name || "")}`);
-      const body = await response.json();
-      applicationId = body.items?.[0]?.application?.id || "";
+      applicationId = draft.applicantId;
     } else {
-      const response = await fetch(`/api/public/stores/${PUBLIC_STORE_SLUG}/applications`, {
+      if (!careers) {
+        setNotice("Publish your careers page with at least one open job to schedule brand-new candidates.");
+        return;
+      }
+      const response = await fetch(`/api/public/stores/${careers.slug}/applications`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          jobId: DEFAULT_JOB_ID,
+          jobId: careers.jobId,
           profile: {
             name: draft.name.trim(),
             email: draft.email.trim(),
@@ -232,9 +283,9 @@ export default function InterviewsPage() {
     const createdBody = createdResponse?.ok ? await createdResponse.json().catch(() => null) : null;
     const createdId = createdBody?.interview?.id || `iv${Date.now()}`;
     if (mode === "existing") {
-      const a = ACTIVE_APPLICANTS.find((x) => x.id === draft.applicantId)!;
+      const a = recipients.find((x) => x.applicationId === draft.applicantId)!;
       setList((l) => [
-        { id: createdId, applicantId: a.id, linkable: a.linkable, name: a.name, initials: a.initials, role: a.role, when, type: draft.type, status: "Scheduled", interviewer: draft.interviewer, notes: draft.notes, meetLink, guests },
+        { id: createdId, applicantId: a.applicationId, linkable: a.linkable, name: a.name, initials: a.initials, role: a.role, when, type: draft.type, status: "Scheduled", interviewer: draft.interviewer, notes: draft.notes, meetLink, guests },
         ...l,
       ]);
       setNotice(`Interview scheduled with ${a.name}${connected ? ` · ${PROVIDER_LABEL[connected]} invite queued from ${inviteSettings.account}` : ""}.`);
@@ -300,13 +351,13 @@ export default function InterviewsPage() {
       </Panel>
 
       {open && (
-        <Modal onClose={() => setOpen(false)} draft={draft} setDraft={setDraft} mode={mode} setMode={setMode} when={when} canSubmit={canSubmit} onSubmit={add} connected={connected} inviteSettings={inviteSettings} />
+        <Modal onClose={() => setOpen(false)} draft={draft} setDraft={setDraft} mode={mode} setMode={setMode} when={when} canSubmit={canSubmit} onSubmit={add} connected={connected} inviteSettings={inviteSettings} recipients={recipients} />
       )}
     </div>
   );
 }
 
-function Modal({ onClose, draft, setDraft, mode, setMode, when, canSubmit, onSubmit, connected, inviteSettings }: any) {
+function Modal({ onClose, draft, setDraft, mode, setMode, when, canSubmit, onSubmit, connected, inviteSettings, recipients }: any) {
   const [guestInput, setGuestInput] = useState("");
   const addGuest = () => {
     const e = guestInput.trim();
@@ -342,7 +393,7 @@ function Modal({ onClose, draft, setDraft, mode, setMode, when, canSubmit, onSub
           {mode === "existing" ? (
             <Field label="Candidate">
               <select className={input} value={draft.applicantId} onChange={(e) => setDraft({ ...draft, applicantId: e.target.value })}>
-                {ACTIVE_APPLICANTS.map((a) => <option key={a.id} value={a.id}>{a.name} · {a.role}</option>)}
+                {recipients.map((a: RecipientOption) => <option key={a.applicationId} value={a.applicationId}>{a.name} · {a.role}</option>)}
               </select>
             </Field>
           ) : (
