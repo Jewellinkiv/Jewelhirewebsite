@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/common";
 import { Radar } from "@/components/ui";
-import { TEAM_MIX, FLOOR_TYPE } from "@/lib/data";
-import { PROFILES } from "@/lib/gemmatch";
+import { Mix, PROFILES } from "@/lib/gemmatch";
 import { floorRead, CAREERS, LOCATION_FLOORS, ACTIVITY, DashKpi, FloorRead } from "@/lib/dashboard";
 import {
   IconDiamond,
@@ -31,7 +30,7 @@ const FALLBACK_STORE_ID = "store-sissys-little-rock";
 // load fails). Deliberately blank — never another store's seeded demo data — so
 // one store's owner can't flash-see another store's numbers.
 const emptyDashboard = {
-  floor: floorRead({ V: 0, C: 0, F: 0, D: 0 }, FLOOR_TYPE, 0, 0),
+  floor: floorRead({ V: 0, C: 0, F: 0, D: 0 }, "—", 0, 0),
   kpis: dashboardKpis({}),
   careers: { ...CAREERS, status: "", views30d: 0, visitors: 0, applyRate: 0, url: "", trend: [0, 0] },
   locations: [] as typeof LOCATION_FLOORS,
@@ -188,7 +187,8 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="max-w-[220px] mx-auto w-full">
-              <Radar mix={TEAM_MIX} />
+              {/* same real data as the bars — this rendered a static demo mix */}
+              <Radar mix={Object.fromEntries(["V", "C", "F", "D"].map((code) => [code, floor.bars.find((b) => b.code === code)?.pct ?? 0])) as Mix} />
             </div>
           </div>
 
