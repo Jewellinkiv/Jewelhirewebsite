@@ -35,11 +35,13 @@ type PublicPageResponse = {
   config: PublicPageConfig;
 };
 
+// The shareable careers PAGE (what owners embed as a hyperlink) — not the JSON
+// API endpoint this used to point at (visitors would have seen raw JSON).
 function publicStoreUrl(slug: string) {
   const candidate = slug.trim().replace(/^\/+|\/+$/g, "");
   const normalized = candidate && !candidate.includes("/") && !candidate.includes(".") ? candidate : "sissys-log-cabin-careers";
-  if (typeof window === "undefined") return `/api/public/stores/${normalized}`;
-  return new URL(`/api/public/stores/${normalized}`, window.location.origin).toString();
+  if (typeof window === "undefined") return `/careers/${normalized}`;
+  return new URL(`/careers/${normalized}`, window.location.origin).toString();
 }
 
 async function writeClipboardText(value: string) {

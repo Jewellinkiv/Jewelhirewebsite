@@ -23,7 +23,7 @@ function isPublicPath(pathname: string) {
     pathname.startsWith("/api/auth/") ||
     pathname === "/api/stripe/webhook" ||
     pathname.startsWith("/api/public/") ||
-    pathname.startsWith("/apply/") ||
+    pathname.startsWith("/careers/") ||
     pathname.startsWith("/_next/") ||
     pathname === "/favicon.ico" ||
     pathname === "/icon.svg" ||

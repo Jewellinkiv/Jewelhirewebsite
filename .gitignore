@@ -25,3 +25,7 @@ docs/_ledger_tmp.txt
 
 # Local-only dev login (mirrors app/dev; kept out of repo and deploy)
 app/dev-login/
+
+# local migration secrets + scratch plans
+scripts/.migrate.env
+scripts/bubble-course-plan.json
