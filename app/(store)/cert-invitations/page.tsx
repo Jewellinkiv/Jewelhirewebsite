@@ -205,7 +205,7 @@ export default function CertInvitationsPage() {
                   <tr key={`${invite.candidateId}-${invite.package}`} className="hover:bg-rowhover align-top">
                     <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
                       {candidate ? (
-                        <Link href={`/applicants/${candidate.id}`} className="flex items-center gap-2.5 no-underline">
+                        <Link href={`/applicants/${(candidate as { profileId?: string }).profileId || candidate.id}`} className="flex items-center gap-2.5 no-underline">
                           <span className="w-[30px] h-[30px] rounded-full bg-[#eef2f7] flex items-center justify-center text-[11px] font-semibold text-[#5b6472]">{candidate.initials}</span>
                           <span>
                             <span className="block font-medium text-head">{candidate.name}</span>

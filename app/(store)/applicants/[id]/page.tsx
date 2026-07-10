@@ -90,6 +90,7 @@ export default function ApplicantProfilePage(props: { params: Promise<{ id: stri
   );
   const [prof, setProf] = useState<ApplicantProfile>(seededProfile);
   const [missing, setMissing] = useState(false);
+  const [loading, setLoading] = useState(true);
   // Real application id (from the detail API) so actions like Send JewelCert
   // carry the recipient instead of dropping the owner on an unscoped composer.
   const [applicationId, setApplicationId] = useState("");
@@ -118,14 +119,25 @@ export default function ApplicantProfilePage(props: { params: Promise<{ id: stri
         setRec(mapped.rec);
         setProf(mapped.prof);
         setNotes(mapped.rec.notes);
+        setLoading(false);
       })
       .catch(() => {
-        if (!cancelled && !seeded) setMissing(true);
+        if (cancelled) return;
+        setLoading(false);
+        if (!seeded) setMissing(true);
       });
     return () => {
       cancelled = true;
     };
   }, [params.id, seeded]);
+
+  if (loading && !seeded) {
+    return (
+      <Panel>
+        <div className="p-8 text-center text-[13px] text-muted">Loading applicant…</div>
+      </Panel>
+    );
+  }
 
   if (missing) {
     return (

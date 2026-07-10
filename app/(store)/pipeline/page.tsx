@@ -4,7 +4,7 @@ import { ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/common";
 import { Panel, FitBadge, TypeLabel } from "@/components/ui";
-import { PIPELINE, STAGES, Stage, JewelCertStatus, PipelineApplicant } from "@/lib/pipeline";
+import { STAGES, Stage, JewelCertStatus, PipelineApplicant } from "@/lib/pipeline";
 import { IconSend, IconCalendar, IconUserPlus, IconFileText, IconSearch, IconChevronRight } from "@/components/icons";
 import { FitTier, ProfileCode } from "@/lib/gemmatch";
 
@@ -65,10 +65,6 @@ function initials(name: string) {
   return name.trim().split(/\s+/).map((word) => word[0]).slice(0, 2).join("").toUpperCase() || "NA";
 }
 
-function slug(name: string) {
-  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
-
 function relativeDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Recently";
@@ -79,7 +75,9 @@ function toPipelineApplicant(item: ApiApplicationItem): PipelineApplicant {
   const name = item.applicant?.fullName || "Applicant";
   const profile = item.screening.gemmatchProfile;
   return {
-    id: slug(name),
+    // Application id — unique, and the applicant/hire routes resolve it. A
+    // name slug collides when two applicants share a name.
+    id: item.application.id,
     name,
     initials: initials(name),
     role: item.job?.title || "Jewelry role",
@@ -108,7 +106,10 @@ function toPipelineApplicant(item: ApiApplicationItem): PipelineApplicant {
 }
 
 export default function PipelinePage() {
-  const [apiRows, setApiRows] = useState<PipelineApplicant[]>(PIPELINE);
+  // Start empty (never seed demo rows — a slow fetch showed fake applicants).
+  const [apiRows, setApiRows] = useState<PipelineApplicant[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [q, setQ] = useState("");
   const [stage, setStage] = useState<Stage | "All">("All");
   const [cert, setCert] = useState<JewelCertStatus | "All">("All");
@@ -119,10 +120,14 @@ export default function PipelinePage() {
     fetch("/api/store/applications")
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Unable to load pipeline"))))
       .then((body) => {
-        if (!cancelled) setApiRows((body.items || []).map(toPipelineApplicant));
+        if (cancelled) return;
+        setApiRows((body.items || []).map(toPipelineApplicant));
+        setLoaded(true);
       })
       .catch(() => {
-        if (!cancelled) setApiRows(PIPELINE);
+        if (cancelled) return;
+        setLoadError(true);
+        setLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -194,7 +199,7 @@ export default function PipelinePage() {
               <Row key={a.id} a={a} />
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={9} className="px-4 py-10 text-center text-muted text-[13px]">No applicants match these filters.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-10 text-center text-muted text-[13px]">{!loaded ? "Loading applicants…" : loadError ? "We couldn't load your pipeline. Please refresh to try again." : apiRows.length === 0 ? "No applicants yet — applications from your careers page show up here." : "No applicants match these filters."}</td></tr>
             )}
           </tbody>
         </table></div>
@@ -205,7 +210,7 @@ export default function PipelinePage() {
             <MobileRow key={a.id} a={a} />
           ))}
           {rows.length === 0 && (
-            <div className="px-4 py-10 text-center text-muted text-[13px]">No applicants match these filters.</div>
+            <div className="px-4 py-10 text-center text-muted text-[13px]">{!loaded ? "Loading applicants…" : loadError ? "We couldn't load your pipeline. Please refresh to try again." : apiRows.length === 0 ? "No applicants yet — applications from your careers page show up here." : "No applicants match these filters."}</div>
           )}
         </div>
       </Panel>

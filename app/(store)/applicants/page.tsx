@@ -34,6 +34,9 @@ function formatNote(note: { authorUserId: string; createdAt: string; body: strin
 function fromApi(row: any) {
   return {
     id: row.id,
+    // Unique application id for links — row.id is a name slug that collides
+    // when two applicants share a name.
+    applicationId: row.applicationId || row.id,
     linkable: true,
     name: row.name,
     initials: row.initials,
@@ -153,7 +156,7 @@ export default function ApplicantsPage() {
                 {open && (
                   <div className="px-4 pb-4 pl-[58px]">
                     <div className="flex items-center gap-3 mb-3 text-[12.5px]">
-                      <Link href={`/applicants/${a.id}`} className="inline-flex items-center gap-1.5 text-primary no-underline font-medium"><IconUser size={14} /> Open full profile</Link>
+                      <Link href={`/applicants/${(a as any).applicationId || a.id}`} className="inline-flex items-center gap-1.5 text-primary no-underline font-medium"><IconUser size={14} /> Open full profile</Link>
                       <span className="text-muted">{a.email}</span>
                     </div>
 
