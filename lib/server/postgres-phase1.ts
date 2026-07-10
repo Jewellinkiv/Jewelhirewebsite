@@ -5021,7 +5021,7 @@ async function listPostgresApplicationSummariesWithClient(client: PoolClient, in
         limit 1
       ) jc on true
       left join lateral (
-        select status, result_profile_code, fit_rating
+        select status, result_profile_code, fit_rating, fit_score
         from gemmatch_invites
         where application_id = a.id
         order by created_at desc
@@ -5236,7 +5236,7 @@ export async function listPostgresApplicantApplications(email?: string | null) {
         limit 1
       ) jc on true
       left join lateral (
-        select status, result_profile_code, fit_rating
+        select status, result_profile_code, fit_rating, fit_score
         from gemmatch_invites
         where application_id = a.id
         order by created_at desc
