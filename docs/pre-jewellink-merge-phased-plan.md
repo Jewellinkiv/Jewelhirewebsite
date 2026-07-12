@@ -297,14 +297,16 @@ While waiting:
   deployment changes, and its production verification result.
 
 Current moving-release evidence is recorded in
-`docs/jewellink-pending-merge-validation.md`. PR #132 is green but still open;
-its external build moved JewelLink production traffic to a new revision from
-the existing `main` SHA. PR #133 is also open and passes build/type/tests/mobile
-validation locally, but its scoped lint has four errors and its mobile runtime
-tree has one critical and three high dependency findings.
+`docs/jewellink-pending-merge-validation.md`. PR #132 has merged into
+`SmokeMain`; its earlier external build moved JewelLink production traffic to a
+new revision from the existing `main` SHA. PR #133 is still open at
+`a5e3285ecd40143f616c0e9e9284a27b22c0040b` and passes
+build/type/tests/mobile validation locally, but its scoped lint has four errors
+and its mobile runtime tree has one critical and three high dependency
+findings.
 
-A local-only integration preview at `c98458e23a4d`, based on PR #133's exact
-commit, has also completed the source contracts, integration/deployment audit,
+A local-only integration preview at `b6a748b8cdd7`, containing PR #133's exact
+current head, has also completed the source contracts, integration/deployment audit,
 Prisma generation, typecheck, 199 web tests, targeted integration lint,
 Next.js production build, Docker production build, runtime migration/CLI
 inspection, and container `/login` smoke. It is clean, bundled, not pushed, and
