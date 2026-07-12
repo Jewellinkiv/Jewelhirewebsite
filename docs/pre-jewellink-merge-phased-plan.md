@@ -101,7 +101,19 @@ Gate:
 
 ## Phase 1 — Curate the JewelHire release candidate
 
-Status: can be completed before the JewelLink merge.
+Status: completed locally on 2026-07-12.
+
+Evidence:
+
+- Curated branch: `codex/jewelhire-release-curated`
+- Foundation commit: `a216431`
+- Role/public-experience commit: `7aa4803`
+- QA automation commit: `0a73aee`
+- Rollout/runbook commit: `988a8e3`
+- The curated branch and preservation branch resolved to the identical Git tree
+  `8b04aee26bea6e47631348ec8dab669eac046bb7` before this evidence update.
+- The release set contains 149 changed paths relative to `origin/main`; generated
+  `.next-*` output is ignored and not committed.
 
 Organize the JewelHire release into reviewable commits:
 
@@ -120,6 +132,20 @@ Validation:
 - role, auth, access-control, legal, notification, billing, public-careers, SSO,
   hire, and JewelCert audits
 - `git diff --check`
+
+Validation result:
+
+- Production build and TypeScript checks passed.
+- ESLint passed with 0 errors and 46 warnings.
+- `npm audit --audit-level=moderate` reported 0 vulnerabilities.
+- Access-control, authentication, invalid-input, legal, role-model,
+  signup-policy (against the local candidate), notification, billing,
+  public-careers, SSO, hire, and JewelCert audits passed.
+- The read-only production checks recorded two cutover prerequisites rather
+  than changing production: the current live revision does not yet expose
+  `/privacy` and `/terms`, and live email is enabled without the audit's
+  explicit `ALLOW_LIVE_EMAIL_SENDS=1` acknowledgement.
+- No branch was pushed, merged, or deployed and no production setting changed.
 
 Gate:
 
@@ -273,8 +299,8 @@ Status: deferred and approval-gated.
 Before the JewelLink merge lands, complete in this order:
 
 1. Phase 0: preserve both worktrees safely. **Complete.**
-2. Phase 1: curate and validate the JewelHire release branch. **Next.**
-3. Phase 2: create the one-command cross-product acceptance runner.
+2. Phase 1: curate and validate the JewelHire release branch. **Complete.**
+3. Phase 2: create the one-command cross-product acceptance runner. **Next.**
 4. Phase 3: finish the JewelLink merge dossier.
 5. Phase 4: close every non-mutating production-readiness item.
 6. Stop at Phase 5 and wait for the final JewelLink merge SHA.
