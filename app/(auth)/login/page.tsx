@@ -1,4 +1,5 @@
 import { IconDiamond } from "@/components/icons";
+import { LegalLinks } from "@/components/LegalLinks";
 import { googleAuthConfigured } from "@/lib/server/auth";
 import { firebaseAuthConfigured, firebaseClientConfig } from "@/lib/server/firebase-auth";
 import { FirebaseGoogleButton } from "./FirebaseGoogleButton";
@@ -10,6 +11,8 @@ export default async function LoginPage(props: { searchParams?: Promise<{ next?:
   const configured = googleAuthConfigured();
   const firebaseConfigured = firebaseAuthConfigured();
   const firebaseConfig = firebaseClientConfig();
+  const jewelLinkConfigured = Boolean(process.env.JEWELLINK_URL && (process.env.JEWELLINK_SSO_SHARED_SECRET || process.env.JEWELHIRE_SSO_SHARED_SECRET));
+  const jewelLinkHref = `/api/auth/jewellink/start?next=${encodeURIComponent(next)}`;
 
   return (
     <main className="min-h-screen bg-page flex items-center justify-center px-5 py-10">
@@ -74,6 +77,11 @@ export default async function LoginPage(props: { searchParams?: Promise<{ next?:
             Continue with Google
           </a>
         )}
+        {jewelLinkConfigured && (
+          <a href={jewelLinkHref} className="mt-3 w-full inline-flex items-center justify-center rounded-md border border-line bg-white px-5 py-3 text-[14px] font-semibold text-head no-underline hover:bg-[#f8fafc]">
+            Continue with JewelLink
+          </a>
+        )}
         {!configured && !firebaseConfigured && (
           <div className="rounded-md border border-line bg-[#f8fafc] px-3 py-2 text-[13px] text-muted">
             Google sign-in needs OAuth or Firebase credentials configured before live login can start.
@@ -85,6 +93,7 @@ export default async function LoginPage(props: { searchParams?: Promise<{ next?:
         <p className="text-center text-[12.5px] text-muted mt-0 mb-0">
           Own a store? <a href="/signup/store" className="text-primary no-underline hover:underline">Start your store on JewelHire</a>
         </p>
+        <div className="mt-5 text-center text-[11.5px] text-muted"><LegalLinks /></div>
       </section>
     </main>
   );
@@ -100,6 +109,13 @@ function errorMessage(error: string) {
       return "Email/password login is not configured for this environment yet.";
     case "too_many":
       return "Too many sign-in attempts. Please wait a few minutes and try again.";
+    case "jewellink_code":
+    case "jewellink_exchange":
+      return "That JewelLink sign-in link is invalid or expired. Please launch JewelHire from JewelLink again.";
+    case "jewellink_access":
+      return "Your JewelLink account is not eligible for JewelHire access yet.";
+    case "jewellink_config":
+      return "JewelLink sign-in is being connected for this environment. Please return to JewelLink or contact your administrator.";
     default:
       return "We could not complete sign in. Try again.";
   }

@@ -61,6 +61,7 @@ export default function TeamPage() {
       <TeamMemberModal
         open={adding}
         title="Invite member"
+        storeId={STORE_ID}
         locations={locations}
         defaultLocationId={loc === "all" ? locations[0]?.id : loc}
         onClose={() => setAdding(false)}

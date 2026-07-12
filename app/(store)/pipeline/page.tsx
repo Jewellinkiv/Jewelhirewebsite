@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/common";
 import { Panel, FitBadge, TypeLabel } from "@/components/ui";
@@ -113,29 +113,46 @@ export default function PipelinePage() {
   const [apiRows, setApiRows] = useState<PipelineApplicant[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [q, setQ] = useState("");
   const [stage, setStage] = useState<Stage | "All">("All");
   const [cert, setCert] = useState<JewelCertStatus | "All">("All");
   const [fit, setFit] = useState<string>("All");
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/store/applications")
+  const loadApplications = useCallback((offset: number, signal?: AbortSignal) => {
+    if (offset > 0) setLoadingMore(true);
+    return fetch(`/api/store/applications?limit=50&offset=${offset}`, { signal })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Unable to load pipeline"))))
       .then((body) => {
-        if (cancelled) return;
-        setApiRows((body.items || []).map(toPipelineApplicant));
+        const incoming = (body.items || []).map(toPipelineApplicant);
+        setApiRows((current) => {
+          if (offset === 0) return incoming;
+          const existing = new Set(current.map((item) => item.id));
+          return [...current, ...incoming.filter((item: PipelineApplicant) => !existing.has(item.id))];
+        });
+        setTotal(Number(body.total) || incoming.length);
         setLoaded(true);
+        setLoadError(false);
       })
       .catch(() => {
-        if (cancelled) return;
+        if (signal?.aborted) return;
         setLoadError(true);
         setLoaded(true);
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoadingMore(false);
       });
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => loadApplications(0, controller.signal), 0);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [loadApplications]);
 
   const rows = useMemo(() => {
     return apiRows.filter((a) => {
@@ -184,7 +201,7 @@ export default function PipelinePage() {
           <option value="All">Fit: all</option>
           {["Strong fit", "Good fit", "Stretch", "Poor fit"].map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <span className="text-[12.5px] text-muted ml-auto">{rows.length} of {apiRows.length}</span>
+        <span className="text-[12.5px] text-muted ml-auto">{rows.length} shown · {apiRows.length} loaded{total > apiRows.length ? ` of ${total}` : ""}</span>
       </div>
 
       <Panel>
@@ -217,6 +234,18 @@ export default function PipelinePage() {
           )}
         </div>
       </Panel>
+      {apiRows.length < total ? (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={() => loadApplications(apiRows.length)}
+            disabled={loadingMore}
+            className="rounded-md border border-line bg-panel px-4 py-2 text-[13px] font-medium text-body hover:bg-rowhover disabled:opacity-60"
+          >
+            {loadingMore ? "Loading…" : `Load more (${total - apiRows.length} remaining)`}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

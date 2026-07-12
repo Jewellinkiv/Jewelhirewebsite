@@ -32,7 +32,7 @@ const FALLBACK_STORE_ID = "store-sissys-little-rock";
 const emptyDashboard = {
   floor: floorRead({ V: 0, C: 0, F: 0, D: 0 }, "—", 0, 0),
   kpis: dashboardKpis({}),
-  careers: { ...CAREERS, status: "", views30d: 0, visitors: 0, applyRate: 0, url: "", trend: [0, 0] },
+  careers: { ...CAREERS, status: "", views30d: 0, applyStarts: 0, submissions: 0, applyRate: 0, url: "", trend: [0, 0] },
   locations: [] as typeof LOCATION_FLOORS,
   activity: [] as typeof ACTIVITY,
 };
@@ -69,9 +69,13 @@ export default function Dashboard() {
 
   // sparkline path (careers trend), y inverted
   const t = careers.trend;
-  const max = Math.max(...t);
+  const max = Math.max(...t, 0);
   const pts = t
-    .map((v, i) => `${(i / (t.length - 1)) * 240},${36 - (v / max) * 30}`)
+    .map((v, i) => {
+      const x = t.length > 1 ? (i / (t.length - 1)) * 240 : 120;
+      const y = max > 0 ? 36 - (v / max) * 30 : 36;
+      return `${x},${y}`;
+    })
     .join(" ");
 
   useEffect(() => {
@@ -243,7 +247,8 @@ export default function Dashboard() {
             </div>
             <div className="flex gap-4 mb-2.5">
               <Stat label="Views (30d)" value={careers.views30d.toLocaleString()} />
-              <Stat label="Visitors" value={careers.visitors.toLocaleString()} />
+              <Stat label="Apply starts" value={careers.applyStarts.toLocaleString()} />
+              <Stat label="Submitted" value={careers.submissions.toLocaleString()} />
               <Stat label="Apply rate" value={`${careers.applyRate}%`} />
             </div>
             <svg viewBox="0 0 240 40" className="w-full h-[34px] block mb-2.5" preserveAspectRatio="none">
@@ -263,8 +268,9 @@ export default function Dashboard() {
       <div className="bg-panel border border-line rounded-lg p-4 mt-[18px]">
         <div className="text-[13px] font-semibold text-head mb-2">Recent activity</div>
         <div className="flex flex-col">
-          {activity.map((a) => (
-            <Link key={a.text} href={a.href} className="flex items-center gap-2.5 text-[12.5px] text-body no-underline py-1.5 px-1 -mx-1 rounded hover:bg-rowhover">
+          {activity.length === 0 ? <div className="py-3 text-[12.5px] text-muted">No recent hiring activity yet.</div> : null}
+          {activity.map((a, index) => (
+            <Link key={`${a.icon}:${a.href}:${a.when}:${index}`} href={a.href} className="flex items-center gap-2.5 text-[12.5px] text-body no-underline py-1.5 px-1 -mx-1 rounded hover:bg-rowhover">
               <span className="text-primary">{ACT_ICON[a.icon]}</span>
               <span>{a.text}</span>
               <span className="ml-auto text-[11px] text-muted">{a.when}</span>

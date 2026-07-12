@@ -1,18 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { IconDiamond } from "@/components/icons";
 import { isStrongPassword } from "@/lib/password-policy";
+import { currentLegalConsentPayload } from "@/lib/legal";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const strong = isStrongPassword(password);
-  const canSubmit = email.trim().length > 3 && strong && !submitting;
+  const canSubmit = email.trim().length > 3 && strong && legalAccepted && !submitting;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +26,7 @@ export default function SignupPage() {
       const r = await fetch("/api/auth/applicant-signup", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, email: email.trim(), password }),
+        body: JSON.stringify({ name, email: email.trim(), password, ...currentLegalConsentPayload() }),
       });
       const body = await r.json().catch(() => null);
       if (!r.ok) {
@@ -62,10 +65,14 @@ export default function SignupPage() {
             <span className="block text-[11.5px] text-muted mt-1">12+ characters, with a letter and a number.</span>
           </label>
           {error ? <p className="m-0 text-[12.5px] text-[#a32d2d]">{error}</p> : null}
+          <label className="flex items-start gap-2 text-[11.5px] leading-relaxed text-muted">
+            <input type="checkbox" checked={legalAccepted} onChange={(event) => setLegalAccepted(event.target.checked)} required className="mt-0.5 h-4 w-4 accent-primary" />
+            <span>I agree to the <Link href="/terms" target="_blank" className="text-primary">Terms of Service</Link> and acknowledge the <Link href="/privacy" target="_blank" className="text-primary">Privacy Policy</Link>.</span>
+          </label>
           <button type="submit" disabled={!canSubmit} className={`w-full py-3 text-[14px] inline-flex items-center justify-center rounded-full ${canSubmit ? "btn-grad" : "bg-[#cfd6e0] text-white font-bold cursor-not-allowed"}`}>
             {submitting ? "Creating…" : "Create account"}
           </button>
-          <div className="text-center text-[12.5px] text-muted">Already have an account? <a href="/login" className="text-primary no-underline hover:underline">Sign in</a></div>
+          <div className="text-center text-[12.5px] text-muted">Already have an account? <Link href="/login" className="text-primary no-underline hover:underline">Sign in</Link></div>
         </form>
       </section>
     </main>

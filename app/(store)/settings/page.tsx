@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/common";
 import { Panel } from "@/components/ui";
 import { CalendarEmailSettings } from "@/components/CalendarEmailSettings";
+import { JewelLinkIntegrationHealth } from "@/components/JewelLinkIntegrationHealth";
 import { UsersSettings } from "@/components/UsersSettings";
 import { SaveButton } from "@/components/SaveButton";
 import { IconArrowUpRight, IconBell, IconBriefcase, IconProgress, IconSettings } from "@/components/icons";
@@ -177,6 +178,8 @@ export default function SettingsPage() {
       <UsersSettings storeId={storeId} />
 
       <CalendarEmailSettings storeId={storeId} />
+
+      <JewelLinkIntegrationHealth storeId={storeId} />
 
       <BillingSettings storeId={storeId} />
 

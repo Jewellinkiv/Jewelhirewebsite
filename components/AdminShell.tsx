@@ -4,7 +4,6 @@ import { ReactNode, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IconDiamond, IconLayoutDashboard, IconBriefcase, IconUsers, IconClipboardList, IconSettings, IconProgress, IconSchool, IconMenu, IconX } from "@/components/icons";
-import { PortalSwitcher } from "@/components/PortalSwitcher";
 import { LogoutButton } from "@/components/LogoutButton";
 
 const NAV = [
@@ -38,7 +37,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="px-3 py-3 border-t border-[#1c2942] flex items-center justify-between gap-2">
-          <PortalSwitcher current="admin" dark />
           <LogoutButton dark />
         </div>
       </aside>
@@ -52,7 +50,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <span className="text-[15px] font-medium">Jewel<span className="font-extrabold">Hire</span></span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-[#7fa0d6] bg-[#16243d] px-1.5 py-0.5 rounded">Admin</span>
           <div className="ml-auto flex items-center gap-2">
-            <PortalSwitcher current="admin" dark />
             <LogoutButton dark compact />
           </div>
         </div>

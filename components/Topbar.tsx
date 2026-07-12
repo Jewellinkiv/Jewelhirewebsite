@@ -1,19 +1,17 @@
 import Link from "next/link";
 import { IconChevronDown, IconBell, IconSend } from "@/components/icons";
-import { PortalSwitcher } from "@/components/PortalSwitcher";
 import { MobileNav } from "@/components/MobileNav";
 import { LogoutButton } from "@/components/LogoutButton";
 
-export function Topbar() {
+export function Topbar({ canManageSettings }: { canManageSettings: boolean }) {
   return (
     <div className="flex items-center gap-3 px-4 lg:px-[22px] py-2.5 bg-panel border-b border-line sticky top-0 z-10">
-      <MobileNav />
+      <MobileNav canManageSettings={canManageSettings} />
       <div className="flex items-center gap-2 font-medium text-head cursor-pointer text-[14px] lg:text-base min-w-0">
         <span className="truncate">Sissy&apos;s Log Cabin · Little Rock</span>
         <IconChevronDown size={16} className="text-muted shrink-0" />
       </div>
       <div className="flex-1" />
-      <PortalSwitcher current="store_owner" />
       <button className="w-[34px] h-[34px] rounded-md border border-line bg-panel text-muted flex items-center justify-center relative">
         <IconBell size={18} />
         <span className="absolute top-1.5 right-2 w-[7px] h-[7px] rounded-full bg-prof-d border-[1.5px] border-white" />

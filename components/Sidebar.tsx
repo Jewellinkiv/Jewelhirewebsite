@@ -28,8 +28,8 @@ export const STORE_NAV: NavGroup[] = [
     items: [
       { label: "Dashboard", href: "/", icon: <IconLayoutDashboard size={18} /> },
       { label: "Pipeline", href: "/pipeline", icon: <IconProgress size={18} /> },
-      { label: "Applicants", href: "/applicants", icon: <IconUsers size={18} />, count: 9 },
-      { label: "Jobs", href: "/jobs", icon: <IconBriefcase size={18} />, count: 3 },
+      { label: "Applicants", href: "/applicants", icon: <IconUsers size={18} /> },
+      { label: "Jobs", href: "/jobs", icon: <IconBriefcase size={18} /> },
       { label: "Public page", href: "/public-page", icon: <IconLink size={18} /> },
       { label: "Interviews", href: "/interviews", icon: <IconCalendar size={18} /> },
       { label: "Cert invitations", href: "/cert-invitations", icon: <IconSend size={18} /> },
@@ -54,7 +54,7 @@ export const STORE_NAV: NavGroup[] = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ canManageSettings }: { canManageSettings: boolean }) {
   const path = usePathname();
   const isActive = (href: string) =>
     href === "/" ? path === "/" : path === href || path.startsWith(href + "/");
@@ -99,7 +99,7 @@ export function Sidebar() {
             })}
           </div>
         ))}
-        <div className="pt-3.5">
+        {canManageSettings && <div className="pt-3.5">
           <Link
             href="/settings"
             className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13.5px] no-underline ${
@@ -111,7 +111,7 @@ export function Sidebar() {
             </span>
             Settings
           </Link>
-        </div>
+        </div>}
       </nav>
     </aside>
   );

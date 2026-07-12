@@ -15,6 +15,8 @@ export default function CompanyDetail() {
   const [users, setUsers] = useState<AdminCompanyUser[]>(fallbackCompany?.users ?? []);
   const [notice, setNotice] = useState("");
   const [impersonate, setImpersonate] = useState(false);
+  const [claimTarget, setClaimTarget] = useState<AdminCompanyUser | null>(null);
+  const [claimSending, setClaimSending] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +62,23 @@ export default function CompanyDetail() {
     const response = await fetch(`/api/admin/companies/${company.id}/impersonation`, { method: "POST" });
     setImpersonate(false);
     setNotice(response.ok ? `Started a 'view as' session for ${company.name} (logged).` : "View-as session could not be started locally.");
+  };
+  const sendAccessLink = async () => {
+    if (!claimTarget) return;
+    setClaimSending(true);
+    const response = await fetch(`/api/admin/companies/${company.id}/claim-links`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId: claimTarget.id }),
+    });
+    const body = await response.json().catch(() => null);
+    setClaimSending(false);
+    if (!response.ok) {
+      setNotice(body?.error?.message || "The secure access link could not be sent.");
+      return;
+    }
+    setClaimTarget(null);
+    setNotice(`Secure access link sent to ${claimTarget.name}. It expires in 3 days.`);
   };
 
   return (
@@ -112,7 +131,11 @@ export default function CompanyDetail() {
                   <div className="text-[11.5px] text-muted">{u.email}</div>
                 </div>
                 <div className="ml-auto flex gap-1.5">
-                  <button onClick={() => resend(u.id, u.name)} className="text-[11.5px] px-2 py-1 rounded border border-line text-body hover:bg-rowhover">Resend</button>
+                  {u.role === "Admin" ? (
+                    <button onClick={() => setClaimTarget(u)} className="text-[11.5px] px-2 py-1 rounded border border-line text-primary hover:bg-[#e8f1ff]">Send access link</button>
+                  ) : (
+                    <button onClick={() => resend(u.id, u.name)} className="text-[11.5px] px-2 py-1 rounded border border-line text-body hover:bg-rowhover">Resend</button>
+                  )}
                   {u.role !== "Admin" && <button onClick={() => deactivate(u.id)} className="w-7 h-7 rounded border border-line text-muted hover:bg-[#fcebeb] hover:text-[#a32d2d] flex items-center justify-center"><IconX size={14} /></button>}
                 </div>
               </div>
@@ -131,6 +154,28 @@ export default function CompanyDetail() {
             <div className="flex justify-end gap-2 px-5 py-3.5 border-t border-line">
               <button onClick={() => setImpersonate(false)} className="px-4 py-2 text-[13px] rounded-md border border-line text-body hover:bg-rowhover">Cancel</button>
               <button onClick={startImpersonation} className="btn-grad px-4 py-2 text-[13px]">Start session</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {claimTarget && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !claimSending && setClaimTarget(null)}>
+          <div className="bg-white rounded-lg w-full max-w-[440px] shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4">
+              <h3 className="m-0 text-[15px] font-semibold text-head">Send secure access link?</h3>
+              <p className="text-[13px] text-body mt-2 mb-0">
+                JewelHire will email {claimTarget.name} at {claimTarget.email} a single-use link to set a password for the retained account. The link expires in 3 days.
+              </p>
+              <p className="text-[12px] text-muted mt-3 mb-0">
+                This does not create another company, change billing, or unsuspend access. Confirm the company has an active entitlement before sending it.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-3.5 border-t border-line">
+              <button disabled={claimSending} onClick={() => setClaimTarget(null)} className="px-4 py-2 text-[13px] rounded-md border border-line text-body hover:bg-rowhover disabled:opacity-50">Cancel</button>
+              <button disabled={claimSending} onClick={sendAccessLink} className="btn-grad px-4 py-2 text-[13px] disabled:opacity-60">
+                {claimSending ? "Sending…" : "Send secure link"}
+              </button>
             </div>
           </div>
         </div>

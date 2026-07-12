@@ -11,5 +11,5 @@ export default async function StoreLayout({ children }: { children: React.ReactN
   if (!session) redirect("/login?next=/");
   if (session.role === "admin") redirect("/admin");
   if (session.role === "associate") redirect("/portal");
-  return <AppShell>{children}</AppShell>;
+  return <AppShell canManageSettings={session.storeRoles[session.activeStoreId] === "store_owner"}>{children}</AppShell>;
 }

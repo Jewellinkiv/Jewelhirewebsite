@@ -7,8 +7,14 @@ import { Panel, Radar, MixBars, FitBadge } from "@/components/ui";
 import { PROFILES } from "@/lib/gemmatch";
 import {
   IconLock, IconDiamond, IconUser, IconSend,
-  IconCalendar, IconUserPlus, IconClipboardList,
+  IconCalendar, IconUserPlus, IconClipboardList, IconFileText,
 } from "@/components/icons";
+
+type ResumeAttachmentView = {
+  originalFilename: string;
+  mimeType: string;
+  fileSizeBytes: number;
+};
 
 const OUTCOME: Record<AppHistory["outcome"], string> = {
   "In progress": "bg-[#e8f1ff] text-primary",
@@ -56,6 +62,12 @@ function mapApiDetail(body: any): { rec: ApplicantRecord; prof: ApplicantProfile
     },
     prof: {
       about: body.resume?.summary || body.profile?.summary || "",
+      headline: body.profile?.resumeHeadline || "",
+      phone: body.profile?.phone || "",
+      location: body.profile?.location || "",
+      skills: Array.isArray(body.resume?.skills) ? body.resume.skills : [],
+      experience: Array.isArray(body.resume?.workExperience) ? body.resume.workExperience : [],
+      education: Array.isArray(body.resume?.education) ? body.resume.education : [],
       applications: (body.applications || []).map((item: any) => ({
         id: item.id,
         role: item.role,
@@ -94,6 +106,7 @@ export default function ApplicantProfilePage(props: { params: Promise<{ id: stri
   // Real application id (from the detail API) so actions like Send JewelCert
   // carry the recipient instead of dropping the owner on an unscoped composer.
   const [applicationId, setApplicationId] = useState("");
+  const [resumeAttachment, setResumeAttachment] = useState<ResumeAttachmentView | null>(null);
   const [notes, setNotes] = useState<ApplicantNote[]>(seeded?.notes || []);
   const [draft, setDraft] = useState("");
   const addNote = async () => {
@@ -116,6 +129,10 @@ export default function ApplicantProfilePage(props: { params: Promise<{ id: stri
         if (cancelled) return;
         const mapped = mapApiDetail(body);
         if (typeof body.applicationId === "string") setApplicationId(body.applicationId);
+        const attachedResume = Array.isArray(body.attachments)
+          ? body.attachments.find((attachment: { kind?: string }) => attachment.kind === "resume")
+          : undefined;
+        setResumeAttachment(attachedResume || null);
         setRec(mapped.rec);
         setProf(mapped.prof);
         setNotes(mapped.rec.notes);
@@ -152,6 +169,7 @@ export default function ApplicantProfilePage(props: { params: Promise<{ id: stri
 
   const gm = prof.gemmatch;
   const applyCount = prof.applications.length;
+  const hasBackground = Boolean(prof.headline || prof.skills?.length || prof.experience?.length || prof.education?.length);
 
   return (
     <div>
@@ -179,12 +197,61 @@ export default function ApplicantProfilePage(props: { params: Promise<{ id: stri
             <div className="p-4">
               <div className="grid grid-cols-[auto_1fr] gap-x-3.5 gap-y-1.5 text-[13px] mb-2">
                 <span className="text-muted">Email</span><span>{rec.email}</span>
+                {prof.phone ? <><span className="text-muted">Phone</span><span>{prof.phone}</span></> : null}
+                {prof.location ? <><span className="text-muted">Location</span><span>{prof.location}</span></> : null}
                 <span className="text-muted">Role</span><span>{rec.role}</span>
                 <span className="text-muted">Status</span><span>{rec.status}</span>
               </div>
               {prof.about && <p className="text-[13.5px] text-body leading-relaxed m-0">{prof.about}</p>}
             </div>
           </Panel>
+
+          {hasBackground ? (
+            <Panel title="Candidate background" icon={<IconClipboardList size={16} />} className="mb-4">
+              <div className="space-y-4 p-4 text-[13px] text-body">
+                {prof.headline ? (
+                  <div>
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">Professional headline</div>
+                    <div className="font-medium text-head">{prof.headline}</div>
+                  </div>
+                ) : null}
+                {prof.skills?.length ? (
+                  <div>
+                    <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Skills</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {prof.skills.map((skill, index) => <span key={`${skill}:${index}`} className="rounded-full bg-[#eef2f7] px-2.5 py-1 text-[12px]">{skill}</span>)}
+                    </div>
+                  </div>
+                ) : null}
+                {prof.experience?.length ? (
+                  <div>
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">Experience</div>
+                    <ul className="m-0 space-y-1 pl-5">{prof.experience.map((item, index) => <li key={`${item}:${index}`}>{item}</li>)}</ul>
+                  </div>
+                ) : null}
+                {prof.education?.length ? (
+                  <div>
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">Education</div>
+                    <ul className="m-0 space-y-1 pl-5">{prof.education.map((item, index) => <li key={`${item}:${index}`}>{item}</li>)}</ul>
+                  </div>
+                ) : null}
+              </div>
+            </Panel>
+          ) : null}
+
+          {resumeAttachment && applicationId ? (
+            <Panel title="Résumé" icon={<IconFileText size={16} />} className="mb-4">
+              <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="truncate text-[13.5px] font-semibold text-head">{resumeAttachment.originalFilename}</div>
+                  <div className="mt-0.5 text-[12px] text-muted">{Math.max(1, Math.round(resumeAttachment.fileSizeBytes / 1024))} KB · private application attachment</div>
+                </div>
+                <a href={`/api/applications/${encodeURIComponent(applicationId)}/resume`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-line px-4 text-[12.5px] font-semibold text-primary no-underline">
+                  Download résumé
+                </a>
+              </div>
+            </Panel>
+          ) : null}
 
           {/* combined JewelCert results */}
           <Panel title="JewelCert results" icon={<IconDiamond size={16} />} action={<span className="text-[11px] text-muted inline-flex items-center gap-1"><IconLock size={11} /> internal</span>} className="mb-4">
