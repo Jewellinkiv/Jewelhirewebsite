@@ -205,7 +205,18 @@ Gate:
 
 ## Phase 3 — Prepare the merge dossier
 
-Status: can be completed before the JewelLink merge.
+Status: completed locally on 2026-07-12.
+
+Evidence:
+
+- `docs/jewellink-post-merge-dossier.md` records the preserved commit, exact
+  API/secret contracts, role/location behavior, file-by-file treatment, UI
+  placement, migration order, verification steps, and stop conditions.
+- The review identified two non-integration migrations in the preservation
+  commit as byte-identical to fetched `origin/main`; they are explicitly marked
+  “omit” so they cannot be replayed during reintegration.
+- The unrelated sidebar class-name refactor is also marked “omit”; the desired
+  result is validated behavior (no JewelHire left-nav item), not that diff.
 
 Create a file-by-file dossier for the post-merge integrator:
 
@@ -320,8 +331,8 @@ Before the JewelLink merge lands, complete in this order:
 2. Phase 1: curate and validate the JewelHire release branch. **Complete.**
 3. Phase 2: create the one-command cross-product acceptance runner. **Runner
    complete; authenticated stateful replay remains a post-merge gate.**
-4. Phase 3: finish the JewelLink merge dossier. **Next.**
-5. Phase 4: close every non-mutating production-readiness item.
+4. Phase 3: finish the JewelLink merge dossier. **Complete.**
+5. Phase 4: close every non-mutating production-readiness item. **Next.**
 6. Stop at Phase 5 and wait for the final JewelLink merge SHA.
 
 ## Responsibility split
