@@ -78,6 +78,46 @@ sidebar. The first four require deliberate post-merge reconciliation. The
 sidebar preservation diff remains intentionally omitted; only the requirement
 that JewelHire not appear in the primary left navigation is carried forward.
 
+## Local Next.js 15 integration preview
+
+A local-only integration branch was created from PR #133's exact commit to
+prove the dossier can be reapplied cleanly before the final release reaches
+`main`:
+
+- Branch: `codex/jewellink-integration-preview-next15`
+- Base: `1b3b4a976ad8122ed5a2dcd89c3170c971e30e7b`
+- Integration commits: `90023a1a6d50` and `c98458e23a4d`
+- Status: clean, not pushed, not deployed, and not a substitute for Phase 6
+
+The preview restores the additive JewelHire API routes, integration page,
+three migrations, icon, environment contract, and audit script. The header and
+profile-menu links open JewelHire in a new tab, the left navigation remains
+clear of JewelHire, and the incoming User Management password/contact controls
+were preserved while adding JewelCert actions. `Dockerfile`, `deploy.sh`, and
+`package.json` were manually reconciled with the Node 22, Next.js 15, and
+Prisma 7.8 release candidate.
+
+| Preview check | Result |
+| --- | --- |
+| JewelHire/JewelLink source contract runner | Pass |
+| Integration/deployment audit | Pass; 34/34 checks |
+| `deploy.sh` syntax | Pass |
+| Committed-secret scan | Pass; 2,253 files checked |
+| Runtime dependency gate | Pass; 3 moderate, 0 high/critical |
+| Prisma generation | Pass; Prisma 7.8.0 |
+| TypeScript | Pass |
+| Web tests | Pass; 199/199 |
+| Targeted integration lint | Pass; 0 errors, 3 warnings |
+| Next.js production build | Pass; 183 routes generated |
+| Docker production image build | Pass; Node 22/Next.js 15 image |
+| Runtime image migration/CLI check | Pass; all three migrations and Prisma 7.8.0 present |
+| Runtime image `/login` smoke | Pass; HTTP 200 with forwarded HTTPS, 18,163-byte page |
+
+The exact preview and PR #133 base are preserved in the complete-history bundle
+`jewellink-next15-preview-c98458e2.bundle`, SHA-256
+`05af30193fe9af46593525a9c765ea5cd7335f00d477d920c2fa1f8b9f7701b5`.
+The temporary Docker image was deleted after verification.
+
 ## Gates before Phase 6
 
 1. Merge PR #132 into `SmokeMain` only after its external deployment side

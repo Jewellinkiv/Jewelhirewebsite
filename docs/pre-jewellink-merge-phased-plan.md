@@ -303,6 +303,13 @@ the existing `main` SHA. PR #133 is also open and passes build/type/tests/mobile
 validation locally, but its scoped lint has four errors and its mobile runtime
 tree has one critical and three high dependency findings.
 
+A local-only integration preview at `c98458e23a4d`, based on PR #133's exact
+commit, has also completed the source contracts, integration/deployment audit,
+Prisma generation, typecheck, 199 web tests, targeted integration lint,
+Next.js production build, Docker production build, runtime migration/CLI
+inspection, and container `/login` smoke. It is clean, bundled, not pushed, and
+does not advance Phase 6 because the final release is not yet on `main`.
+
 Exit criteria:
 
 - The large JewelLink merge is on `main`.
@@ -359,7 +366,8 @@ Before the JewelLink merge lands, complete in this order:
 4. Phase 3: finish the JewelLink merge dossier. **Complete.**
 5. Phase 4: close every non-mutating production-readiness item. **Complete;
    external approvals and production mutations remain gated.**
-6. Stop at Phase 5 and wait for the final JewelLink merge SHA. **Active hold.**
+6. Stop at Phase 5 and wait for the final JewelLink merge SHA. **Active hold;
+   the PR #133-based local integration preview is complete and preserved.**
 
 ## Responsibility split
 
