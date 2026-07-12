@@ -1,17 +1,18 @@
-# JewelHire v2 — Frontend
+# JewelHire
 
-Jewelry hiring platform with the **GemMatch** behavioral assessment, built in the LinkD/JewelLink
-design language. This is the **frontend** only — fit scores and matching come from the matching
-service (stubbed here in `lib/data.ts`).
+Production jewelry hiring platform with public store careers pages, applicant accounts,
+JewelCert/GemMatch screening, interviews, training, team management, billing, and an internal admin portal.
 
 ## Stack
-- Next.js 14 (App Router) · React 18 · TypeScript
+- Next.js 16 (App Router) · React 18 · TypeScript
 - Tailwind CSS (design tokens in `tailwind.config.ts`)
-- Poppins (via `next/font`) · Tabler icons
+- PostgreSQL (`pg`) with a local in-memory development adapter
+- Google/Firebase and email/password authentication
+- Cloud Run, Stripe, Postmark, Cloudinary, Google Calendar, and Microsoft Calendar integrations
 
 ## Run
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 Open http://localhost:3000
@@ -22,27 +23,39 @@ Open http://localhost:3000
 - Text `#0f172a` / `#243447` · muted `#64748b` · row hover `#edf5ff`
 - GemMatch profiles — Visionary `#4681F4`, Connector `#7C6CF0`, Foundation `#1f9e75`, Determined `#e2683c`
 
-## Structure
+Copy `.env.example` to `.env.local` for local configuration. The checked-in defaults use the
+local adapter and mock auth. Never deploy those defaults to a public environment.
+
+## Validation
+
+```bash
+npm run lint
+npm run build
+npm audit --audit-level=moderate
+npm run qa:notifications
+npm run qa:billing
+npm run qa:public-careers
+npm run qa:jewellink-sso
+npm run qa:browser
 ```
-app/
-  page.tsx                 Dashboard
-  candidates/              List + [id] detail (full GemMatch + fit, managers-only)
-  team-map/                Team composition + gaps
-  applicant-fit/           Applicant-vs-team fit report
-  assessment/              Candidate-facing pick-10 assessment
-  (jobs, cert-invitations, assessments, roster, training, settings — stubs)
-components/
-  AppShell, Sidebar, Topbar, ui.tsx (Panel, StatusChip, FitBadge, MixBars, Radar), common.tsx
-lib/
-  gemmatch.ts              4 profiles, 12 types, 48 adjectives, scoring + fit-tier helpers
-  data.ts                  Mock candidates + team (replace with API)
-docs/
-  jewelhire-v2-direction.md
-  roadmap.md
-  aptitude-tests.md
-  assessment-model.md
-  course-inventory.md
+
+Database status and readiness checks are read-only:
+
+```bash
+npm run db:migrate:status
+npm run db:readiness
 ```
+
+## Deployment
+
+Production runs on Google Cloud Run at `https://app.jewelhire.com`. Pull requests and pushes to
+`main` run validation. Production deployment is manual through the `Validate and deploy to Cloud Run`
+GitHub Actions workflow and requires the `deploy_production` confirmation.
+
+The production workflow creates a no-traffic candidate revision, runs the guarded migration command
+from that exact image, smokes the candidate, and only then moves traffic. It refuses to continue
+without a confirmed database backup, required JewelLink configuration, and an explicit live-email
+posture. Never deploy application code that depends on an unapplied migration outside this sequence.
 
 ## Discovery docs
 - `docs/aptitude-tests.md` has the full legacy aptitude inventory: 3 tests, 82 questions, targets, answers, and point values.
@@ -50,12 +63,10 @@ docs/
 - `docs/assessment-model.md` translates the legacy test structure into v2 assessment records and review flows.
 - `docs/frontend-design-plan.md` is the working handoff brief for Claude-led frontend design.
 
-## Integration points (where the backend / matching service plugs in)
-- `lib/data.ts` → replace mock candidates/team with API calls.
-- `Candidate.fit` (`fitScore`, `tier`, `roleFit`, `teamFit`, `reasons`) → from the matching service.
-- `lib/gemmatch.ts` `score()` is a reference implementation; production scoring may live server-side.
+## Safety notes
 
-## Not included (by design)
-- Auth/identity (shared with JewelLink — see direction doc open questions)
-- JewelLink sync, backend, database
-- GemMatch results are **managers-only** in this build.
+- Production must use PostgreSQL, real auth, a strong secret, and no session override.
+- Secrets belong in Secret Manager or `.env.local`, never source control.
+- Keep Postmark disabled/dry-run until live-send approval and preference enforcement are verified.
+- Stripe webhook events are signature-verified and billing notifications are deduplicated by event id.
+- Public applications and signup require acceptance of the versioned Privacy Policy and Terms.

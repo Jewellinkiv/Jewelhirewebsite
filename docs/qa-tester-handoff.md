@@ -129,6 +129,6 @@ Cloud reauth steps and post-reauth verification commands are documented in `docs
 
 ## Known Decisions
 
-- Public self-serve signup is not enabled for this build.
+- Applicant self-service signup and payment-gated store signup are enabled; do not complete a live store payment during routine QA.
 - Launch account creation is admin/invite-created plus password credentials.
 - Broader external tester distribution should use rotated smoke passwords.

@@ -12,6 +12,7 @@ JewelHire has a Postmark-backed notification adapter, but live email sends remai
 - Store/company user invites and admin invite resends send invited-user notification statuses through the adapter.
 - Reconciled Stripe billing, subscription, checkout, and invoice webhooks send billing-contact notification statuses through the adapter.
 - Training assignment creation and first completion send learner notification statuses through the adapter.
+- Applicant notification preferences are checked centrally before candidate-facing invite, interview, status, hire, and training messages are sent.
 - `npm run qa:notifications` is static and safe; it does not send email.
 - Latest audit passed on 2026-07-01 with seven expected triggers wired, zero blockers, and zero warnings. Artifact: `docs/qa-runs/notification-readiness-2026-07-01T11-05-56-878Z/`.
 

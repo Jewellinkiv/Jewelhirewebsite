@@ -1,22 +1,72 @@
-name: Deploy to Cloud Run
+name: Validate and deploy to Cloud Run
 
-# On every push to main, build with Google Cloud buildpacks and deploy to the
-# Cloud Run service `jewelhire`. Authentication is keyless via Workload Identity
-# Federation — GitHub's OIDC token is exchanged for short-lived GCP credentials,
-# so there is no long-lived service-account key stored in the repo.
+# Every pull request and main-branch push validates the production build. A
+# production deployment happens only from an explicit workflow dispatch with
+# deploy_production checked. Authentication remains keyless via Workload
+# Identity Federation.
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: Deploy the validated main branch to production
+        required: true
+        default: false
+        type: boolean
+      database_backup_confirmed:
+        description: Confirm a current production database backup exists before migrations run
+        required: true
+        default: false
+        type: boolean
+      acknowledge_live_email:
+        description: Allow deployment when Postmark delivery is live rather than dry-run
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: jewelhire-production
+  cancel-in-progress: false
 
 permissions:
   contents: read
   id-token: write # required for WIF OIDC token
 
 jobs:
-  deploy:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm audit --audit-level=moderate
+      - run: npm run qa:notifications
+      - run: npm run qa:billing
+      - run: npm run qa:legal
+      - run: npm run qa:role-model
+      - run: npm run qa:public-careers
+      - run: npm run qa:jewellink-sso
+      - run: npm run qa:jewellink-hire
+      - run: npm run qa:jewellink-jewelcert
+
+  deploy:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_production == true && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -29,10 +79,160 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Deploy to Cloud Run
+      - name: Verify production rollout prerequisites
+        env:
+          DATABASE_BACKUP_CONFIRMED: ${{ inputs.database_backup_confirmed }}
+          ACKNOWLEDGE_LIVE_EMAIL: ${{ inputs.acknowledge_live_email }}
         run: |
+          set -euo pipefail
+          if [[ "$DATABASE_BACKUP_CONFIRMED" != "true" ]]; then
+            echo "A current production database backup must be confirmed before deployment."
+            exit 1
+          fi
+
+          gcloud run services describe jewelhire \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --format=json > /tmp/jewelhire-service.json
+
+          for name in DATABASE_URL AUTH_SECRET JEWELLINK_URL JEWELLINK_SSO_SHARED_SECRET JEWELLINK_INTEGRATION_SHARED_SECRET JEWELHIRE_JEWELLINK_DIRECTOR_ROLE JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS; do
+            if ! jq -e --arg name "$name" '.spec.template.spec.containers[0].env[] | select(.name == $name)' /tmp/jewelhire-service.json >/dev/null; then
+              echo "Missing required Cloud Run environment setting: $name"
+              exit 1
+            fi
+          done
+
+          JEWELLINK_URL=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELLINK_URL") | .value // ""' /tmp/jewelhire-service.json)
+          if [[ "$JEWELLINK_URL" != https://* ]]; then
+            echo "JEWELLINK_URL must use HTTPS in production."
+            exit 1
+          fi
+
+          DIRECTOR_ROLE=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELHIRE_JEWELLINK_DIRECTOR_ROLE") | .value // ""' /tmp/jewelhire-service.json)
+          MANAGER_ALL_LOCATIONS=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS") | .value // ""' /tmp/jewelhire-service.json)
+          if [[ "$DIRECTOR_ROLE" != "store_owner" ]]; then
+            echo "Directors must map to store_owner for this launch."
+            exit 1
+          fi
+          if [[ "$MANAGER_ALL_LOCATIONS" != "0" ]]; then
+            echo "Managers must remain location-scoped for this launch."
+            exit 1
+          fi
+
+          for name in DATABASE_URL AUTH_SECRET JEWELLINK_SSO_SHARED_SECRET JEWELLINK_INTEGRATION_SHARED_SECRET; do
+            if ! jq -e --arg name "$name" '
+              .spec.template.spec.containers[0].env[]
+              | select(.name == $name)
+              | (.valueSource.secretKeyRef // .valueFrom.secretKeyRef)
+            ' /tmp/jewelhire-service.json >/dev/null; then
+              echo "$name must be backed by Secret Manager."
+              exit 1
+            fi
+          done
+
+          EMAIL_ENABLED=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "EMAIL_NOTIFICATIONS_ENABLED") | .value // "false"' /tmp/jewelhire-service.json)
+          POSTMARK_DRY_RUN=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "POSTMARK_DRY_RUN") | .value // "false"' /tmp/jewelhire-service.json)
+          if [[ "$EMAIL_ENABLED" == "true" && "$POSTMARK_DRY_RUN" != "true" && "$POSTMARK_DRY_RUN" != "1" && "$ACKNOWLEDGE_LIVE_EMAIL" != "true" ]]; then
+            echo "Postmark delivery is live. Check acknowledge_live_email to approve this posture."
+            exit 1
+          fi
+
+      - name: Create no-traffic candidate revision
+        id: candidate
+        run: |
+          set -euo pipefail
+          TAG="candidate-${GITHUB_RUN_ID}"
+          PREVIOUS_SERVICE_JSON=$(gcloud run services describe jewelhire --project jewelhire-prod-20260626 --region us-central1 --format=json)
+          PREVIOUS_REVISION=$(jq -er '[.status.traffic[] | select(.percent == 100) | .revisionName][0] | select(type == "string" and length > 0)' <<<"$PREVIOUS_SERVICE_JSON")
           gcloud run deploy jewelhire \
             --source . \
             --project jewelhire-prod-20260626 \
             --region us-central1 \
+            --no-traffic \
+            --tag "$TAG" \
             --quiet
+
+          SERVICE_JSON=$(gcloud run services describe jewelhire --project jewelhire-prod-20260626 --region us-central1 --format=json)
+          REVISION=$(jq -er '.status.latestCreatedRevisionName | select(type == "string" and length > 0)' <<<"$SERVICE_JSON")
+          TAG_URL=$(jq -er --arg tag "$TAG" '.status.traffic[] | select(.tag == $tag) | .url | select(type == "string" and length > 0)' <<<"$SERVICE_JSON")
+          IMAGE=$(gcloud run revisions describe "$REVISION" --project jewelhire-prod-20260626 --region us-central1 --format='value(spec.containers[0].image)')
+          [[ "$IMAGE" == *@sha256:* ]]
+          echo "revision=$REVISION" >> "$GITHUB_OUTPUT"
+          echo "tag_url=$TAG_URL" >> "$GITHUB_OUTPUT"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "previous_revision=$PREVIOUS_REVISION" >> "$GITHUB_OUTPUT"
+
+      - name: Apply production database migrations
+        env:
+          IMAGE: ${{ steps.candidate.outputs.image }}
+        run: |
+          set -euo pipefail
+          SERVICE_JSON=$(gcloud run services describe jewelhire --project jewelhire-prod-20260626 --region us-central1 --format=json)
+          RUNTIME_SERVICE_ACCOUNT=$(jq -r '.spec.template.spec.serviceAccountName // .spec.template.spec.serviceAccount' <<<"$SERVICE_JSON")
+          DATABASE_SECRET=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "DATABASE_URL") | (.valueSource.secretKeyRef.secret // .valueFrom.secretKeyRef.name)' <<<"$SERVICE_JSON")
+          DATABASE_SECRET_VERSION=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "DATABASE_URL") | (.valueSource.secretKeyRef.version // .valueFrom.secretKeyRef.key // "latest")' <<<"$SERVICE_JSON")
+          test -n "$RUNTIME_SERVICE_ACCOUNT" && test -n "$DATABASE_SECRET"
+
+          gcloud run jobs deploy jewelhire-migrate \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --image "$IMAGE" \
+            --service-account "$RUNTIME_SERVICE_ACCOUNT" \
+            --set-secrets "DATABASE_URL=${DATABASE_SECRET}:${DATABASE_SECRET_VERSION}" \
+            --set-env-vars "APPLY_DATABASE_MIGRATIONS=1,POSTGRES_POOL_MAX=1" \
+            --command npm \
+            --args run,db:migrate:apply \
+            --max-retries 0 \
+            --task-timeout 15m \
+            --quiet
+          gcloud run jobs execute jewelhire-migrate \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --wait
+
+      - name: Smoke no-traffic candidate
+        env:
+          TAG_URL: ${{ steps.candidate.outputs.tag_url }}
+        run: |
+          set -euo pipefail
+          for path in /login /privacy /terms /signup /signup/store; do
+            STATUS=$(curl --fail --silent --show-error --retry 5 --retry-all-errors --output /dev/null --write-out '%{http_code}' "${TAG_URL}${path}")
+            if [[ "$STATUS" != "200" ]]; then
+              echo "Candidate ${path} returned ${STATUS}; expected 200."
+              exit 1
+            fi
+          done
+
+      - name: Move production traffic to candidate
+        env:
+          REVISION: ${{ steps.candidate.outputs.revision }}
+        run: |
+          set -euo pipefail
+          gcloud run services update-traffic jewelhire \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --to-revisions "${REVISION}=100" \
+            --quiet
+
+      - name: Verify public production routes
+        env:
+          PREVIOUS_REVISION: ${{ steps.candidate.outputs.previous_revision }}
+        run: |
+          set -euo pipefail
+          FAILED=0
+          for path in /login /privacy /terms /signup /signup/store; do
+            STATUS=$(curl --fail --silent --show-error --retry 5 --retry-all-errors --output /dev/null --write-out '%{http_code}' "https://app.jewelhire.com${path}" || true)
+            if [[ "$STATUS" != "200" ]]; then
+              echo "Production ${path} returned ${STATUS}; expected 200."
+              FAILED=1
+            fi
+          done
+          if [[ "$FAILED" == "1" ]]; then
+            echo "Production smoke failed; restoring traffic to ${PREVIOUS_REVISION}."
+            gcloud run services update-traffic jewelhire \
+              --project jewelhire-prod-20260626 \
+              --region us-central1 \
+              --to-revisions "${PREVIOUS_REVISION}=100" \
+              --quiet
+            exit 1
+          fi
