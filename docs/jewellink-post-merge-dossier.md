@@ -26,6 +26,17 @@ JewelLink architecture.
 8. Run the cross-product runner, build/type checks, Prisma validation, container
    smoke, and an authenticated stateful SSO/hire/JewelCert replay.
 
+Before creating the integration branch, classify the final merge against the
+preserved integration without changing either worktree:
+
+```bash
+npm run qa:jewellink-merge-delta -- --target=<final-JewelLink-main-SHA>
+```
+
+The report distinguishes already-present, clean-add, clean-modify, overlapping,
+and collision paths. A clean Git blob classification does not override the
+manual treatment below for UI and deployment files.
+
 ## File-by-file treatment
 
 | Preserved path | Purpose | Post-merge treatment |

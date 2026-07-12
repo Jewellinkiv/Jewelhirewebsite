@@ -34,6 +34,7 @@
     "qa:jewellink-sso": "node scripts/jewellink-sso-audit.mjs",
     "qa:jewellink-hire": "node scripts/jewellink-hire-audit.mjs",
     "qa:jewellink-jewelcert": "node scripts/jewellink-jewelcert-audit.mjs",
+    "qa:jewellink-merge-delta": "node scripts/jewellink-merge-delta-audit.mjs",
     "qa:loop": "node scripts/qa-loop.mjs",
     "qa:manual-smoke-handoff": "node scripts/manual-smoke-handoff-audit.mjs",
     "qa:notifications": "node scripts/notification-readiness-audit.mjs",

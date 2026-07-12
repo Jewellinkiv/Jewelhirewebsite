@@ -291,6 +291,8 @@ While waiting:
 - Continue JewelHire-only defect fixes and repeatable QA.
 - Accept only contract-preserving changes in the JewelLink holding branch.
 - Do not rebase the holding branch repeatedly onto moving JewelLink branches.
+- Use `npm run qa:jewellink-merge-delta -- --target=<candidate-ref>` for
+  read-only conflict forecasting; rerun it against the exact final merge SHA.
 - Track the final merge PR/commit, dependency changes, schema migrations,
   deployment changes, and its production verification result.
 
