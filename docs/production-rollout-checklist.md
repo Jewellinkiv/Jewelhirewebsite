@@ -11,13 +11,16 @@ Updated: 2026-07-12
 - [x] Chrome QA confirms the local JewelLink button and profile-menu entry open JewelHire in a new tab.
 - [x] Chrome QA confirms a JewelLink Director lands in the store-owner dashboard with no role switcher.
 - [x] Public careers, application, résumé, preview-token, SEO, consent, and aggregate-analytics audits pass.
-- [x] Billing, notification wiring, Firebase, legal-source, config-exposure, and invalid-input audits pass.
+- [x] Billing, notification wiring, Firebase, legal-source, and invalid-input audits pass. The config-exposure audit passes secret/public-data checks and intentionally holds on explicit live-email acknowledgement.
 - [x] Local SSO QA database has migrations `0012` through `0018` applied.
 - [x] Production role-readiness audit confirms active users, manager mappings,
   applicants, and at least one active store owner per active store are valid.
 - [x] Temporary applications, résumé files, and synthetic analytics used during QA were removed.
 
 ## Blocking gates before traffic is moved
+
+Read-only baseline: `premerge-production-baseline.md`. Backup and rollback
+evidence template: `production-backup-and-rollback.md`.
 
 - [ ] Apply the seven pending JewelHire migrations, `0012` through
   `0018_public_careers_daily_events.sql`, with the guarded candidate-image job.

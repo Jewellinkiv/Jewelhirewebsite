@@ -246,7 +246,23 @@ Gate:
 
 ## Phase 4 — Production preparation without production mutation
 
-Status: can be completed before the JewelLink merge.
+Status: non-mutating preparation completed locally on 2026-07-12; provisioning,
+backup creation, controlled external sends, dependency disposition, and all
+production mutations remain approval-gated.
+
+Evidence:
+
+- `docs/premerge-production-baseline.md` records current revisions, traffic,
+  public routes, presence-only secret/IAM checks, dependency findings, and
+  outstanding decision owners without exposing values.
+- `docs/production-backup-and-rollback.md` provides a two-database evidence
+  template, secure logical-backup fallback, additive-migration policy, exact
+  Cloud Run traffic rollback commands, and restore-to-new procedure.
+- The current JewelHire workflow YAML parses and the preserved JewelLink deploy
+  script passes `bash -n`; both must be revalidated after the incoming merge.
+- Missing integration secrets, migration identity/credential, legal-route
+  deployment, email posture approval, Stripe smoke, final dependency
+  disposition, named operator, and maintenance window are explicit blockers.
 
 Actions:
 
@@ -332,8 +348,9 @@ Before the JewelLink merge lands, complete in this order:
 3. Phase 2: create the one-command cross-product acceptance runner. **Runner
    complete; authenticated stateful replay remains a post-merge gate.**
 4. Phase 3: finish the JewelLink merge dossier. **Complete.**
-5. Phase 4: close every non-mutating production-readiness item. **Next.**
-6. Stop at Phase 5 and wait for the final JewelLink merge SHA.
+5. Phase 4: close every non-mutating production-readiness item. **Complete;
+   external approvals and production mutations remain gated.**
+6. Stop at Phase 5 and wait for the final JewelLink merge SHA. **Active hold.**
 
 ## Responsibility split
 
