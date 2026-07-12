@@ -27,6 +27,7 @@
     "qa:access-control": "node scripts/access-control-audit.mjs",
     "qa:auth": "node scripts/auth-readiness-audit.mjs",
     "qa:billing": "node scripts/billing-readiness-audit.mjs",
+    "qa:cross-product": "node scripts/cross-product-acceptance.mjs",
     "qa:config": "node scripts/config-exposure-audit.mjs",
     "qa:invalid-input": "node scripts/invalid-input-audit.mjs",
     "qa:legal": "node scripts/legal-readiness-audit.mjs",

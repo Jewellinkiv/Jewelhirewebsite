@@ -155,7 +155,25 @@ Gate:
 
 ## Phase 2 — Make the cross-product contract reproducible
 
-Status: can be completed before the JewelLink merge.
+Status: runner implemented and source/safe-endpoint baseline passed locally on
+2026-07-12. An authenticated stateful replay remains required against an
+isolated, fully migrated two-service database after the incoming JewelLink
+merge is fixed to a commit.
+
+Evidence:
+
+- One command: `npm run qa:cross-product`
+- Runner: `scripts/cross-product-acceptance.mjs`
+- Operator guide: `docs/cross-product-acceptance.md`
+- Source run passed 8 product suites and 11 shared-contract checks against
+  JewelHire `ae50c9dbb107` and JewelLink `cbf4ce224e2b`.
+- A local JewelLink process was started with `.env.local` names blanked,
+  synthetic secrets, and an unreachable placeholder database. The SSO
+  exchange, hire, and JewelCert result endpoints each rejected an unauthenticated
+  request with HTTP 401 before database access.
+- The runner emits machine-readable reports, a synthetic fixture inventory,
+  and a placeholder-only environment contract beneath ignored `docs/qa-runs/`.
+- No production mutation, database write, shared secret, or live email was used.
 
 Build one local acceptance runner that starts or targets both local services
 and proves:
@@ -300,8 +318,9 @@ Before the JewelLink merge lands, complete in this order:
 
 1. Phase 0: preserve both worktrees safely. **Complete.**
 2. Phase 1: curate and validate the JewelHire release branch. **Complete.**
-3. Phase 2: create the one-command cross-product acceptance runner. **Next.**
-4. Phase 3: finish the JewelLink merge dossier.
+3. Phase 2: create the one-command cross-product acceptance runner. **Runner
+   complete; authenticated stateful replay remains a post-merge gate.**
+4. Phase 3: finish the JewelLink merge dossier. **Next.**
 5. Phase 4: close every non-mutating production-readiness item.
 6. Stop at Phase 5 and wait for the final JewelLink merge SHA.
 
