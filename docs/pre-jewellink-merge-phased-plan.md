@@ -296,6 +296,13 @@ While waiting:
 - Track the final merge PR/commit, dependency changes, schema migrations,
   deployment changes, and its production verification result.
 
+Current moving-release evidence is recorded in
+`docs/jewellink-pending-merge-validation.md`. PR #132 is green but still open;
+its external build moved JewelLink production traffic to a new revision from
+the existing `main` SHA. PR #133 is also open and passes build/type/tests/mobile
+validation locally, but its scoped lint has four errors and its mobile runtime
+tree has one critical and three high dependency findings.
+
 Exit criteria:
 
 - The large JewelLink merge is on `main`.

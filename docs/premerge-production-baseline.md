@@ -5,6 +5,16 @@ Read-only snapshot: 2026-07-12T16:57:20Z
 No service, secret, IAM principal, API, database, revision, job, or traffic
 setting was created or changed while collecting this baseline.
 
+## Subsequent externally observed change
+
+At 2026-07-12T17:10:20Z, PR #132's external Cloud Build was observed to have
+created `jewellink-dev-01039-8nh` and moved 100% JewelLink traffic to that
+revision. The build source substitution was the existing `main` SHA
+`9a163831113e88b24d22c8bdeecbf4c68412f138`, and `/login` returned 200 after
+the change. This task did not trigger the build or change traffic. Recapture the
+baseline again before any integration cutover; see
+`jewellink-pending-merge-validation.md`.
+
 ## Source references
 
 | Product | Local preservation/release HEAD | Fetched `origin/main` |
