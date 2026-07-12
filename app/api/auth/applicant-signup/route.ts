@@ -4,6 +4,8 @@ import { createAssociateUserAndLinkProfile, userExistsForEmail } from "@/lib/ser
 import { findSessionForGoogleUser, isConfiguredAdminEmail, setSessionCookie } from "@/lib/server/auth";
 import { enforceRateLimit } from "@/lib/server/rate-limit";
 import { validEmail } from "@/lib/server/request";
+import { acceptsCurrentLegalTerms } from "@/lib/legal";
+import { recordLegalConsent } from "@/lib/server/legal-consent";
 
 export const runtime = "nodejs";
 
@@ -21,6 +23,12 @@ export async function POST(request: Request) {
 
   if (!validEmail(email)) {
     return NextResponse.json({ error: { code: "invalid_email", message: "Enter a valid email address." } }, { status: 400 });
+  }
+  if (!acceptsCurrentLegalTerms(body)) {
+    return NextResponse.json(
+      { error: { code: "legal_consent_required", message: "Accept the Privacy Policy and Terms of Service to continue." } },
+      { status: 400 },
+    );
   }
   // Configured admin emails resolve to an admin session via the env allowlist —
   // never let one be claimed through unauthenticated self-service signup.
@@ -42,6 +50,8 @@ export async function POST(request: Request) {
       { status: 409 },
     );
   }
+
+  await recordLegalConsent({ email, source: "applicant_signup" });
 
   const userId = await createAssociateUserAndLinkProfile({ email, name });
   await setPassword(userId, password);

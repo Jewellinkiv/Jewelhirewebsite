@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireStoreAccess } from "@/lib/server/access-control";
+import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
+import { requireLocationInScope } from "@/lib/server/location-scope";
 import { getLocalStoreJob, updateLocalStoreJob, JobStatus } from "@/lib/local-job-store";
 import { getPostgresJobDetail, updatePostgresStoreJob } from "@/lib/server/postgres-phase1";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
@@ -19,11 +20,13 @@ function initials(name: string) {
 
 export const GET = withApiErrorHandling(async function GET(_request: Request, props: { params: Promise<{ storeId: string; slug: string }> }) {
   const params = await props.params;
-  const storeId = await requireStoreAccess(params.storeId, "jobs.read");
+  const access = await requireLocationScopedStoreAccess(params.storeId, "jobs.read");
+  const storeId = access.storeId;
 
   if (getStorageRuntime() === "postgres") {
     const detail = await getPostgresJobDetail(params.slug, storeId);
     if (!detail || detail.job.storeId !== storeId) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+    requireLocationInScope(detail.job.locationId || detail.job.location, access.locationIds, "jobs.read");
     const applicants = detail.applicants.map((item) => ({
       applicationId: item.application.id,
       name: item.applicant.fullName,
@@ -50,6 +53,7 @@ export const GET = withApiErrorHandling(async function GET(_request: Request, pr
 
   const job = getLocalStoreJob(storeId, params.slug);
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+  requireLocationInScope(job.locationId || job.location, access.locationIds, "jobs.read");
 
   const applications = await getApplicantStore().listStoreApplications({ storeId });
   const jobApplications = applications.filter((application) => application.jobId === job.id);
@@ -72,13 +76,18 @@ export const GET = withApiErrorHandling(async function GET(_request: Request, pr
 
 export const PATCH = withApiErrorHandling(async function PATCH(request: Request, props: { params: Promise<{ storeId: string; slug: string }> }) {
   const params = await props.params;
-  const storeId = await requireStoreAccess(params.storeId, "jobs.update");
+  const access = await requireLocationScopedStoreAccess(params.storeId, "jobs.update");
+  const storeId = access.storeId;
   const body = await request.json().catch(() => null);
   const status = jobStatuses.includes(body?.status) ? (body.status as JobStatus) : undefined;
 
   if (getStorageRuntime() === "postgres") {
     const current = await getPostgresJobDetail(params.slug, storeId);
     if (!current || current.job.storeId !== storeId) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+    requireLocationInScope(current.job.locationId || current.job.location, access.locationIds, "jobs.update");
+    if (body?.locationId !== undefined || body?.location !== undefined) {
+      requireLocationInScope(body?.locationId || body?.location, access.locationIds, "jobs.update");
+    }
     const detail = await updatePostgresStoreJob({
       jobId: current.job.id,
       storeId,
@@ -97,6 +106,12 @@ export const PATCH = withApiErrorHandling(async function PATCH(request: Request,
     return NextResponse.json({ job: detail.job });
   }
 
+  const current = getLocalStoreJob(storeId, params.slug);
+  if (!current) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+  requireLocationInScope(current.locationId || current.location, access.locationIds, "jobs.update");
+  if (body?.locationId !== undefined || body?.location !== undefined) {
+    requireLocationInScope(body?.locationId || body?.location, access.locationIds, "jobs.update");
+  }
   const updated = updateLocalStoreJob(storeId, params.slug, {
     title: typeof body?.title === "string" ? body.title : undefined,
     locationId: typeof body?.locationId === "string" ? body.locationId : undefined,

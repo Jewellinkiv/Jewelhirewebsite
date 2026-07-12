@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { PROFILES, ProfileCode } from "@/lib/gemmatch";
-import { requireStoreAccess } from "@/lib/server/access-control";
+import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { getTeamStore } from "@/lib/server/stores/team-store";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 
 export const GET = withApiErrorHandling(async function GET(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
-  const storeId = await requireStoreAccess(params.storeId, "team.list");
+  const { storeId } = await requireLocationScopedStoreAccess(params.storeId, "team.list");
   const url = new URL(request.url);
   const locationId = url.searchParams.get("locationId");
   const teamStore = getTeamStore();
@@ -32,7 +32,7 @@ export const GET = withApiErrorHandling(async function GET(request: Request, pro
 
 export const POST = withApiErrorHandling(async function POST(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
-  const storeId = await requireStoreAccess(params.storeId, "team.members.create");
+  const { storeId } = await requireLocationScopedStoreAccess(params.storeId, "team.members.create");
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });

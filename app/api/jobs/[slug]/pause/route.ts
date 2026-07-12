@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireStoreAccess } from "@/lib/server/access-control";
+import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
+import { requireLocationInScope } from "@/lib/server/location-scope";
 import { getPostgresJobDetail, updatePostgresStoreJob } from "@/lib/server/postgres-phase1";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
 
@@ -13,7 +14,8 @@ export const POST = withApiErrorHandling(async function POST(_request: Request, 
   }
   const current = await getPostgresJobDetail(params.slug);
   if (!current) return NextResponse.json({ error: "Job not found" }, { status: 404 });
-  await requireStoreAccess(current.job.storeId, "jobs.update");
+  const access = await requireLocationScopedStoreAccess(current.job.storeId, "jobs.update");
+  requireLocationInScope(current.job.location, access.locationIds, "jobs.update");
   const detail = await updatePostgresStoreJob({ jobId: current.job.id, storeId: current.job.storeId, status: "paused" });
   return NextResponse.json(detail);
 });

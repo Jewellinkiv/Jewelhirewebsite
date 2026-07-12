@@ -3,6 +3,7 @@ import {
   ApplicantNoteRecord,
   ApplicantProfileRecord,
   ApplicantResumeRecord,
+  ApplicationAttachmentRecord,
   ApplicationDetail,
   ApplicationRecord,
   ApplicationStage,
@@ -16,7 +17,7 @@ import {
   StorePublicPageRecord,
 } from "@/lib/applicant-lifecycle";
 import type { AssessmentResult } from "@/lib/assessment-results";
-import { ACTIVITY, CAREERS, floorRead, LOCATION_FLOORS } from "@/lib/dashboard";
+import { floorRead } from "@/lib/dashboard";
 import { CalProvider, INVITE_SETTINGS, InviteSettings, PROVIDER_LABEL } from "@/lib/invite-settings";
 import { CERT_COMPONENTS, CERT_COURSES } from "@/lib/jewelcert";
 import { getPostgresCourseTitles } from "@/lib/server/postgres-courses";
@@ -165,6 +166,19 @@ interface ApplicationDetailRow {
   job_status: PublicJobRecord["status"] | null;
   opened_at: string | null;
   closed_at: string | null;
+}
+
+interface ApplicationAttachmentRow {
+  id: string;
+  application_id: string;
+  store_id: string;
+  kind: "resume";
+  original_filename: string;
+  mime_type: ApplicationAttachmentRecord["mimeType"];
+  file_size_bytes: number;
+  sha256: string;
+  content?: Buffer;
+  created_at: string;
 }
 
 interface StageEventRow {
@@ -470,11 +484,20 @@ export interface ListPostgresApplicationSummariesInput {
   query?: string;
   stage?: ApplicationStage;
   limit?: number;
+  offset?: number;
 }
 
 export interface CreatePostgresPublicApplicationInput {
   storeSlug: string;
   jobId?: string;
+  submissionKeyHash?: string;
+  attachment?: {
+    originalFilename: string;
+    mimeType: ApplicationAttachmentRecord["mimeType"];
+    fileSizeBytes: number;
+    sha256: string;
+    content: Buffer;
+  };
   profile: {
     name?: string;
     email?: string;
@@ -895,6 +918,10 @@ interface AssessmentResultRow {
 export type CreatePostgresPublicApplicationResult =
   | {
       error: string;
+    }
+  | {
+      applicationId: string;
+      duplicate: true;
     }
   | {
       applicationId: string;
@@ -1876,6 +1903,20 @@ function mapApplicantResume(row: ApplicationDetailRow): ApplicantResumeRecord | 
   };
 }
 
+function mapApplicationAttachment(row: ApplicationAttachmentRow): ApplicationAttachmentRecord {
+  return {
+    id: row.id,
+    applicationId: row.application_id,
+    storeId: row.store_id,
+    kind: row.kind,
+    originalFilename: row.original_filename,
+    mimeType: row.mime_type,
+    fileSizeBytes: Number(row.file_size_bytes),
+    sha256: row.sha256,
+    createdAt: row.created_at,
+  };
+}
+
 function mapApplicationJob(row: ApplicationDetailRow): PublicJobRecord | undefined {
   if (!row.job_id || !row.public_page_id || !row.job_status) return undefined;
   return mapPublicJob({
@@ -2669,6 +2710,117 @@ export async function getPostgresJobDetail(slug: string, storeId?: string) {
   };
 }
 
+async function getPostgresCareersAnalyticsWithClient(client: PoolClient, storeId: string, rangeDays = 30) {
+  const boundedDays = Math.min(Math.max(Math.round(rangeDays) || 30, 1), 90);
+  const pageResult = await client.query<{ id: string; slug: string; status: "draft" | "published" | "paused" }>(
+    "select id, slug, status from store_public_pages where store_id = $1 order by updated_at desc limit 1",
+    [storeId],
+  );
+  const page = pageResult.rows[0];
+  const publicBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://app.jewelhire.com").replace(/\/$/, "");
+  if (!page) {
+    return { slug: "", url: "", status: "Draft" as const, views30d: 0, applyStarts: 0, submissions: 0, applyRate: 0, trend: [0, 0] };
+  }
+  const metrics = await client.query<{ event_date: string; page_views: string; application_starts: string }>(
+    `
+      select
+        day::date::text as event_date,
+        coalesce(sum(e.event_count) filter (where e.event_type = 'page_view'), 0)::text as page_views,
+        coalesce(sum(e.event_count) filter (where e.event_type = 'application_start'), 0)::text as application_starts
+      from generate_series(current_date - ($2::int - 1), current_date, interval '1 day') day
+      left join public_careers_daily_events e
+        on e.public_page_id = $1 and e.event_date = day::date
+      group by day
+      order by day
+    `,
+    [page.id, boundedDays],
+  );
+  const submissionResult = await client.query<{ count: string }>(
+    `
+      select count(*)::text as count
+      from applications
+      where store_id = $1
+        and source = 'public_store_page'
+        and submitted_at >= current_date - ($2::int - 1)
+    `,
+    [storeId, boundedDays],
+  );
+  const views = metrics.rows.reduce((sum, row) => sum + Number(row.page_views || 0), 0);
+  const starts = metrics.rows.reduce((sum, row) => sum + Number(row.application_starts || 0), 0);
+  const submissions = Number(submissionResult.rows[0]?.count || 0);
+  return {
+    slug: page.slug,
+    url: `${publicBaseUrl}/careers/${encodeURIComponent(page.slug)}`,
+    status: page.status === "published" ? "Published" as const : page.status === "paused" ? "Paused" as const : "Draft" as const,
+    views30d: views,
+    applyStarts: starts,
+    submissions,
+    applyRate: starts ? Math.min(100, Math.round((submissions / starts) * 100)) : 0,
+    trend: metrics.rows.map((row) => Number(row.page_views || 0)),
+  };
+}
+
+export async function getPostgresCareersAnalytics(storeId: string, rangeDays = 30) {
+  const client = await getPostgresPool().connect();
+  try {
+    return await getPostgresCareersAnalyticsWithClient(client, storeId, rangeDays);
+  } finally {
+    client.release();
+  }
+}
+
+async function getPostgresDashboardLocationsWithClient(client: PoolClient, storeId: string) {
+  const result = await client.query<{ id: string; name: string; floor_type: string | null; member_count: string }>(
+    `
+      select l.id, l.name, l.floor_type, count(tm.id)::text as member_count
+      from locations l
+      left join team_members tm on tm.location_id = l.id and tm.status <> 'removed'
+      where l.store_id = $1
+      group by l.id, l.name, l.floor_type, l.created_at
+      order by l.created_at asc, l.name asc
+    `,
+    [storeId],
+  );
+  return result.rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    count: Number(row.member_count || 0),
+    archetype: row.floor_type || "Not set",
+  }));
+}
+
+function relativeActivityTime(value: string) {
+  const elapsedMinutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60_000));
+  if (elapsedMinutes < 60) return `${Math.max(1, elapsedMinutes)}m`;
+  const hours = Math.round(elapsedMinutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.round(hours / 24)}d`;
+}
+
+async function getPostgresDashboardActivityWithClient(client: PoolClient, storeId: string) {
+  const result = await client.query<{ event_type: string; subject_id: string; payload: Record<string, unknown> | null; created_at: string }>(
+    `
+      select event_type, subject_id, payload, created_at::text
+      from domain_events
+      where store_id = $1
+        and event_type in ('application.created', 'interview.scheduled', 'assessment.completed')
+      order by created_at desc
+      limit 8
+    `,
+    [storeId],
+  );
+  return result.rows.map((row) => {
+    const applicationId = typeof row.payload?.applicationId === "string" ? row.payload.applicationId : row.subject_id;
+    if (row.event_type === "interview.scheduled") {
+      return { icon: "interview" as const, text: "Interview scheduled", when: relativeActivityTime(row.created_at), href: "/interviews" };
+    }
+    if (row.event_type === "assessment.completed") {
+      return { icon: "gemmatch" as const, text: "Assessment completed", when: relativeActivityTime(row.created_at), href: `/applicants/${encodeURIComponent(applicationId)}` };
+    }
+    return { icon: "apply" as const, text: "New application received", when: relativeActivityTime(row.created_at), href: `/applicants/${encodeURIComponent(applicationId)}` };
+  });
+}
+
 export async function getPostgresStoreDashboard(storeId: string, locationId?: string | null) {
   const client = await getPostgresPool().connect();
   try {
@@ -2678,8 +2830,9 @@ export async function getPostgresStoreDashboard(storeId: string, locationId?: st
       ? applicationSummaries.items.filter((item) => locationFilterMatches(item.job?.location || item.applicant.location, locationId))
       : applicationSummaries.items;
     const composition = await getPostgresTeamComposition(client, storeId);
+    const locations = await getPostgresDashboardLocationsWithClient(client, storeId);
     const selectedLocation = locationId
-      ? LOCATION_FLOORS.find((location) => locationFilterMatches(location.name, locationId) || location.id === locationId)
+      ? locations.find((location) => locationFilterMatches(location.name, locationId) || location.id === locationId)
       : undefined;
     const applicants = applications.length;
     const hired = applications.filter((item) => item.application.stage === "hired").length;
@@ -2689,6 +2842,8 @@ export async function getPostgresStoreDashboard(storeId: string, locationId?: st
     const floor = selectedLocation
       ? floorRead(composition.mix, selectedLocation.archetype, selectedLocation.count, selectedLocation.count)
       : floorRead(composition.mix, composition.floorType, composition.tested, Math.max(composition.total, composition.tested));
+    const careers = await getPostgresCareersAnalyticsWithClient(client, storeId, 30);
+    const activity = await getPostgresDashboardActivityWithClient(client, storeId);
 
     return {
       storeId,
@@ -2702,9 +2857,9 @@ export async function getPostgresStoreDashboard(storeId: string, locationId?: st
         avgFit: fitScores.length ? Math.round(fitScores.reduce((sum, score) => sum + score, 0) / fitScores.length) : 0,
         gemmatchCompletion: applicants ? Math.round((completed.length / applicants) * 100) : 0,
       },
-      careers: CAREERS,
-      locations: LOCATION_FLOORS,
-      activity: ACTIVITY,
+      careers,
+      locations,
+      activity,
     };
   } finally {
     client.release();
@@ -3273,6 +3428,55 @@ export async function getPostgresPublishedPublicPage(storeSlug: string) {
   }
 }
 
+export async function getPostgresPreviewPublicPage(storeSlug: string) {
+  const client = await getPostgresPool().connect();
+  try {
+    const page = await getPostgresPublicPageRow(client, { slug: storeSlug });
+    if (!page) return undefined;
+    const activeStore = await client.query<{ active: boolean }>(
+      "select exists(select 1 from stores where id = $1 and status = 'active') as active",
+      [page.store_id],
+    );
+    if (!activeStore.rows[0]?.active) return undefined;
+    return buildPostgresStorePublicPage(client, page, false);
+  } finally {
+    client.release();
+  }
+}
+
+export async function recordPostgresPublicCareersEvent(input: {
+  storeSlug: string;
+  eventType: "page_view" | "application_start";
+  jobId?: string;
+}) {
+  const jobId = input.eventType === "application_start" ? input.jobId || "" : "";
+  const result = await getPostgresPool().query<{ event_count: number }>(
+    `
+      insert into public_careers_daily_events (
+        store_id, public_page_id, job_id, event_date, event_type, event_count
+      )
+      select spp.store_id, spp.id, $3, current_date, $2, 1
+      from store_public_pages spp
+      join stores s on s.id = spp.store_id
+      where spp.slug = $1
+        and spp.status = 'published'
+        and s.status = 'active'
+        and (
+          $2 = 'page_view'
+          or exists (
+            select 1 from public_jobs pj
+            where pj.id = $3 and pj.store_id = spp.store_id and pj.status = 'open'
+          )
+        )
+      on conflict (public_page_id, job_id, event_date, event_type)
+      do update set event_count = public_careers_daily_events.event_count + 1
+      returning event_count
+    `,
+    [input.storeSlug, input.eventType, jobId],
+  );
+  return Boolean(result.rows[0]);
+}
+
 async function queryPostgresAdminCompanyRows(client: PoolClient, query = "") {
   const normalized = query.trim().toLowerCase();
   const result = await client.query<AdminCompanyRow>(
@@ -3592,9 +3796,10 @@ export async function completePostgresGemMatchResponse(input: { inviteId: string
     const applicationResult = await client.query<{
       company_id: string;
       stage: ApplicationStage;
+      source: ApplicationRecord["source"];
     }>(
       `
-        select s.company_id, a.stage
+        select s.company_id, a.stage, a.source
         from applications a
         join stores s on s.id = a.store_id
         where a.id = $1
@@ -3658,35 +3863,49 @@ export async function completePostgresGemMatchResponse(input: { inviteId: string
     // not a shortcut from the package invite id.
     await reconcilePostgresJewelCertCompletionWithClient(client, { applicationId: invite.application_id ?? undefined });
 
-    await client.query(
-      `
-        update applications
-        set stage = 'gemmatch',
-            status_reason = 'Completed JewelCert response',
-            last_activity_at = $1,
-            updated_at = $1
-        where id = $2
-          and store_id = $3
-      `,
-      [timestamp, invite.application_id, invite.store_id],
-    );
-    await client.query(
-      `
-        insert into application_stage_events (
-          id, application_id, store_id, from_stage, to_stage, actor_user_id, reason, metadata, created_at
-        )
-        values ($1, $2, $3, $4, 'gemmatch', $5, 'Completed JewelCert response', $6::jsonb, $7)
-      `,
-      [
-        stageEventId,
-        invite.application_id,
-        invite.store_id,
-        application.stage,
-        invite.sent_by_user_id,
-        JSON.stringify({ gemmatchInviteId: invite.id, pickedCount: pickedTexts.length }),
-        timestamp,
-      ],
-    );
+    if (application.source === "jewellink_employee") {
+      await client.query(
+        `
+          update applications
+          set status_reason = 'Completed JewelLink employee JewelCert',
+              last_activity_at = $1,
+              updated_at = $1
+          where id = $2
+            and store_id = $3
+        `,
+        [timestamp, invite.application_id, invite.store_id],
+      );
+    } else {
+      await client.query(
+        `
+          update applications
+          set stage = 'gemmatch',
+              status_reason = 'Completed JewelCert response',
+              last_activity_at = $1,
+              updated_at = $1
+          where id = $2
+            and store_id = $3
+        `,
+        [timestamp, invite.application_id, invite.store_id],
+      );
+      await client.query(
+        `
+          insert into application_stage_events (
+            id, application_id, store_id, from_stage, to_stage, actor_user_id, reason, metadata, created_at
+          )
+          values ($1, $2, $3, $4, 'gemmatch', $5, 'Completed JewelCert response', $6::jsonb, $7)
+        `,
+        [
+          stageEventId,
+          invite.application_id,
+          invite.store_id,
+          application.stage,
+          invite.sent_by_user_id,
+          JSON.stringify({ gemmatchInviteId: invite.id, pickedCount: pickedTexts.length }),
+          timestamp,
+        ],
+      );
+    }
     await client.query(
       `
         insert into domain_events (
@@ -4975,6 +5194,7 @@ export async function disconnectPostgresStoreIntegration(input: { storeId: strin
 async function listPostgresApplicationSummariesWithClient(client: PoolClient, input: ListPostgresApplicationSummariesInput) {
   const query = input.query?.trim() || "";
   const limit = Math.min(Math.max(input.limit ?? 25, 1), 100);
+  const offset = Math.max(input.offset ?? 0, 0);
   const result = await client.query<ApplicationSummaryRow>(
     `
       select
@@ -5042,6 +5262,7 @@ async function listPostgresApplicationSummariesWithClient(client: PoolClient, in
           and deleted_at is null
       ) notes on true
       where a.store_id = $1
+        and a.source <> 'jewellink_employee'
         and ($2::text is null or a.stage = $2)
         and (
           $3::text = ''
@@ -5052,8 +5273,9 @@ async function listPostgresApplicationSummariesWithClient(client: PoolClient, in
         )
       order by a.last_activity_at desc
       limit $4
+      offset $5
     `,
-    [input.storeId, input.stage ?? null, query, limit],
+    [input.storeId, input.stage ?? null, query, limit, offset],
   );
 
   return {
@@ -5257,6 +5479,7 @@ export async function listPostgresApplicantApplications(email?: string | null) {
           and deleted_at is null
       ) notes on true
       where ap.email_normalized = $1
+        and a.source <> 'jewellink_employee'
       order by a.last_activity_at desc
       limit 100
     `,
@@ -5538,6 +5761,16 @@ async function getPostgresApplicationDetailWithClient(client: PoolClient, input:
   const row = detailResult.rows[0];
   if (!row) return undefined;
 
+  const attachments = await client.query<ApplicationAttachmentRow>(
+    `
+      select id, application_id, store_id, kind, original_filename, mime_type,
+             file_size_bytes, sha256, created_at::text
+      from application_attachments
+      where application_id = $1 and store_id = $2
+      order by created_at desc
+    `,
+    [input.applicationId, input.storeId],
+  );
   const stageEvents = await client.query<StageEventRow>(
     `
       select id, application_id, from_stage, to_stage, actor_user_id, reason, metadata, created_at::text
@@ -5610,6 +5843,7 @@ async function getPostgresApplicationDetailWithClient(client: PoolClient, input:
     application: mapApplication(row),
     profile: mapApplicantProfile(row),
     resume: mapApplicantResume(row),
+    attachments: attachments.rows.map(mapApplicationAttachment),
     job: mapApplicationJob(row),
     stageEvents: stageEvents.rows.map(mapStageEvent),
     jewelcertInvites: jewelcertInvites.rows.map(mapJewelCertInvite),
@@ -5639,6 +5873,22 @@ export async function getPostgresApplicationStoreId(applicationId: string) {
     [applicationId],
   );
   return result.rows[0]?.store_id;
+}
+
+export async function getPostgresApplicationResumeAttachment(input: { applicationId: string; storeId: string }) {
+  const result = await getPostgresPool().query<ApplicationAttachmentRow>(
+    `
+      select id, application_id, store_id, kind, original_filename, mime_type,
+             file_size_bytes, sha256, content, created_at::text
+      from application_attachments
+      where application_id = $1 and store_id = $2 and kind = 'resume'
+      limit 1
+    `,
+    [input.applicationId, input.storeId],
+  );
+  const row = result.rows[0];
+  if (!row?.content) return undefined;
+  return { ...mapApplicationAttachment(row), content: row.content };
 }
 
 async function getPostgresStoreAssessment(input: { storeId: string; assessmentId: string }) {
@@ -6046,6 +6296,7 @@ export async function resolvePostgresApplicantApplication(
           or ap.email_normalized = $2
           or ${slugExpression("ap.full_name")} = $2
         )
+        and a.source <> 'jewellink_employee'
         and ($3::text is null or a.store_id = $3)
       order by a.last_activity_at desc
       limit 1
@@ -6075,6 +6326,7 @@ async function listPostgresApplicantHistory(profileId: string, storeId: string) 
       left join public_jobs pj on pj.id = a.job_id
       where a.applicant_profile_id = $1
         and a.store_id = $2
+        and a.source <> 'jewellink_employee'
       order by a.submitted_at desc
     `,
     [profileId, storeId],
@@ -6114,6 +6366,7 @@ export async function getPostgresStoreApplicantDetail(identifier: string, storeI
     applicationId: detail.application.id,
     profile: detail.profile,
     resume: detail.resume,
+    attachments: detail.attachments,
     application: detail.application,
     job: detail.job,
     status: statusFromStage(detail.application.stage),
@@ -7803,7 +8056,7 @@ export async function hirePostgresApplication(input: HirePostgresApplicationInpu
     const timestamp = new Date().toISOString();
     const resolved = await resolvePostgresLocationId(client, input.storeId, preview.jewelLinkPayload.locationId);
     const primary = preview.gemmatch.primary || undefined;
-    const teamMemberDbId = `team-${slugify(preview.applicant.fullName)}`;
+    const teamMemberDbId = `team-${input.applicationId}`;
     const syncId = id("hire-sync");
     const stageEventId = id("event");
     const hireEventId = id("event");
@@ -7820,19 +8073,19 @@ export async function hirePostgresApplication(input: HirePostgresApplicationInpu
           $1,
           $2,
           $3,
+          null,
           $4,
           $5,
           $6,
           $7,
           $8,
           $9,
-          $10,
           'active',
-          'Start onboarding in JewelLink',
-          $11,
-          $11
+          'Queued for JewelLink provisioning',
+          $10,
+          $10
         )
-        on conflict (jewellink_team_member_id) do update set
+        on conflict (id) do update set
           location_id = excluded.location_id,
           source_application_id = excluded.source_application_id,
           role = excluded.role,
@@ -7850,7 +8103,6 @@ export async function hirePostgresApplication(input: HirePostgresApplicationInpu
         teamMemberDbId,
         input.storeId,
         resolved.locationId,
-        preview.jewelLinkPayload.teamMemberId,
         input.applicationId,
         preview.applicant.fullName,
         initials(preview.applicant.fullName),
@@ -7873,10 +8125,10 @@ export async function hirePostgresApplication(input: HirePostgresApplicationInpu
           $3,
           $4,
           (select id from users where id = $5 limit 1),
-          'synced',
+          'pending',
           $6::jsonb,
           $7,
-          $7
+          null
         )
         returning
           id, application_id, store_id, jewellink_team_member_id, synced_by_user_id, sync_status,
@@ -7886,11 +8138,14 @@ export async function hirePostgresApplication(input: HirePostgresApplicationInpu
         syncId,
         input.applicationId,
         input.storeId,
-        preview.jewelLinkPayload.teamMemberId,
+        null,
         input.actorUserId,
         JSON.stringify({
           fullName: preview.applicant.fullName,
+          email: preview.applicant.email,
+          phone: preview.applicant.phone,
           role: preview.role,
+          locationId: resolved.locationId,
           gemmatchProfile: primary,
           courseCredentialIds: preview.jewelLinkPayload.courseCredentialIds,
         }),
@@ -7902,7 +8157,7 @@ export async function hirePostgresApplication(input: HirePostgresApplicationInpu
       `
         update applications
         set stage = 'hired',
-            status_reason = 'Confirmed hire and synced to JewelLink',
+            status_reason = 'Confirmed hire and queued JewelLink provisioning',
             last_activity_at = $1,
             updated_at = $1
         where id = $2
@@ -7933,7 +8188,7 @@ export async function hirePostgresApplication(input: HirePostgresApplicationInpu
         input.storeId,
         application.stage,
         input.actorUserId,
-        JSON.stringify({ hireSyncId: syncId, jewellinkTeamMemberId: preview.jewelLinkPayload.teamMemberId }),
+        JSON.stringify({ hireSyncId: syncId, syncStatus: "pending" }),
         timestamp,
       ],
     );
@@ -7959,7 +8214,7 @@ export async function hirePostgresApplication(input: HirePostgresApplicationInpu
         input.applicationId,
         input.storeId,
         input.actorUserId,
-        `Hired and synced to JewelLink as ${preview.role}. Team member created or updated.`,
+        `Hired as ${preview.role}. JewelLink account provisioning queued.`,
         timestamp,
       ],
     );
@@ -7978,7 +8233,7 @@ export async function hirePostgresApplication(input: HirePostgresApplicationInpu
         application.company_id,
         input.actorUserId,
         input.applicationId,
-        JSON.stringify({ hireSyncId: syncId, jewellinkTeamMemberId: preview.jewelLinkPayload.teamMemberId }),
+        JSON.stringify({ hireSyncId: syncId, syncStatus: "pending" }),
         timestamp,
         noteEventId,
         noteId,
@@ -9310,6 +9565,18 @@ export async function createPostgresPublicApplication(
       return { error: "Public job not found" };
     }
 
+    if (input.submissionKeyHash) {
+      await client.query("select pg_advisory_xact_lock(hashtext($1))", [input.submissionKeyHash]);
+      const existing = await client.query<{ id: string }>(
+        "select id from applications where public_submission_key_hash = $1 limit 1",
+        [input.submissionKeyHash],
+      );
+      if (existing.rows[0]) {
+        await client.query("commit");
+        return { applicationId: existing.rows[0].id, duplicate: true };
+      }
+    }
+
     const timestamp = new Date().toISOString();
     const profileId = id("profile");
     const resumeId = id("resume");
@@ -9384,12 +9651,34 @@ export async function createPostgresPublicApplication(
       `
         insert into applications (
           id, store_id, job_id, applicant_profile_id, source, stage, submitted_at,
-          last_activity_at, created_at, updated_at
+          last_activity_at, created_at, updated_at, public_submission_key_hash
         )
-        values ($1, $2, $3, $4, 'public_store_page', 'applied', $5, $5, $5, $5)
+        values ($1, $2, $3, $4, 'public_store_page', 'applied', $5, $5, $5, $5, $6)
       `,
-      [application.id, application.storeId, application.jobId, application.applicantProfileId, timestamp],
+      [application.id, application.storeId, application.jobId, application.applicantProfileId, timestamp, input.submissionKeyHash || null],
     );
+    if (input.attachment) {
+      await client.query(
+        `
+          insert into application_attachments (
+            id, application_id, store_id, kind, original_filename, mime_type,
+            file_size_bytes, sha256, content, created_at
+          )
+          values ($1, $2, $3, 'resume', $4, $5, $6, $7, $8, $9)
+        `,
+        [
+          id("attachment"),
+          application.id,
+          application.storeId,
+          input.attachment.originalFilename,
+          input.attachment.mimeType,
+          input.attachment.fileSizeBytes,
+          input.attachment.sha256,
+          input.attachment.content,
+          timestamp,
+        ],
+      );
+    }
     await client.query(
       `
         insert into application_stage_events (

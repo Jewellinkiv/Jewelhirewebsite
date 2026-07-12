@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { InterviewStatus } from "@/lib/applicant-lifecycle";
-import { getSessionContext, requireStoreAccess } from "@/lib/server/access-control";
+import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
-import { getPostgresInterviewStoreId, updatePostgresInterview } from "@/lib/server/postgres-phase1";
+import { requireLocationInScope } from "@/lib/server/location-scope";
+import { getPostgresInterviewStoreId, listPostgresStoreInterviews, updatePostgresInterview } from "@/lib/server/postgres-phase1";
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
+import { getApplicationDetail, getInterview } from "@/lib/local-api-store";
 
 const statuses: InterviewStatus[] = ["scheduled", "completed", "cancelled", "no_show"];
 
@@ -15,7 +17,9 @@ export const PATCH = withApiErrorHandling(async function PATCH(request: Request,
   if (getStorageRuntime() === "postgres") {
     const storeId = await getPostgresInterviewStoreId(params.id);
     if (!storeId) return NextResponse.json({ error: "Interview not found" }, { status: 404 });
-    await requireStoreAccess(storeId, "interviews.update");
+    const access = await requireLocationScopedStoreAccess(storeId, "interviews.update");
+    const current = (await listPostgresStoreInterviews({ storeId })).find((item) => item.interview.id === params.id);
+    requireLocationInScope(current?.job?.location, access.locationIds, "interviews.update");
     const interview = await updatePostgresInterview({
       interviewId: params.id,
       actorUserId: (await getSessionContext()).userId,
@@ -26,6 +30,11 @@ export const PATCH = withApiErrorHandling(async function PATCH(request: Request,
     return NextResponse.json({ interview });
   }
 
+  const localInterview = getInterview(params.id);
+  const detail = localInterview ? getApplicationDetail(localInterview.applicationId) : undefined;
+  if (!localInterview || !detail) return NextResponse.json({ error: "Interview not found" }, { status: 404 });
+  const access = await requireLocationScopedStoreAccess(localInterview.storeId, "interviews.update");
+  requireLocationInScope(detail.job?.location || detail.profile?.location, access.locationIds, "interviews.update");
   const interview = getApplicantStore().updateInterview({
     interviewId: params.id,
     status,
@@ -40,7 +49,9 @@ export const DELETE = withApiErrorHandling(async function DELETE(_request: Reque
   if (getStorageRuntime() === "postgres") {
     const storeId = await getPostgresInterviewStoreId(params.id);
     if (!storeId) return NextResponse.json({ error: "Interview not found" }, { status: 404 });
-    await requireStoreAccess(storeId, "interviews.delete");
+    const access = await requireLocationScopedStoreAccess(storeId, "interviews.delete");
+    const current = (await listPostgresStoreInterviews({ storeId })).find((item) => item.interview.id === params.id);
+    requireLocationInScope(current?.job?.location, access.locationIds, "interviews.delete");
     const interview = await updatePostgresInterview({
       interviewId: params.id,
       actorUserId: (await getSessionContext()).userId,
@@ -51,6 +62,11 @@ export const DELETE = withApiErrorHandling(async function DELETE(_request: Reque
     return NextResponse.json({ interview, deleted: false });
   }
 
+  const localInterview = getInterview(params.id);
+  const detail = localInterview ? getApplicationDetail(localInterview.applicationId) : undefined;
+  if (!localInterview || !detail) return NextResponse.json({ error: "Interview not found" }, { status: 404 });
+  const access = await requireLocationScopedStoreAccess(localInterview.storeId, "interviews.delete");
+  requireLocationInScope(detail.job?.location || detail.profile?.location, access.locationIds, "interviews.delete");
   const interview = getApplicantStore().updateInterview({
     interviewId: params.id,
     status: "cancelled",

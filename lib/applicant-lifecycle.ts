@@ -5,7 +5,7 @@ import { FitTier, Mix, ProfileCode } from "./gemmatch";
 
 export type PublicPageStatus = "draft" | "published" | "paused";
 export type PublicJobStatus = "draft" | "open" | "paused" | "closed";
-export type ApplicationSource = "public_store_page" | "manual_store_entry" | "referral";
+export type ApplicationSource = "public_store_page" | "manual_store_entry" | "referral" | "admin_import" | "jewellink_employee";
 export type ApplicationStage = "applied" | "jewelcert" | "gemmatch" | "interview" | "offer" | "hired" | "rejected" | "withdrawn";
 export type InviteStatus = "draft" | "sent" | "started" | "completed" | "expired" | "cancelled";
 export type InterviewStatus = "scheduled" | "completed" | "cancelled" | "no_show";
@@ -68,6 +68,18 @@ export interface ApplicantResumeRecord {
   portfolioLinks: string[];
   courseCredentialIds: string[];
   updatedAt: string;
+}
+
+export interface ApplicationAttachmentRecord {
+  id: string;
+  applicationId: string;
+  storeId: string;
+  kind: "resume";
+  originalFilename: string;
+  mimeType: "application/pdf" | "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  fileSizeBytes: number;
+  sha256: string;
+  createdAt: string;
 }
 
 export interface ApplicationRecord {
@@ -170,7 +182,10 @@ export interface HireToJewelLinkSyncRecord {
   syncStatus: HireSyncStatus;
   payloadSnapshot: {
     fullName: string;
+    email?: string;
+    phone?: string;
     role: string;
+    locationId?: string;
     gemmatchProfile?: ProfileCode;
     courseCredentialIds: string[];
   };
@@ -183,6 +198,7 @@ export interface ApplicationDetail {
   application: ApplicationRecord;
   profile: ApplicantProfileRecord;
   resume?: ApplicantResumeRecord;
+  attachments?: ApplicationAttachmentRecord[];
   job?: PublicJobRecord;
   stageEvents: ApplicationStageEventRecord[];
   jewelcertInvites: JewelCertInviteRecord[];

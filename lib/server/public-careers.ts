@@ -3,32 +3,55 @@
 // server components so the careers page is fully server-rendered — it's the
 // hyperlink store owners embed on their own sites, so it must render real data
 // with no client fetch and no session.
-import { PublicJobRecord, StorePublicPageRecord } from "@/lib/applicant-lifecycle";
-import { getStoreSettings } from "@/lib/local-settings-store";
-import { getPostgresPublicStoreSnapshot } from "@/lib/server/postgres-phase1";
+import { StorePublicPageRecord } from "@/lib/applicant-lifecycle";
+import { getPreviewPublicPage, getPublishedPublicPage } from "@/lib/local-public-page-store";
+import { PublicPageConfig } from "@/lib/public-templates";
+import { getPostgresPreviewPublicPage, getPostgresPublishedPublicPage } from "@/lib/server/postgres-phase1";
+import { verifyPublicPreviewToken } from "@/lib/server/public-preview-token";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
-import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 
-export interface PublicCareersSnapshot {
-  store: { id: string; name: string; slug: string; locationLabel?: string };
-  page: StorePublicPageRecord;
-  jobs: PublicJobRecord[];
+export interface PublicCareersJob {
+  id: string;
+  title: string;
+  location?: string;
+  employmentType?: string;
+  type?: string;
+  compensationSummary?: string;
+  salary?: string;
+  description?: string;
+  blurb?: string;
+  requirements?: string[];
+  openedAt?: string;
 }
 
-export async function getPublicCareersSnapshot(slug: string): Promise<PublicCareersSnapshot | undefined> {
-  if (getStorageRuntime() === "postgres") {
-    const snapshot = await getPostgresPublicStoreSnapshot(slug);
-    if (!snapshot) return undefined;
-    return { store: snapshot.store, page: snapshot.publicPage, jobs: snapshot.jobs };
-  }
+export interface PublicCareersSnapshot {
+  store: { id: string; name: string; slug: string; locationLabel?: string; rating?: number; reviewCount?: number };
+  page: StorePublicPageRecord;
+  jobs: PublicCareersJob[];
+  config: PublicPageConfig;
+  isPreview: boolean;
+}
 
-  const applicantStore = getApplicantStore();
-  const page = applicantStore.getPublishedPublicPage(slug);
-  if (!page) return undefined;
-  const company = getStoreSettings(page.storeId).organization.company?.trim();
+export async function getPublicCareersSnapshot(slug: string, previewToken?: string): Promise<PublicCareersSnapshot | undefined> {
+  const preview = previewToken ? verifyPublicPreviewToken(previewToken, slug) : undefined;
+  if (previewToken && !preview) return undefined;
+  const view = getStorageRuntime() === "postgres"
+    ? preview ? await getPostgresPreviewPublicPage(slug) : await getPostgresPublishedPublicPage(slug)
+    : preview ? getPreviewPublicPage(slug) : getPublishedPublicPage(slug);
+  if (!view) return undefined;
+  if (preview && preview.storeId !== view.page.storeId) return undefined;
   return {
-    store: { id: page.storeId, name: company || page.headline, slug: page.slug },
-    page,
-    jobs: applicantStore.getOpenJobsForStore(page.storeId),
+    store: {
+      id: view.page.storeId,
+      name: view.store.name,
+      slug: view.page.slug,
+      locationLabel: view.store.location,
+      rating: view.store.rating,
+      reviewCount: view.store.reviewCount,
+    },
+    page: view.page,
+    jobs: view.jobs,
+    config: view.config,
+    isPreview: Boolean(preview),
   };
 }

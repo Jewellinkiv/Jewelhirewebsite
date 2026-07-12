@@ -99,6 +99,12 @@ export interface TestScore { name: string; score: number; label: string; }
 
 export interface ApplicantProfile {
   about: string;
+  headline?: string;
+  phone?: string;
+  location?: string;
+  skills?: string[];
+  experience?: string[];
+  education?: string[];
   applications: AppHistory[]; // newest first
   gemmatch?: {
     type: string;

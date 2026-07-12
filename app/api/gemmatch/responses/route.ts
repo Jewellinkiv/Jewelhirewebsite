@@ -7,6 +7,7 @@ import { getStorageRuntime } from "@/lib/server/storage-runtime";
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 import { getApplicationDetail, getGemMatchInviteScope } from "@/lib/local-api-store";
 import { listStoreUsers } from "@/lib/local-settings-store";
+import { syncPostgresJewelCertResultToJewelLink } from "@/lib/server/jewellink-integration";
 
 // Resolve the store's manager contact in the in-memory runtime so the manager
 // JewelCert-completed email fires in local too (mirrors the postgres notification
@@ -98,5 +99,8 @@ export const POST = withApiErrorHandling(async function POST(request: Request) {
   // candidate + manager "assessment completed" emails (same idempotency guard
   // the hire route uses for its "you've been hired" email).
   const notifications = result.wasAlreadyCompleted ? [] : await notifyCompletion(context);
-  return NextResponse.json({ ...result, notifications });
+  const jewelLinkSync = isPostgres && result.invite?.id
+    ? await syncPostgresJewelCertResultToJewelLink(result.invite.id)
+    : undefined;
+  return NextResponse.json({ ...result, notifications, jewelLinkSync });
 });

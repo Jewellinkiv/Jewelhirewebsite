@@ -1,4 +1,8 @@
 import { signInviteClaim } from "@/lib/server/invite-claim";
+import {
+  applicantAllowsNotification,
+  ApplicantNotificationCategory,
+} from "@/lib/server/notification-preferences";
 
 type NotificationTemplate =
   | "public_application_confirmation"
@@ -34,6 +38,17 @@ type NotificationResult = {
 };
 
 const POSTMARK_API_URL = "https://api.postmarkapp.com/email";
+
+const APPLICANT_PREFERENCE_BY_TEMPLATE: Partial<
+  Record<NotificationTemplate, ApplicantNotificationCategory>
+> = {
+  jewelcert_invite: "invites",
+  interview_scheduled: "interviews",
+  public_application_confirmation: "status",
+  assessment_completed: "status",
+  candidate_hired: "status",
+  training_assignment: "status",
+};
 
 function emailNotificationsEnabled() {
   return process.env.EMAIL_NOTIFICATIONS_ENABLED === "true";
@@ -101,6 +116,14 @@ export async function sendNotification(input: SendNotificationInput): Promise<No
   const toEmail = normalizeEmail(input.to.email);
   if (!toEmail || !toEmail.includes("@")) {
     return { status: "skipped", provider: "postmark", reason: "missing_recipient" };
+  }
+
+  const preferenceCategory = APPLICANT_PREFERENCE_BY_TEMPLATE[input.template];
+  if (
+    preferenceCategory &&
+    !(await applicantAllowsNotification({ email: toEmail, category: preferenceCategory }))
+  ) {
+    return { status: "skipped", provider: "postmark", reason: "recipient_opted_out" };
   }
 
   const runtime = notificationRuntimeStatus();
@@ -369,24 +392,39 @@ export async function notifyStoreOwnerClaim(input: {
   companyName?: string | null;
   token: string;
   existingAccount?: boolean;
+  accessRecovery?: boolean;
 }) {
   const name = input.name?.trim() || "there";
   const companyName = input.companyName?.trim() || "your store";
   const claimUrl = `${appUrl()}/claim-account?token=${encodeURIComponent(input.token)}`;
+  const accessRecovery = input.accessRecovery === true;
   return sendNotification({
     template: "store_owner_claim",
     to: { email: input.toEmail, name },
-    subject: `Your JewelHire store for ${companyName} is ready`,
-    textBody: [
-      `Hi ${name},`,
-      `Thanks for subscribing — ${companyName} is set up on JewelHire. Use the link below to set your password and sign in. It expires in 3 days and can only be used once.`,
-      claimUrl,
-      input.existingAccount
-        ? "You already had a JewelHire account with this email; setting a password here activates your new store."
-        : "If you didn't create this account, you can ignore this email.",
-    ].join("\n\n"),
-    tag: "store-owner-claim",
-    metadata: { companyName, existingAccount: input.existingAccount || false },
+    subject: accessRecovery
+      ? `Restore your JewelHire access to ${companyName}`
+      : `Your JewelHire store for ${companyName} is ready`,
+    textBody: accessRecovery
+      ? [
+          `Hi ${name},`,
+          `Your ${companyName} data is still safely retained in JewelHire. Use the secure link below to set a password and return to your existing account. It expires in 3 days and can only be used once.`,
+          claimUrl,
+          "This link does not create a new company or duplicate your data. If you did not request access, you can safely ignore this email.",
+        ].join("\n\n")
+      : [
+          `Hi ${name},`,
+          `Thanks for subscribing — ${companyName} is set up on JewelHire. Use the link below to set your password and sign in. It expires in 3 days and can only be used once.`,
+          claimUrl,
+          input.existingAccount
+            ? "You already had a JewelHire account with this email; setting a password here activates your new store."
+            : "If you didn't create this account, you can ignore this email.",
+        ].join("\n\n"),
+    tag: accessRecovery ? "store-owner-access-recovery" : "store-owner-claim",
+    metadata: {
+      companyName,
+      existingAccount: input.existingAccount || false,
+      accessRecovery,
+    },
   });
 }
 
