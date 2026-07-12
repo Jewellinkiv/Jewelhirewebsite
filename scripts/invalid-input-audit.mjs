@@ -58,6 +58,8 @@ async function main() {
     method: "POST",
     body: JSON.stringify({
       jobId: "job-luxury-sales-associate",
+      legalConsent: true,
+      legalPolicyVersion: "2026-07-11",
       profile: { email: "not-an-email" },
     }),
   });
@@ -73,6 +75,8 @@ async function main() {
     method: "POST",
     body: JSON.stringify({
       jobId: "job-does-not-exist",
+      legalConsent: true,
+      legalPolicyVersion: "2026-07-11",
       profile: { name: "QA Invalid Job", email: "qa-invalid-job@example.invalid" },
     }),
   });
@@ -88,6 +92,8 @@ async function main() {
     method: "POST",
     body: JSON.stringify({
       jobId: "job-luxury-sales-associate",
+      legalConsent: true,
+      legalPolicyVersion: "2026-07-11",
       profile: { name: "QA Unknown Store", email: "qa-unknown-store@example.invalid" },
     }),
   });

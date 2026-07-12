@@ -133,11 +133,11 @@ async function auditFirebaseSetup() {
 
 async function main() {
   record("firebase verifier exists", fileIncludes("lib/server/firebase-auth.ts", ["verifyFirebaseIdToken", "securetoken@system.gserviceaccount.com"]));
-  record("firebase session route exists", fileIncludes("app/api/auth/firebase/session/route.ts", ["verifyFirebaseIdToken", "SESSION_COOKIE"]));
+  record("firebase session route exists", fileIncludes("app/api/auth/firebase/session/route.ts", ["verifyFirebaseIdToken", "setSessionCookie"]));
   record("login renders firebase button component", fileIncludes("app/(auth)/login/page.tsx", ["FirebaseGoogleButton", "firebaseClientConfig"]));
   record("login renders standard email password form", fileIncludes("app/(auth)/login/page.tsx", ["password-login-form", "/api/auth/password/session", "Sign in with email"]));
   record("password credential storage exists", fileIncludes("db/migrations/0003_password_credentials.sql", ["password_credentials", "password_hash"]));
-  record("password session route exists", fileIncludes("app/api/auth/password/session/route.ts", ["loginWithPassword", "SESSION_COOKIE"]));
+  record("password session route exists", fileIncludes("app/api/auth/password/session/route.ts", ["loginWithPassword", "setSessionCookie"]));
   record("password login routes admins to admin panel by default", fileIncludes("app/api/auth/password/session/route.ts", ["destinationForSession", "session.role === \"admin\"", "\"/admin\""]));
   record("root dashboard redirects admin sessions", fileIncludes("app/(store)/page.tsx", ["router.replace(\"/admin\")", "session.role === \"admin\""]));
   await auditFirebaseSetup();

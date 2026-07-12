@@ -75,6 +75,9 @@ async function main() {
     sourceContains(/handleStripeBillingEvent[\s\S]*recordStripeBillingAudit/i, ["lib/server"]) &&
     sourceContains(/provider_subscription_id[\s\S]*(subscriptions|invoice|invoices)|insert into invoices/i, ["lib/server"]) &&
     sourceContains(/admin_audit_entries[\s\S]*stripe-event-/i, ["lib/server"]);
+  const hasWebhookNotificationDedupe =
+    sourceContains(/duplicate_stripe_event/, ["lib/server"]) &&
+    sourceContains(/on conflict \(id\) do nothing[\s\S]*returning id/i, ["lib/server"]);
 
   record("stripe dependency or manual webhook verifier present", hasStripeDependency || hasManualWebhookVerifier || !hasWebhookRoute, {
     status: hasStripeDependency ? "stripe_sdk_present" : hasManualWebhookVerifier ? "manual_hmac_verifier_present" : "not_required_until_webhook_route_exists",
@@ -84,11 +87,13 @@ async function main() {
   record("stripe webhook secret env is referenced by readiness/security surface", hasWebhookSecretEnv);
   record("stripe webhook route implemented", hasWebhookRoute, { requiredForLaunch: true });
   record("stripe webhook reconciliation is implemented", hasWebhookReconciliation, { requiredForLaunch: true });
+  record("stripe webhook notifications are idempotent", hasWebhookNotificationDedupe, { requiredForLaunch: true });
   record("store-owner billing checkout route implemented", hasStoreCheckoutRoute, { requiredForLaunch: true });
   record("discount or promotion-code support implemented", hasDiscountMarkers, { requiredForLaunch: true });
 
   if (!hasWebhookRoute) blockers.push("No Stripe webhook route found; billing state cannot be reconciled from Stripe events yet.");
   if (!hasWebhookReconciliation) blockers.push("Stripe webhook route exists but does not reconcile billing and audit records yet.");
+  if (!hasWebhookNotificationDedupe) blockers.push("Stripe event redelivery can resend billing notifications.");
   if (!hasStoreCheckoutRoute) blockers.push("No protected store-owner billing checkout route found.");
   if (!hasDiscountMarkers) blockers.push("No Stripe coupon/promotion-code support found; discount codes still need implementation.");
   if (!hasPaymentLinkEnv) warnings.push("No STRIPE_STORE_OWNER_PAYMENT_LINK reference found.");

@@ -28,29 +28,33 @@ function read(relativePath) {
   return fs.readFileSync(path.resolve(process.cwd(), relativePath), "utf8");
 }
 
-function containsSignupCta(text) {
-  return /\b(sign up|signup|register|create account|create your account|start free)\b/i.test(text);
-}
-
 async function main() {
   const loginSource = read("app/(auth)/login/page.tsx");
-  const handoff = read("docs/qa-tester-handoff.md");
-  const launchReport = read("docs/launch-gap-report.md");
+  const applicantPage = read("app/(auth)/signup/page.tsx");
+  const storePage = read("app/(auth)/signup/store/page.tsx");
+  const applicantRoute = read("app/api/auth/applicant-signup/route.ts");
+  const storeRoute = read("app/api/auth/store-signup/route.ts");
   const liveSignup = await fetch(`${BASE}/signup`, { redirect: "manual" });
+  const liveStoreSignup = await fetch(`${BASE}/signup/store`, { redirect: "manual" });
   const liveLogin = await fetch(`${BASE}/login`, { redirect: "manual" });
   const liveLoginText = await liveLogin.text();
+  const livePrivacy = await fetch(`${BASE}/privacy`, { redirect: "manual" });
+  const liveTerms = await fetch(`${BASE}/terms`, { redirect: "manual" });
 
-  record("handoff states public signup disabled", /Public self-serve signup is not enabled for this build/i.test(handoff));
-  record("launch report states invite/admin-created launch stance", /invite\/admin-created/i.test(launchReport));
-  record("no app signup page exists", !exists("app/signup/page.tsx") && !exists("app/(auth)/signup/page.tsx"));
-  record("no app register page exists", !exists("app/register/page.tsx") && !exists("app/(auth)/register/page.tsx"));
-  record("no signup api route exists", !exists("app/api/signup/route.ts") && !exists("app/api/auth/signup/route.ts"));
-  record("login source has no public signup CTA", !containsSignupCta(loginSource));
-  record("live login has no public signup CTA", !containsSignupCta(liveLoginText), { status: liveLogin.status });
-  record("live signup is not public", liveSignup.status >= 300 && liveSignup.status < 500, {
-    status: liveSignup.status,
-    location: liveSignup.headers.get("location") || "",
-  });
+  record("applicant signup page exists", exists("app/(auth)/signup/page.tsx"));
+  record("paid store signup page exists", exists("app/(auth)/signup/store/page.tsx"));
+  record("applicant signup api exists", exists("app/api/auth/applicant-signup/route.ts"));
+  record("store signup api exists", exists("app/api/auth/store-signup/route.ts"));
+  record("login source links both signup paths", loginSource.includes('href="/signup"') && loginSource.includes('href="/signup/store"'));
+  record("applicant signup enforces rate limit and password policy", applicantRoute.includes("enforceRateLimit") && applicantRoute.includes("isStrongPassword"));
+  record("applicant signup blocks managed admin emails", applicantRoute.includes("isConfiguredAdminEmail"));
+  record("store provisioning waits for payment", storeRoute.includes("createPendingStoreSignup") && storePage.includes("only after payment confirms"));
+  record("signup flows require and record legal consent", [applicantPage, storePage].every((text) => text.includes("legalAccepted")) && [applicantRoute, storeRoute].every((text) => text.includes("recordLegalConsent")));
+  record("live login advertises public signup", /Create an applicant account/i.test(liveLoginText) && /Start your store on JewelHire/i.test(liveLoginText), { status: liveLogin.status });
+  record("live applicant signup is public", liveSignup.status === 200, { status: liveSignup.status });
+  record("live store signup is public", liveStoreSignup.status === 200, { status: liveStoreSignup.status });
+  record("live privacy policy is public", livePrivacy.status === 200, { status: livePrivacy.status });
+  record("live terms are public", liveTerms.status === 200, { status: liveTerms.status });
 
   const failures = checks.filter((check) => !check.pass);
   fs.mkdirSync(OUT, { recursive: true });
@@ -64,7 +68,7 @@ async function main() {
       `Created: ${new Date().toISOString()}`,
       `Failures: ${failures.length}`,
       "",
-      "Launch stance: public self-serve signup is disabled; accounts are invite/admin-created with password credentials.",
+      "Launch stance: applicant self-service signup and payment-gated store signup are enabled, rate-limited, and consent-gated.",
       "",
       ...checks.map((check) => `- ${check.pass ? "PASS" : "FAIL"} ${check.name}`),
     ].join("\n"),

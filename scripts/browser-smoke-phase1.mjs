@@ -42,7 +42,7 @@ const routeGroups = [
       "/interviews",
       "/send-jewelcert",
       "/cert-invitations",
-      "/gemmatch",
+      "/jewelcert",
       "/team",
       "/team-map",
       "/roster",
@@ -56,7 +56,9 @@ const routeGroups = [
   {
     label: "applicant",
     routes: [
-      "/apply/luxury-sales-associate",
+      "/careers/sissys-log-cabin-careers/apply/job-luxury-sales-associate",
+      "/privacy",
+      "/terms",
       "/portal",
       "/portal/applications",
       "/portal/invites",
@@ -288,6 +290,7 @@ function startDevServer() {
       ...(mode === "postgres"
         ? { JEWELHIRE_STORAGE: "postgres", JEWELHIRE_ENABLE_SESSION_OVERRIDE: "1" }
         : { JEWELHIRE_STORAGE: "local" }),
+      NEXT_DIST_DIR: ".next-qa",
       PORT: String(port),
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -408,7 +411,9 @@ async function loadRoute(page, route, label, viewport) {
 
 async function routeSmoke(page) {
   for (const group of routeGroups) {
-    await page.setExtraHTTPHeaders(group.label === "admin" ? adminHeaders() : group.label === "store" ? storeHeaders() : {});
+    await page.setExtraHTTPHeaders(
+      group.label === "admin" ? adminHeaders() : group.label === "store" ? storeHeaders() : applicantHeaders(),
+    );
     for (const route of group.routes) {
       await loadRoute(page, route, group.label, desktop);
       await loadRoute(page, route, group.label, mobile);
@@ -418,25 +423,23 @@ async function routeSmoke(page) {
 }
 
 async function publicApplyFlow(page) {
+  await page.setExtraHTTPHeaders({});
   const suffix = Date.now().toString(36);
   await page.setViewportSize(desktop);
-  await page.goto(`${baseUrl}/apply/luxury-sales-associate`, { waitUntil: "networkidle" });
-  await fillField(page, "Full name", `Browser Applicant ${suffix}`);
-  await fillField(page, "Email", `browser-applicant-${suffix}@example.com`);
+  await page.goto(`${baseUrl}/careers/${PUBLIC_STORE_SLUG}/apply/job-luxury-sales-associate`, { waitUntil: "networkidle" });
+  await fillField(page, "Full name *", `Browser Applicant ${suffix}`);
+  await fillField(page, "Email *", `browser-applicant-${suffix}@example.com`);
   await fillField(page, "Phone", "555-0160");
   await fillField(page, "Location", "Little Rock, AR");
-  await fillField(page, "Resume headline", "Browser QA jewelry applicant");
-  await page.getByRole("button", { name: /Continue/i }).click();
-  await fillField(page, "Professional summary", "Browser smoke candidate for the public apply flow.");
-  await fillField(page, "Skills", "Clienteling, bridal sales, CRM");
-  await page.getByRole("button", { name: /Continue/i }).click();
+  await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: /Submit application/i }).click();
-  await page.getByText("Application submitted!").waitFor({ timeout: 20000 });
+  await page.getByText("Application sent").waitFor({ timeout: 20000 });
   await screenshot(page, "flow-public-apply-submitted");
   console.log("ok flow public apply");
 }
 
 async function storeInterviewFlow(page) {
+  await page.setExtraHTTPHeaders(storeHeaders());
   const suffix = Date.now().toString(36);
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   await page.setViewportSize(desktop);
@@ -456,6 +459,7 @@ async function storeInterviewFlow(page) {
 }
 
 async function adminCompanyFlow(page) {
+  await page.setExtraHTTPHeaders(adminHeaders());
   const suffix = Date.now().toString(36);
   await page.setViewportSize(desktop);
   await page.setExtraHTTPHeaders(adminHeaders());
@@ -476,6 +480,7 @@ async function adminCompanyFlow(page) {
 }
 
 async function applicantPortalFlow(page) {
+  await page.setExtraHTTPHeaders(applicantHeaders());
   await page.setViewportSize(desktop);
   await page.goto(`${baseUrl}/portal/resume`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "Resume" }).waitFor();
@@ -530,6 +535,10 @@ function adminHeaders() {
   return sessionOverrideAvailable ? { "x-jewelhire-session": "admin" } : {};
 }
 
+function applicantHeaders() {
+  return sessionOverrideAvailable ? { "x-jewelhire-session": "applicant" } : {};
+}
+
 function applicationSummaryId(item) {
   return item?.id || item?.application?.id;
 }
@@ -541,6 +550,8 @@ async function createWorkflowApplication(request) {
     await request.post(`${baseUrl}/api/public/stores/${PUBLIC_STORE_SLUG}/applications`, {
       data: {
         jobId: "luxury-sales-associate",
+        legalConsent: true,
+        legalPolicyVersion: "2026-07-11",
         profile: {
           name: `Workflow Applicant ${suffix}`,
           email,
@@ -565,12 +576,12 @@ async function createWorkflowApplication(request) {
   if (!search.items?.some((item) => applicationSummaryId(item) === created.applicationId) && Number(search.count || 0) < 1) {
     throw new Error(`Created workflow application was not visible in store search for ${email}`);
   }
-  return { applicationId: created.applicationId, email };
+  return { applicationId: created.applicationId, applicantProfileId: created.profile?.id, email };
 }
 
 async function workflowApiChecks(request) {
   const suffix = Date.now().toString(36);
-  const { applicationId } = await createWorkflowApplication(request);
+  const { applicationId, applicantProfileId } = await createWorkflowApplication(request);
 
   const filtered = await expectOk(
     await request.get(`${baseUrl}/api/stores/${STORE_ID}/applications?q=workflow&stage=applied`, {
@@ -694,10 +705,27 @@ async function workflowApiChecks(request) {
   const courseQuestions = courseTest.test?.questions || courseTest.questions || [];
   const courseAnswers = courseQuestions.map((question) => ({ questionId: question.id, answerIndex: 0 }));
   if (!courseAnswers.length) throw new Error("Course completion test did not expose learner questions");
+  if (!applicantProfileId) throw new Error("Workflow public application did not return an applicant profile id");
+  const courseAssignment = await expectOk(
+    await request.post(`${baseUrl}/api/course-assignments`, {
+      headers: storeHeaders(),
+      data: {
+        storeId: STORE_ID,
+        courseSlug: "four-cs",
+        recipientIds: [applicantProfileId],
+        packageName: `Browser workflow package ${suffix}`,
+        source: "manager",
+      },
+    }),
+    "course assignment create",
+  );
+  const courseAssignmentId = courseAssignment.assignments?.[0]?.id;
+  if (!courseAssignmentId) throw new Error("Course assignment create did not return an assignment id");
   const courseAttempt = await expectOk(
     await request.post(`${baseUrl}/api/courses/four-cs/completion-test/attempts`, {
+      headers: storeHeaders(),
       data: {
-        recipientId: `browser-workflow-${suffix}@example.com`,
+        assignmentId: courseAssignmentId,
         answers: courseAnswers,
       },
     }),

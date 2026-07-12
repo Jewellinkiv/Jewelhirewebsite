@@ -25,6 +25,8 @@ const BROWSER = args.get("browser") || process.env.JEWELHIRE_QA_BROWSER || "webk
 const TS = new Date().toISOString().replace(/[:.]/g, "-");
 const OUT = path.resolve(process.cwd(), args.get("artifacts") || `docs/qa-runs/live-${TS}`);
 const SHOTS = path.join(OUT, "screenshots");
+const PUBLIC_CAREERS_PATH = "/careers/sissys-log-cabin-careers";
+const PUBLIC_APPLY_PATH = `${PUBLIC_CAREERS_PATH}/apply/job-luxury-sales-associate`;
 
 const desktop = { width: 1440, height: 1000 };
 const mobile = devices["iPhone 13"].viewport;
@@ -114,7 +116,7 @@ async function verifyViewport(browser, viewport, label) {
   const loginBody = await page.locator("body").innerText().catch(() => "");
   record(`${label} login renders JewelHire`, /JewelHire|Sign in|Google/i.test(loginBody), { bodySample: loginBody.slice(0, 160) });
 
-  const applyResponse = await page.goto(`${BASE}/apply/job-luxury-sales-associate`, { waitUntil: "networkidle", timeout: 45_000 }).catch((error) => {
+  const applyResponse = await page.goto(`${BASE}${PUBLIC_APPLY_PATH}`, { waitUntil: "networkidle", timeout: 45_000 }).catch((error) => {
     fail(`${label} public apply load: ${error}`);
     return null;
   });
@@ -145,7 +147,10 @@ async function run() {
   const context = await browser.newContext({ ignoreHTTPSErrors: true });
   await requestCheck(context, "root redirects to login", "/", 307, ({ response }) => response.headers()["location"]?.startsWith("/login"));
   await requestCheck(context, "login is public", "/login", 200);
-  await requestCheck(context, "public apply is public", "/apply/job-luxury-sales-associate", 200);
+  await requestCheck(context, "public careers is public", PUBLIC_CAREERS_PATH, 200);
+  await requestCheck(context, "public apply is public", PUBLIC_APPLY_PATH, 200);
+  await requestCheck(context, "privacy policy is public", "/privacy", 200);
+  await requestCheck(context, "terms are public", "/terms", 200);
   await requestCheck(context, "api me requires auth", "/api/me", 401, ({ body }) => body?.error?.code === "unauthenticated");
   await requestCheck(
     context,

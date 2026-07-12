@@ -5,7 +5,13 @@ import typescript from "eslint-config-next/typescript";
 // spread them directly (no FlatCompat bridge).
 const eslintConfig = [
   {
-    ignores: [".next/**", "node_modules/**", "public/**", "docs/**", "scratchpad/**"],
+    ignores: [
+      ".next*/**",
+      "node_modules/**",
+      "public/**",
+      "docs/**",
+      "scratchpad/**",
+    ],
   },
   ...coreWebVitals,
   ...typescript,

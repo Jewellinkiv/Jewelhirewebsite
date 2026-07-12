@@ -135,7 +135,7 @@ async function main() {
 
   const emailFlag = byName.get("EMAIL_NOTIFICATIONS_ENABLED");
   const emailEnabled = String(emailFlag?.value || "").toLowerCase() === "true";
-  record("live email sends remain intentionally disabled", !emailEnabled || ALLOW_LIVE_EMAIL_SENDS, {
+  record(emailEnabled ? "live email sends are explicitly acknowledged" : "live email sends remain intentionally disabled", !emailEnabled || ALLOW_LIVE_EMAIL_SENDS, {
     enabled: emailEnabled,
     allowOverride: ALLOW_LIVE_EMAIL_SENDS,
   });
