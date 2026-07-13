@@ -307,6 +307,9 @@ The exact rebaseline and validation evidence is recorded in
 `docs/jewellink-main-rebaseline-2026-07-13.md`. Production revision/baseline
 confirmation remains a separate read-only gate before cutover.
 
+The staged publication, dark-launch, pilot, and rollback sequence is recorded
+in `docs/jewelhire-integration-safe-promotion-plan.md`.
+
 Exit criteria:
 
 - The large JewelLink merge is on `main`.
