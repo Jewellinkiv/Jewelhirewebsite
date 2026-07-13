@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import { getSessionContext, requireStoreAccess } from "@/lib/server/access-control";
+import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
+import { requireLocationInScope } from "@/lib/server/location-scope";
 import { getPostgresApplicationDetail, getPostgresApplicationStoreId, getPostgresHirePreview, getPostgresHireSyncForApplication, hirePostgresApplication } from "@/lib/server/postgres-phase1";
 import { notifyCandidateHired } from "@/lib/server/notifications";
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
 import { getApplicationDetail, getHireSyncForApplication } from "@/lib/local-api-store";
+import { syncPostgresHireToJewelLink } from "@/lib/server/jewellink-integration";
 
 async function notifyHire(
   detail: { profile?: { fullName?: string | null; email?: string | null } | null; job?: { title?: string | null } | null } | undefined,
@@ -34,7 +36,10 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
   if (getStorageRuntime() === "postgres") {
     const storeId = await getPostgresApplicationStoreId(params.id);
     if (!storeId) return NextResponse.json({ error: "Application not found" }, { status: 404 });
-    await requireStoreAccess(storeId, "hire.confirm");
+    const access = await requireLocationScopedStoreAccess(storeId, "hire.confirm");
+    const current = await getPostgresApplicationDetail({ applicationId: params.id, storeId });
+    requireLocationInScope(current?.job?.location || current?.profile?.location, access.locationIds, "hire.confirm");
+    requireLocationInScope(body?.locationId || current?.job?.location, access.locationIds, "hire.confirm.target");
     // hirePostgresApplication is idempotent — a repeat POST returns the existing sync
     // instead of creating one. Only fire the "you've been hired" email when THIS call
     // actually performs a new hire, so repeat POSTs don't re-notify the candidate.
@@ -47,6 +52,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
       locationId: body?.locationId,
     });
     if (!sync) return NextResponse.json({ error: "Application not found" }, { status: 404 });
+    const provisionedSync = await syncPostgresHireToJewelLink(params.id);
     const detail = alreadyHired
       ? undefined
       : await getPostgresApplicationDetail({ applicationId: params.id, storeId }).catch(() => undefined);
@@ -54,7 +60,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
       ? undefined
       : await notifyHire(detail, { applicationId: params.id, storeId, role: body?.role });
     return NextResponse.json({
-      hireSync: sync,
+      hireSync: provisionedSync || sync,
       preview: await getPostgresHirePreview({
         applicationId: params.id,
         storeId,
@@ -66,6 +72,11 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
   }
 
   const store = getApplicantStore();
+  const current = getApplicationDetail(params.id);
+  if (!current) return NextResponse.json({ error: "Application not found" }, { status: 404 });
+  const access = await requireLocationScopedStoreAccess(current.application.storeId, "hire.confirm");
+  requireLocationInScope(current.job?.location || current.profile?.location, access.locationIds, "hire.confirm");
+  requireLocationInScope(body?.locationId || current.job?.location, access.locationIds, "hire.confirm.target");
   // Same idempotency guard as the postgres branch: hireApplication returns the existing
   // sync on a repeat POST, so only notify when this call is a genuinely new hire.
   const alreadyHired = Boolean(getHireSyncForApplication(params.id));
@@ -76,7 +87,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
   });
 
   if (!sync) return NextResponse.json({ error: "Application not found" }, { status: 404 });
-  const detail = alreadyHired ? undefined : getApplicationDetail(params.id);
+  const detail = alreadyHired ? undefined : current;
   const notification = alreadyHired
     ? undefined
     : await notifyHire(detail, {

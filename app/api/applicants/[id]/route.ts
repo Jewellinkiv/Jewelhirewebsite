@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { activeStoreId, requireStoreAccess } from "@/lib/server/access-control";
+import { activeStoreId, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
+import { requireLocationInScope } from "@/lib/server/location-scope";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { getPostgresStoreApplicantDetail } from "@/lib/server/postgres-phase1";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
@@ -9,14 +10,16 @@ export const dynamic = "force-dynamic";
 
 export const GET = withApiErrorHandling(async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
+  const access = await requireLocationScopedStoreAccess(await activeStoreId(), "applicants.detail");
   const detail =
     getStorageRuntime() === "postgres"
       ? await getPostgresStoreApplicantDetail(
           params.id,
-          await requireStoreAccess(await activeStoreId(), "applicants.detail"),
+          access.storeId,
         )
-      : getApplicantStore().getStoreApplicantDetail(params.id);
+      : await getApplicantStore().getStoreApplicantDetail(params.id);
 
   if (!detail) return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
+  requireLocationInScope(detail.job?.location || detail.profile.location, access.locationIds, "applicants.detail");
   return NextResponse.json(detail);
 });

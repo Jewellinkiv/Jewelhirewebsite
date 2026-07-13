@@ -162,14 +162,18 @@ function main() {
   const triggers = EXPECTED_TRIGGERS.map((trigger) => triggerStatus(sources, trigger));
   const emailsEnabledInSource = fullText.includes("EMAIL_NOTIFICATIONS_ENABLED");
   const hasSendAdapter = adapterEvidence.length > 0;
+  const preferenceEnforcement =
+    fullText.includes("applicantAllowsNotification") &&
+    fullText.includes("recipient_opted_out") &&
+    fullText.includes("APPLICANT_PREFERENCE_BY_TEMPLATE");
   const blockers = [];
   const warnings = [];
 
   if (!hasSendAdapter) {
     blockers.push("No Postmark or SMTP send adapter was found in source; keep live email sends disabled.");
   }
-  if (promiseEvidence.some((hit) => /\bemailed\b/i.test(hit.text))) {
-    warnings.push("Some UI/docs still use past-tense emailed language; verify it is only in historical docs or tests.");
+  if (!preferenceEnforcement) {
+    blockers.push("Applicant notification preferences are not enforced by the central send adapter.");
   }
   for (const trigger of triggers) {
     if (!trigger.sourcePresent) warnings.push(`No source marker found for expected notification trigger: ${trigger.label}.`);
@@ -189,6 +193,7 @@ function main() {
     mode: "static",
     liveSendSafety: "No emails are sent by this audit.",
     hasSendAdapter,
+    preferenceEnforcement,
     adapterEvidence,
     promiseEvidence,
     triggers,
@@ -208,6 +213,7 @@ function main() {
       "Live send safety: no emails are sent by this audit.",
       "",
       `Send adapter found: ${hasSendAdapter ? "yes" : "no"}`,
+      `Applicant preferences enforced: ${preferenceEnforcement ? "yes" : "no"}`,
       `Blockers: ${blockers.length}`,
       `Warnings: ${warnings.length}`,
       "",

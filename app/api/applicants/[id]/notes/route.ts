@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSessionContext, requireStoreAccess } from "@/lib/server/access-control";
+import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
+import { requireLocationInScope } from "@/lib/server/location-scope";
 import {
   addPostgresApplicantNote,
+  getPostgresApplicationDetail,
   listPostgresApplicantNotes,
   resolvePostgresApplicantApplication,
 } from "@/lib/server/postgres-phase1";
@@ -16,11 +18,17 @@ export const GET = withApiErrorHandling(async function GET(_request: Request, pr
   if (getStorageRuntime() === "postgres") {
     const scope = await resolvePostgresApplicantApplication(params.id);
     if (!scope) return NextResponse.json({ items: [] });
-    await requireStoreAccess(scope.storeId, "applicant_notes.list");
+    const access = await requireLocationScopedStoreAccess(scope.storeId, "applicant_notes.list");
+    const detail = await getPostgresApplicationDetail(scope);
+    requireLocationInScope(detail?.job?.location || detail?.profile?.location, access.locationIds, "applicant_notes.list");
     return NextResponse.json({ items: await listPostgresApplicantNotes(scope.applicationId) });
   }
 
-  return NextResponse.json({ items: await getApplicantStore().listScopedApplicantNotes(params.id) });
+  const detail = await getApplicantStore().getStoreApplicantDetail(params.id);
+  if (!detail) return NextResponse.json({ items: [] });
+  const access = await requireLocationScopedStoreAccess(detail.application.storeId, "applicant_notes.list");
+  requireLocationInScope(detail.job?.location || detail.profile.location, access.locationIds, "applicant_notes.list");
+  return NextResponse.json({ items: getApplicantStore().listApplicantNotes(params.id) });
 });
 
 export const POST = withApiErrorHandling(async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
@@ -33,7 +41,9 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
   if (getStorageRuntime() === "postgres") {
     const scope = await resolvePostgresApplicantApplication(params.id);
     if (!scope) return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
-    await requireStoreAccess(scope.storeId, "applicant_notes.create");
+    const access = await requireLocationScopedStoreAccess(scope.storeId, "applicant_notes.create");
+    const detail = await getPostgresApplicationDetail(scope);
+    requireLocationInScope(detail?.job?.location || detail?.profile?.location, access.locationIds, "applicant_notes.create");
     const note = await addPostgresApplicantNote({
       applicationId: scope.applicationId,
       storeId: scope.storeId,
@@ -45,7 +55,11 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
     return NextResponse.json({ note }, { status: 201 });
   }
 
-  const note = await getApplicantStore().addScopedApplicantNote({ applicantId: params.id, body: text, noteType });
+  const detail = await getApplicantStore().getStoreApplicantDetail(params.id);
+  if (!detail) return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
+  const access = await requireLocationScopedStoreAccess(detail.application.storeId, "applicant_notes.create");
+  requireLocationInScope(detail.job?.location || detail.profile.location, access.locationIds, "applicant_notes.create");
+  const note = getApplicantStore().addApplicantNote({ applicantId: params.id, body: text, noteType });
   if (!note) return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
   return NextResponse.json({ note }, { status: 201 });
 });

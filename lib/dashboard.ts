@@ -85,7 +85,8 @@ export interface CareersAnalytics {
   url: string;
   status: "Published" | "Draft" | "Paused";
   views30d: number;
-  visitors: number;
+  applyStarts: number;
+  submissions: number;
   applyRate: number; // percent
   trend: number[]; // sparkline samples, recent last
 }
@@ -95,7 +96,8 @@ export const CAREERS: CareersAnalytics = {
   url: "jewelhire.co/careers/sissys",
   status: "Published",
   views30d: 1284,
-  visitors: 612,
+  applyStarts: 182,
+  submissions: 25,
   applyRate: 14,
   trend: [32, 28, 30, 22, 24, 16, 18, 9, 6],
 };

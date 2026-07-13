@@ -32,11 +32,12 @@ node scripts/qa-live.mjs --base=https://app.jewelhire.com
    - Must include standard email/password login.
    - Google/Firebase remain fallback sign-in methods.
 3. Invalid email/password attempts reject safely and stay on `app.jewelhire.com`.
-4. Public application pages load.
-5. `/api/me` and private store APIs reject unauthenticated requests.
-6. Google OAuth start redirects to Google.
-7. Firebase session endpoint rejects invalid tokens in the security audit.
-8. Desktop and mobile screenshots render without console errors.
+4. Public careers and application pages load at `/careers/:storeSlug` and `/careers/:storeSlug/apply/:jobId`.
+5. Privacy and Terms pages are public.
+6. `/api/me` and private store APIs reject unauthenticated requests.
+7. Google OAuth start redirects to Google.
+8. Firebase session endpoint rejects invalid tokens in the security audit.
+9. Desktop and mobile screenshots render without console errors.
 
 Current production state as of 2026-07-01:
 

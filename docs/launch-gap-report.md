@@ -52,7 +52,7 @@ Results:
 - Postmark safety passed with live sends disabled during the default QA loop.
 - Billing readiness passed, including Stripe webhook, reconciliation, discount/promotion support, and live auth-boundary checks.
 - Provider handoff audit passed; dashboard verification checklist is documented, forbids live provider actions by default, and links the latest safe Postmark/Billing evidence.
-- Signup policy audit passed; public self-serve signup is disabled for this build and `/signup` is not public.
+- Applicant self-service signup and payment-gated store signup are public, rate-limited, and require versioned legal consent.
 - Manual browser smoke handoff audit passed; role checklist and evidence template are documented.
 - Invalid password attempts redirect back to `https://app.jewelhire.com/login`.
 - Database migration status shows `0001_phase1_core.sql`, `0002_applicant_notification_prefs.sql`, and `0003_password_credentials.sql` applied.
@@ -78,7 +78,7 @@ Results:
 ## Remaining Launch Gaps
 
 1. Rotate smoke/test passwords before handing them to external testers if broader access is needed.
-2. Decide whether a future release adds public self-serve signup. Current launch stance is invite/admin-created accounts only.
+2. Apply `0012_legal_consents.sql`, verify the Privacy Policy/Terms with counsel, and smoke both public signup paths before deployment.
 3. Run manual browser smoke with real testers using `docs/manual-browser-smoke-handoff.md` and the Secret Manager smoke credentials.
 4. Confirm Postmark sender/domain and Stripe products/webhooks in provider dashboards before accepting live customer traffic. Use `docs/provider-readiness-handoff.md`.
 5. Rerun the cloud-backed verification bundle in `docs/cloud-reauth-runbook.md` after any deploy, secret rotation, or provider config change.

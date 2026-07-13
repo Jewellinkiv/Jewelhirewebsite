@@ -129,12 +129,15 @@ export async function handleStripeBillingEvent(event: StripeWebhookEvent) {
   const supported = supportedStripeBillingEventTypes().has(event.type);
   const object = (event.data?.object || {}) as StripeObject;
   const result = supported ? await reconcileStripeBillingObject(event, object) : { reconciled: false, reason: "unsupported_event_type" };
-  await recordStripeBillingAudit(event, object, result);
-  const notification = await notifyStripeBillingChange(event, object, result);
+  const firstDelivery = await recordStripeBillingAudit(event, object, result);
+  const notification = firstDelivery
+    ? await notifyStripeBillingChange(event, object, result)
+    : { status: "skipped" as const, provider: "postmark" as const, reason: "duplicate_stripe_event" };
   return {
     handled: supported,
     eventId: event.id,
     type: event.type,
+    firstDelivery,
     notification,
     ...result,
   };
@@ -463,15 +466,14 @@ async function reconcileStripeInvoiceEvent(event: StripeWebhookEvent, object: St
 }
 
 async function recordStripeBillingAudit(event: StripeWebhookEvent, object: StripeObject, result: Record<string, unknown>) {
-  await getPostgresPool().query(
+  const inserted = await getPostgresPool().query<{ id: string }>(
     `
       insert into admin_audit_entries (
         id, actor_label, action, target_type, target_id, target_label, metadata, created_at
       )
       values ($1, 'stripe', $2, $3, $4, $5, $6::jsonb, now())
-      on conflict (id) do update set
-        metadata = excluded.metadata,
-        created_at = excluded.created_at
+      on conflict (id) do nothing
+      returning id
     `,
     [
       `stripe-event-${event.id}`,
@@ -482,6 +484,7 @@ async function recordStripeBillingAudit(event: StripeWebhookEvent, object: Strip
       JSON.stringify(compactMetadata(event, object, result)),
     ],
   );
+  return Boolean(inserted.rows[0]);
 }
 
 function stripeStoreOwnerPaymentLink() {

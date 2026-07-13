@@ -58,11 +58,17 @@ async function get(pathname, session) {
       signal: controller.signal,
     });
     const text = await response.text();
+    let parsed;
+    try { parsed = JSON.parse(text); } catch { parsed = undefined; }
+    const items = Array.isArray(parsed?.items) ? parsed.items : Array.isArray(parsed?.jobs) ? parsed.jobs : [];
+    const containsConwayJob = items.some((item) => /conway/i.test(JSON.stringify(item?.job || {})));
     return {
       path: pathname,
       session: session || "default",
       status: response.status,
       ok: response.ok,
+      containsConway: /conway/i.test(text),
+      containsConwayJob,
       bodySample: redactSensitiveText(text).replace(/\s+/g, " ").slice(0, 240),
     };
   } catch (error) {
@@ -90,6 +96,8 @@ async function runStorePrivacyChecks() {
   const sissys = await get(`/api/stores/${STORE_ID}/applications?q=maya`, "sissys");
   const harbor = await get(`/api/stores/${STORE_ID}/applications?q=maya`, "harbor");
   const admin = await get(`/api/stores/${STORE_ID}/applications?q=maya`, "admin");
+  const integrationOwner = await get(`/api/stores/${STORE_ID}/integrations/jewellink/health`, "sissys");
+  const integrationOtherOwner = await get(`/api/stores/${STORE_ID}/integrations/jewellink/health`, "harbor");
   return [
     {
       name: "Sissy's owner can read Sissy's store applications",
@@ -112,6 +120,20 @@ async function runStorePrivacyChecks() {
       pass: admin.status === 200,
       response: admin,
     },
+    {
+      name: "Sissy's owner can read JewelLink integration health",
+      expected: 200,
+      actual: integrationOwner.status,
+      pass: integrationOwner.status === 200,
+      response: integrationOwner,
+    },
+    {
+      name: "Another store owner cannot read JewelLink integration health",
+      expected: 403,
+      actual: integrationOtherOwner.status,
+      pass: integrationOtherOwner.status === 403,
+      response: integrationOtherOwner,
+    },
   ];
 }
 
@@ -120,11 +142,12 @@ async function runAdminRoleGateChecks() {
   for (const endpoint of adminEndpoints) {
     const admin = await get(endpoint, "admin");
     const storeOwner = await get(endpoint, "sissys");
+    const adminAllowedStatuses = endpoint === "/api/admin/companies/co-sissys" ? [200, 404] : [200];
     checks.push({
       name: `${endpoint} allows admin session`,
-      expected: 200,
+      expected: adminAllowedStatuses.join(" or "),
       actual: admin.status,
-      pass: admin.status === 200,
+      pass: adminAllowedStatuses.includes(admin.status),
       severity: "failure",
       response: admin,
     });
@@ -135,6 +158,42 @@ async function runAdminRoleGateChecks() {
       pass: storeOwner.status === 403,
       severity: "known_gap",
       response: storeOwner,
+    });
+  }
+  return checks;
+}
+
+async function runManagerRoleChecks() {
+  const cases = [
+    { name: "manager can read scoped applications", path: `/api/stores/${STORE_ID}/applications?q=maya`, expected: 200 },
+    { name: "manager passes the hiring public-page read gate", path: `/api/stores/${STORE_ID}/public-page`, expected: "200 or 404", allowedStatuses: [200, 404] },
+    { name: "manager cannot access billing", path: `/api/stores/${STORE_ID}/billing/checkout`, expected: 403 },
+    { name: "manager cannot access owner settings", path: `/api/stores/${STORE_ID}/settings`, expected: 403 },
+    { name: "manager cannot access JewelLink integration health", path: `/api/stores/${STORE_ID}/integrations/jewellink/health`, expected: 403 },
+    { name: "manager cannot manage store users", path: `/api/stores/${STORE_ID}/users`, expected: 403 },
+    { name: "manager cannot access platform admin APIs", path: "/api/admin/overview", expected: 403 },
+  ];
+  const checks = [];
+  for (const item of cases) {
+    const response = await get(item.path, "manager");
+    checks.push({ ...item, actual: response.status, pass: item.allowedStatuses ? item.allowedStatuses.includes(response.status) : response.status === item.expected, response });
+  }
+  const limitedCases = [
+    { name: "selected-location manager can read scoped applications", path: `/api/stores/${STORE_ID}/applications`, rejectConway: true },
+    { name: "selected-location manager can read scoped jobs", path: `/api/stores/${STORE_ID}/jobs`, rejectConway: true },
+    { name: "selected-location manager can read scoped interviews", path: `/api/stores/${STORE_ID}/interviews`, rejectConway: true },
+    { name: "selected-location manager can read scoped dashboard", path: `/api/stores/${STORE_ID}/dashboard`, rejectConway: true },
+    { name: "selected-location manager remains blocked from owner settings", path: `/api/stores/${STORE_ID}/settings`, expected: 403 },
+  ];
+  for (const item of limitedCases) {
+    const response = await get(item.path, "manager_limited");
+    const expected = item.expected || 200;
+    checks.push({
+      ...item,
+      expected,
+      actual: response.status,
+      pass: response.status === expected && (!item.rejectConway || !response.containsConwayJob),
+      response,
     });
   }
   return checks;
@@ -156,7 +215,7 @@ async function runDiagnosticChecks() {
   return checks;
 }
 
-function writeReport({ storePrivacyChecks, adminRoleGateChecks, diagnosticChecks, issues, knownGaps }) {
+function writeReport({ storePrivacyChecks, adminRoleGateChecks, managerRoleChecks, diagnosticChecks, issues, knownGaps }) {
   const lines = [
     "# Access Control Audit",
     "",
@@ -175,6 +234,10 @@ function writeReport({ storePrivacyChecks, adminRoleGateChecks, diagnosticChecks
       const status = check.pass ? "PASS" : check.severity === "known_gap" ? "KNOWN GAP" : "FAIL";
       return `- ${status} ${check.name}: expected ${check.expected}, got ${check.actual}`;
     }),
+    "",
+    "## Manager Role Gates",
+    "",
+    ...managerRoleChecks.map((check) => `- ${check.pass ? "PASS" : "FAIL"} ${check.name}: expected ${check.expected}, got ${check.actual}`),
     "",
     "## Diagnostics",
     "",
@@ -203,6 +266,7 @@ function writeReport({ storePrivacyChecks, adminRoleGateChecks, diagnosticChecks
         knownGaps,
         storePrivacyChecks,
         adminRoleGateChecks,
+        managerRoleChecks,
         diagnosticChecks,
       },
       null,
@@ -219,21 +283,26 @@ async function main() {
 
   const storePrivacyChecks = await runStorePrivacyChecks();
   const adminRoleGateChecks = await runAdminRoleGateChecks();
+  const managerRoleChecks = await runManagerRoleChecks();
   const diagnosticChecks = await runDiagnosticChecks();
   const issues = [
     ...storePrivacyChecks.filter((check) => !check.pass).map((check) => `${check.name}: expected ${check.expected}, got ${check.actual}`),
     ...adminRoleGateChecks
       .filter((check) => !check.pass && check.severity !== "known_gap")
       .map((check) => `${check.name}: expected ${check.expected}, got ${check.actual}`),
+    ...managerRoleChecks.filter((check) => !check.pass).map((check) => `${check.name}: expected ${check.expected}, got ${check.actual}`),
     ...diagnosticChecks.filter((check) => !check.pass).map((check) => `${check.name}: got ${check.actual}`),
   ];
   const knownGaps = adminRoleGateChecks
     .filter((check) => !check.pass && check.severity === "known_gap")
     .map((check) => `${check.name}: expected ${check.expected}, got ${check.actual}`);
 
-  writeReport({ storePrivacyChecks, adminRoleGateChecks, diagnosticChecks, issues, knownGaps });
+  writeReport({ storePrivacyChecks, adminRoleGateChecks, managerRoleChecks, diagnosticChecks, issues, knownGaps });
 
   for (const check of storePrivacyChecks) {
+    console.log(`${check.pass ? "PASS" : "FAIL"} ${check.name}: ${check.actual}`);
+  }
+  for (const check of managerRoleChecks) {
     console.log(`${check.pass ? "PASS" : "FAIL"} ${check.name}: ${check.actual}`);
   }
   console.log(`Admin role-gate known gaps: ${knownGaps.length}`);

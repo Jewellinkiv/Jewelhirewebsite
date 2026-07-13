@@ -385,6 +385,8 @@ async function runMutationChecks() {
       method: "POST",
       body: JSON.stringify({
         jobId: JOB_ID,
+        legalConsent: true,
+        legalPolicyVersion: "2026-07-11",
         profile: {
           name: `Smoke Applicant ${suffix}`,
           email: applicantEmail,

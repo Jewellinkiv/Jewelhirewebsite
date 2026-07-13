@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { CAREERS, ACTIVITY, LOCATION_FLOORS, floorRead } from "@/lib/dashboard";
 import { TEAM, TEAM_MIX, FLOOR_TYPE } from "@/lib/data";
-import { requireStoreAccess } from "@/lib/server/access-control";
+import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { getPostgresStoreDashboard } from "@/lib/server/postgres-phase1";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
-import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
+import { locationInScope, requestedLocationInScope } from "@/lib/server/location-scope";
+import { listApplications, summarizeApplication } from "@/lib/local-api-store";
 
 function normalizeLocationId(value?: string | null) {
   const normalized = (value || "").trim().toLowerCase();
@@ -29,15 +30,23 @@ function fitScore(fit?: string): number | undefined {
 
 export const GET = withApiErrorHandling(async function GET(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
-  const storeId = await requireStoreAccess(params.storeId, "dashboard.read");
-  const locationId = normalizeLocationId(new URL(request.url).searchParams.get("locationId"));
+  const access = await requireLocationScopedStoreAccess(params.storeId, "dashboard.read");
+  const storeId = access.storeId;
+  const requestedLocation = normalizeLocationId(new URL(request.url).searchParams.get("locationId"));
+  const locationId = normalizeLocationId(
+    requestedLocationInScope(requestedLocation, access.locationIds, "dashboard.read") || access.locationIds?.[0],
+  );
   if (getStorageRuntime() === "postgres") {
     const dashboard = await getPostgresStoreDashboard(storeId, locationId);
-    return NextResponse.json(dashboard);
+    return NextResponse.json({
+      ...dashboard,
+      locations: dashboard.locations.filter((location) => locationInScope(location.id || location.name, access.locationIds)),
+      activity: access.locationIds ? [] : dashboard.activity,
+    });
   }
 
-  const summaries = await getApplicantStore().listStoreApplicationSummaries({ storeId });
-  const filtered = summaries.items.filter((item) =>
+  const summaries = listApplications(storeId).map(summarizeApplication);
+  const filtered = summaries.filter((item) =>
     locationMatches(item.job?.location || item.applicant?.location, locationId),
   );
   const selectedLocation = LOCATION_FLOORS.find((location) => location.id === locationId);
@@ -61,7 +70,7 @@ export const GET = withApiErrorHandling(async function GET(request: Request, pro
       gemmatchCompletion: filtered.length ? Math.round((completedGemMatches / filtered.length) * 100) : 0,
     },
     careers: CAREERS,
-    locations: LOCATION_FLOORS,
-    activity: ACTIVITY,
+    locations: LOCATION_FLOORS.filter((location) => locationInScope(location.id || location.name, access.locationIds)),
+    activity: access.locationIds ? [] : ACTIVITY,
   });
 });

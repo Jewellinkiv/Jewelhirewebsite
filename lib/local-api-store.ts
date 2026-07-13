@@ -160,12 +160,14 @@ export function getCurrentSession() {
     email: SESSION.email,
     role: "store_owner" as const,
     storeIds: [DEFAULT_STORE_ID],
+    storeRoles: { [DEFAULT_STORE_ID]: "store_owner" as const },
+    locationScopes: { [DEFAULT_STORE_ID]: { allLocations: true, locationIds: [] } },
     activeStoreId: DEFAULT_STORE_ID,
     guardrails: {
-      phase: "phase_1_single_store",
-      applicantScope: "store_private",
-      marketplace: false,
-      candidateReviews: false,
+      phase: "phase_1_single_store" as const,
+      applicantScope: "store_private" as const,
+      marketplace: false as const,
+      candidateReviews: false as const,
     },
   };
 }
@@ -1437,6 +1439,10 @@ export function getInterviewRsvpScope(interviewId: string) {
     storeId: interview.storeId,
     recipientEmail: detail?.profile?.email,
   };
+}
+
+export function getInterview(interviewId: string) {
+  return state().interviews.find((item) => item.id === interviewId);
 }
 
 export function getGemMatchInviteScope(inviteId: string) {

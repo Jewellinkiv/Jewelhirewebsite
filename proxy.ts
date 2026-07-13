@@ -19,8 +19,11 @@ function isPublicPath(pathname: string) {
     pathname === "/claim-account" ||
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
+    pathname === "/privacy" ||
+    pathname === "/terms" ||
     pathname.startsWith("/jewelcert/claim/") ||
     pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/api/integrations/jewellink/") ||
     pathname === "/api/stripe/webhook" ||
     pathname.startsWith("/api/public/") ||
     pathname.startsWith("/careers/") ||
@@ -31,7 +34,7 @@ function isPublicPath(pathname: string) {
   );
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   if (!requiresAuth() || isPublicPath(request.nextUrl.pathname)) return NextResponse.next();
   if (sessionOverrideEnabled() && request.headers.has("x-jewelhire-session")) return NextResponse.next();
   if (request.cookies.has(SESSION_COOKIE)) return NextResponse.next();

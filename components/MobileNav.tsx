@@ -8,7 +8,7 @@ import { IconMenu, IconX, IconDiamond, IconSettings } from "@/components/icons";
 
 // Mobile nav for the store shell — the desktop Sidebar is hidden < lg, so this
 // gives store-owner navigation a hamburger + slide-over on small screens.
-export function MobileNav() {
+export function MobileNav({ canManageSettings }: { canManageSettings: boolean }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const isActive = (href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(href + "/"));
@@ -43,11 +43,11 @@ export function MobileNav() {
                   })}
                 </div>
               ))}
-              <div className="pt-3">
+              {canManageSettings && <div className="pt-3">
                 <Link href="/settings" onClick={() => setOpen(false)} className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-md text-[14px] no-underline ${isActive("/settings") ? "bg-[#e8f1ff] text-primary font-medium" : "text-body hover:bg-rowhover"}`}>
                   <span className="text-muted"><IconSettings size={18} /></span>Settings
                 </Link>
-              </div>
+              </div>}
             </nav>
           </aside>
         </div>

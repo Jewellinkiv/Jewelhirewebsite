@@ -116,6 +116,7 @@ export default function RosterPage() {
       <TeamMemberModal
         open={adding}
         title="Add team member"
+        storeId={STORE_ID}
         locations={locations}
         defaultLocationId={locations[0]?.id}
         onClose={() => setAdding(false)}

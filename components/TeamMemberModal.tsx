@@ -16,6 +16,7 @@ type CreatedTeamMember = TeamMemberLoc & {
 export function TeamMemberModal({
   open,
   title,
+  storeId,
   locations,
   defaultLocationId,
   onClose,
@@ -23,6 +24,7 @@ export function TeamMemberModal({
 }: {
   open: boolean;
   title: string;
+  storeId: string;
   locations: Location[];
   defaultLocationId?: string;
   onClose: () => void;
@@ -48,7 +50,7 @@ export function TeamMemberModal({
     }
     setSaving(true);
     try {
-      const response = await fetch("/api/stores/store-sissys-little-rock/team", {
+      const response = await fetch(`/api/stores/${encodeURIComponent(storeId)}/team`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

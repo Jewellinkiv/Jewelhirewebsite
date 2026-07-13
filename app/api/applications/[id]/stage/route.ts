@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { ApplicationStage } from "@/lib/applicant-lifecycle";
-import { getSessionContext, requireStoreAccess } from "@/lib/server/access-control";
+import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
+import { requireLocationInScope } from "@/lib/server/location-scope";
 import {
+  getPostgresApplicationDetail,
   getPostgresApplicationStoreId,
   updatePostgresApplicationStage,
 } from "@/lib/server/postgres-phase1";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
+import { getApplicationDetail } from "@/lib/local-api-store";
 
 const STAGES = new Set<ApplicationStage>([
   "applied",
@@ -33,7 +36,9 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
     const storeId = await getPostgresApplicationStoreId(params.id);
     if (!storeId) return NextResponse.json({ error: "Application not found" }, { status: 404 });
 
-    await requireStoreAccess(storeId, "applications.stage");
+    const access = await requireLocationScopedStoreAccess(storeId, "applications.stage");
+    const current = await getPostgresApplicationDetail({ applicationId: params.id, storeId });
+    requireLocationInScope(current?.job?.location || current?.profile?.location, access.locationIds, "applications.stage");
     const detail = await updatePostgresApplicationStage({
       applicationId: params.id,
       storeId,
@@ -45,6 +50,10 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
     return NextResponse.json(detail);
   }
 
+  const current = getApplicationDetail(params.id);
+  if (!current) return NextResponse.json({ error: "Application not found" }, { status: 404 });
+  const access = await requireLocationScopedStoreAccess(current.application.storeId, "applications.stage");
+  requireLocationInScope(current.job?.location || current.profile?.location, access.locationIds, "applications.stage");
   const detail = getApplicantStore().updateApplicationStage({
     applicationId: params.id,
     toStage,

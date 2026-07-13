@@ -1,17 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { IconDiamond } from "@/components/icons";
+import { currentLegalConsentPayload } from "@/lib/legal";
 
 export default function StoreSignupPage() {
   const [companyName, setCompanyName] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [email, setEmail] = useState("");
   const [promoCode, setPromoCode] = useState("");
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = companyName.trim().length >= 2 && email.trim().length > 3 && !submitting;
+  const canSubmit = companyName.trim().length >= 2 && email.trim().length > 3 && legalAccepted && !submitting;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +25,7 @@ export default function StoreSignupPage() {
       const r = await fetch("/api/auth/store-signup", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ companyName: companyName.trim(), ownerName: ownerName.trim(), email: email.trim(), promoCode: promoCode.trim() }),
+        body: JSON.stringify({ companyName: companyName.trim(), ownerName: ownerName.trim(), email: email.trim(), promoCode: promoCode.trim(), ...currentLegalConsentPayload() }),
       });
       const body = await r.json().catch(() => null);
       if (!r.ok || !body?.checkoutUrl) {
@@ -66,10 +69,14 @@ export default function StoreSignupPage() {
             <span className="block text-[11.5px] text-muted mt-1">You can also enter or change a promo code on the Stripe checkout page.</span>
           </label>
           {error ? <p className="m-0 text-[12.5px] text-[#a32d2d]">{error}</p> : null}
+          <label className="flex items-start gap-2 text-[11.5px] leading-relaxed text-muted">
+            <input type="checkbox" checked={legalAccepted} onChange={(event) => setLegalAccepted(event.target.checked)} required className="mt-0.5 h-4 w-4 accent-primary" />
+            <span>I agree to the <Link href="/terms" target="_blank" className="text-primary">Terms of Service</Link> and acknowledge the <Link href="/privacy" target="_blank" className="text-primary">Privacy Policy</Link>.</span>
+          </label>
           <button type="submit" disabled={!canSubmit} className={`w-full py-3 text-[14px] inline-flex items-center justify-center rounded-full ${canSubmit ? "btn-grad" : "bg-[#cfd6e0] text-white font-bold cursor-not-allowed"}`}>
             {submitting ? "Starting checkout…" : "Continue to payment"}
           </button>
-          <div className="text-center text-[12.5px] text-muted">Already have an account? <a href="/login" className="text-primary no-underline hover:underline">Sign in</a></div>
+          <div className="text-center text-[12.5px] text-muted">Already have an account? <Link href="/login" className="text-primary no-underline hover:underline">Sign in</Link></div>
         </form>
       </section>
     </main>

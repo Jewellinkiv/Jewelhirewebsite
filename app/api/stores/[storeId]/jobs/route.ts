@@ -1,25 +1,31 @@
 import { NextResponse } from "next/server";
-import { requireStoreAccess } from "@/lib/server/access-control";
+import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
+import { locationInScope, requestedLocationInScope, requireLocationInScope } from "@/lib/server/location-scope";
 import { createLocalStoreJob, listLocalStoreJobs, JobStatus } from "@/lib/local-job-store";
 import { createPostgresStoreJob, listPostgresStoreJobs } from "@/lib/server/postgres-phase1";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
-import { getApplicantStore } from "@/lib/server/stores/applicant-store";
+import { listApplications } from "@/lib/local-api-store";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 
 const jobStatuses: JobStatus[] = ["draft", "open", "paused", "closed"];
 
 export const GET = withApiErrorHandling(async function GET(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
-  const storeId = await requireStoreAccess(params.storeId, "jobs.list");
+  const access = await requireLocationScopedStoreAccess(params.storeId, "jobs.list");
+  const storeId = access.storeId;
   const url = new URL(request.url);
-  const locationId = url.searchParams.get("locationId");
+  const locationId = requestedLocationInScope(url.searchParams.get("locationId"), access.locationIds, "jobs.list");
   if (getStorageRuntime() === "postgres") {
-    const items = await listPostgresStoreJobs(storeId, locationId);
+    const items = (await listPostgresStoreJobs(storeId, locationId)).filter((item) =>
+      locationInScope(item.job.locationId || item.job.location, access.locationIds),
+    );
     return NextResponse.json({ storeId, count: items.length, items });
   }
 
-  const jobs = listLocalStoreJobs(storeId, { locationId });
-  const applications = await getApplicantStore().listStoreApplications({ storeId });
+  const jobs = listLocalStoreJobs(storeId, { locationId }).filter((job) =>
+    locationInScope(job.locationId || job.location, access.locationIds),
+  );
+  const applications = listApplications(storeId);
   const items = jobs.map((job) => {
     const jobApplications = applications.filter((application) => application.jobId === job.id);
     const hired = jobApplications.filter((application) => application.stage === "hired").length;
@@ -41,8 +47,10 @@ export const GET = withApiErrorHandling(async function GET(request: Request, pro
 
 export const POST = withApiErrorHandling(async function POST(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
-  const storeId = await requireStoreAccess(params.storeId, "jobs.create");
+  const access = await requireLocationScopedStoreAccess(params.storeId, "jobs.create");
+  const storeId = access.storeId;
   const body = await request.json().catch(() => null);
+  requireLocationInScope(body?.locationId || body?.location, access.locationIds, "jobs.create");
   const status = jobStatuses.includes(body?.status) ? (body.status as JobStatus) : undefined;
 
   if (getStorageRuntime() === "postgres") {

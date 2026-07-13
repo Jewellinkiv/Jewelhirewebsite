@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSessionContext, requireStoreAccess } from "@/lib/server/access-control";
+import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
-import { deletePostgresApplicantNote, getPostgresApplicantNote } from "@/lib/server/postgres-phase1";
+import { requireLocationInScope } from "@/lib/server/location-scope";
+import { deletePostgresApplicantNote, getPostgresApplicantNote, getPostgresApplicationDetail } from "@/lib/server/postgres-phase1";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 
@@ -10,7 +11,9 @@ export const DELETE = withApiErrorHandling(async function DELETE(_request: Reque
   if (getStorageRuntime() === "postgres") {
     const existing = await getPostgresApplicantNote(params.noteId);
     if (!existing) return NextResponse.json({ error: "Note not found" }, { status: 404 });
-    await requireStoreAccess(existing.storeId, "applicant_notes.delete");
+    const access = await requireLocationScopedStoreAccess(existing.storeId, "applicant_notes.delete");
+    const detail = await getPostgresApplicationDetail({ applicationId: existing.applicationId, storeId: existing.storeId });
+    requireLocationInScope(detail?.job?.location || detail?.profile?.location, access.locationIds, "applicant_notes.delete");
     const note = await deletePostgresApplicantNote({
       noteId: params.noteId,
       actorUserId: (await getSessionContext()).userId,
@@ -19,7 +22,12 @@ export const DELETE = withApiErrorHandling(async function DELETE(_request: Reque
     return NextResponse.json({ note });
   }
 
-  const note = await getApplicantStore().deleteApplicantNote(params.noteId);
+  const existing = getApplicantStore().getApplicantNote(params.noteId);
+  if (!existing) return NextResponse.json({ error: "Note not found" }, { status: 404 });
+  const access = await requireLocationScopedStoreAccess(existing.storeId, "applicant_notes.delete");
+  const detail = await getApplicantStore().getStoreApplicationDetail({ applicationId: existing.applicationId, storeId: existing.storeId });
+  requireLocationInScope(detail?.job?.location || detail?.profile?.location, access.locationIds, "applicant_notes.delete");
+  const note = getApplicantStore().deleteApplicantNote(params.noteId);
   if (!note) return NextResponse.json({ error: "Note not found" }, { status: 404 });
   return NextResponse.json({ note });
 });

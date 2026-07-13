@@ -232,7 +232,10 @@ export default function InterviewsPage() {
     const meetLink = draft.type === "Video" && draft.addMeet ? draft.meetLink : undefined;
     const guests = draft.guests.length ? draft.guests : undefined;
     const role = mode === "existing" ? recipients.find((x) => x.applicationId === draft.applicantId)?.role ?? draft.role : draft.role;
+    const localStartsAt = new Date(`${draft.date}T${draft.time || "09:00"}`);
+    const startsAt = Number.isNaN(localStartsAt.getTime()) ? undefined : localStartsAt.toISOString();
     let applicationId = "";
+    let createdBody: { interview?: { id?: string; applicationId?: string } } | null = null;
     if (mode === "existing") {
       applicationId = draft.applicantId;
     } else {
@@ -240,21 +243,28 @@ export default function InterviewsPage() {
         setNotice("Publish your careers page with at least one open job to schedule brand-new candidates.");
         return;
       }
-      const response = await fetch(`/api/public/stores/${careers.slug}/applications`, {
+      const response = await fetch(`/api/stores/${STORE_ID}/interviews/new-candidate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           jobId: careers.jobId,
-          profile: {
-            name: draft.name.trim(),
-            email: draft.email.trim(),
-            headline: draft.role,
-            summary: "Created from store interview scheduling.",
-          },
+          name: draft.name.trim(),
+          email: draft.email.trim(),
+          role,
+          headline: draft.role,
+          summary: "Created from store interview scheduling.",
+          date: draft.date,
+          time: draft.time,
+          startsAt,
+          duration: Number.parseInt(String(draft.duration), 10),
+          type: draft.type === "Video" ? "video" : draft.type === "Phone" ? "phone" : "in_store",
+          interviewLocation: meetLink ?? draft.location,
+          interviewer: draft.interviewer,
+          notes: draft.notes,
         }),
       });
-      const body = await response.json();
-      applicationId = body.applicationId || "";
+      createdBody = response.ok ? await response.json().catch(() => null) : null;
+      applicationId = createdBody?.interview?.applicationId || "";
     }
     if (!applicationId) {
       setNotice("Could not find or create an application for this interview.");
@@ -264,23 +274,23 @@ export default function InterviewsPage() {
     // into a proper UTC instant so the time round-trips unchanged on reload.
     // Without this the server labels the naive wall-clock with "Z", shifting the
     // displayed time by the local UTC offset when the list re-fetches.
-    const localStartsAt = new Date(`${draft.date}T${draft.time || "09:00"}`);
-    const startsAt = Number.isNaN(localStartsAt.getTime()) ? undefined : localStartsAt.toISOString();
-    const createdResponse = await fetch(`/api/applications/${applicationId}/interviews`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        date: draft.date,
-        time: draft.time,
-        startsAt,
-        duration: Number.parseInt(String(draft.duration), 10),
-        type: draft.type === "Video" ? "video" : draft.type === "Phone" ? "phone" : "in_store",
-        location: meetLink ?? draft.location,
-        interviewer: draft.interviewer,
-        notes: draft.notes,
-      }),
-    }).catch(() => undefined);
-    const createdBody = createdResponse?.ok ? await createdResponse.json().catch(() => null) : null;
+    if (mode === "existing") {
+      const createdResponse = await fetch(`/api/applications/${applicationId}/interviews`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          date: draft.date,
+          time: draft.time,
+          startsAt,
+          duration: Number.parseInt(String(draft.duration), 10),
+          type: draft.type === "Video" ? "video" : draft.type === "Phone" ? "phone" : "in_store",
+          location: meetLink ?? draft.location,
+          interviewer: draft.interviewer,
+          notes: draft.notes,
+        }),
+      }).catch(() => undefined);
+      createdBody = createdResponse?.ok ? await createdResponse.json().catch(() => null) : null;
+    }
     const createdId = createdBody?.interview?.id || `iv${Date.now()}`;
     if (mode === "existing") {
       const a = recipients.find((x) => x.applicationId === draft.applicantId)!;

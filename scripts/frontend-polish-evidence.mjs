@@ -13,13 +13,16 @@ const args = new Map(
 const baseUrl = (args.get("base") || process.env.JEWELHIRE_BROWSER_BASE_URL || "http://localhost:3004").replace(/\/$/, "");
 const artifactDir = path.resolve(rootDir, args.get("artifacts") || `docs/qa-runs/frontend-polish-${new Date().toISOString().replace(/[:.]/g, "-")}`);
 const strict = args.has("strict");
+const publicStoreSlug = args.get("store-slug") || process.env.JEWELHIRE_QA_PUBLIC_STORE_SLUG || "sissys-log-cabin-careers";
+const publicJobId = args.get("job-id") || process.env.JEWELHIRE_QA_PUBLIC_JOB_ID || "job-luxury-sales-associate";
 const viewport = {
   width: Number(args.get("width") || 390),
   height: Number(args.get("height") || 844),
 };
 
 const routes = [
-  { name: "mobile-apply", path: "/apply/luxury-sales-associate", checks: ["apply-stepper"] },
+  { name: "mobile-careers", path: `/careers/${publicStoreSlug}`, checks: ["wide-elements", "careers-page"] },
+  { name: "mobile-apply", path: `/careers/${publicStoreSlug}/apply/${publicJobId}`, checks: ["wide-elements", "mobile-apply"] },
   { name: "mobile-pipeline", path: "/pipeline", checks: ["wide-elements", "hydration"] },
   { name: "hydration-applicant-detail", path: "/applicants/maya-chen", checks: ["hydration", "candidate-rating"] },
   { name: "hydration-public-page", path: "/public-page", checks: ["hydration"] },
@@ -164,9 +167,11 @@ function issueList(results) {
     if (result.checks.includes("candidate-rating") && /Internal rating|candidate rating|candidate review/i.test(result.metrics.bodyTextSample)) {
       issues.push(`${result.path} exposed candidate rating/review language`);
     }
-    if (result.checks.includes("apply-stepper")) {
-      const reviewVisible = result.metrics.reviewMatches.some((item) => item.left >= 0 && item.right <= result.metrics.viewportWidth);
-      if (!reviewVisible) issues.push(`${result.path} did not show the Review step label inside the mobile viewport`);
+    if (result.checks.includes("careers-page") && !/Open positions/i.test(result.metrics.bodyTextSample)) {
+      issues.push(`${result.path} did not render its open-positions workflow`);
+    }
+    if (result.checks.includes("mobile-apply") && !/Full name.*Email.*Submit application/i.test(result.metrics.bodyTextSample)) {
+      issues.push(`${result.path} did not render the required mobile application controls`);
     }
     if (result.checks.includes("wide-elements")) {
       const wideTable = result.metrics.wideElements.find((item) => item.tag === "table");

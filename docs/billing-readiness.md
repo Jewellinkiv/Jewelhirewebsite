@@ -10,6 +10,7 @@ JewelHire currently keeps billing safe for live users by exposing billing reads 
 - Verified Stripe subscription, checkout, invoice-paid, and invoice-payment-failed events reconcile billing rows when company metadata is present.
 - Verified Stripe checkout sessions can also map back from Payment Link `client_reference_id` to the originating store/company.
 - Every verified Stripe event is recorded in `admin_audit_entries` without storing secret values.
+- Stripe event redelivery is deduplicated by event id before billing notification email is attempted.
 - Reconciled Stripe billing events return a gated Postmark notification status for the billing contact; notification delivery never blocks Stripe acknowledgement.
 - Store-owner Settings exposes a protected Stripe billing checkout entry point backed by `STRIPE_STORE_OWNER_PAYMENT_LINK`.
 - Checkout payload helpers support Stripe promotion codes through `allow_promotion_codes` or an explicit promotion code id.

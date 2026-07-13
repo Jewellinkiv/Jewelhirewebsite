@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { getSessionContext, requireStoreAccess } from "@/lib/server/access-control";
+import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
-import { createPostgresInterview, getPostgresApplicationStoreId } from "@/lib/server/postgres-phase1";
+import { requireLocationInScope } from "@/lib/server/location-scope";
+import { createPostgresInterview, getPostgresApplicationDetail, getPostgresApplicationStoreId } from "@/lib/server/postgres-phase1";
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
+import { getApplicationDetail } from "@/lib/local-api-store";
 
 const locationTypes = new Set(["in_store", "phone", "video"]);
 
@@ -13,7 +15,9 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
   if (getStorageRuntime() === "postgres") {
     const storeId = await getPostgresApplicationStoreId(params.id);
     if (!storeId) return NextResponse.json({ error: "Application not found" }, { status: 404 });
-    await requireStoreAccess(storeId, "interviews.create");
+    const access = await requireLocationScopedStoreAccess(storeId, "interviews.create");
+    const detail = await getPostgresApplicationDetail({ applicationId: params.id, storeId });
+    requireLocationInScope(detail?.job?.location || detail?.profile?.location, access.locationIds, "interviews.create");
     const session = await getSessionContext();
     const interview = await createPostgresInterview({
       applicationId: params.id,
@@ -32,6 +36,10 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
     return NextResponse.json({ interview }, { status: 201 });
   }
 
+  const detail = getApplicationDetail(params.id);
+  if (!detail) return NextResponse.json({ error: "Application not found" }, { status: 404 });
+  const access = await requireLocationScopedStoreAccess(detail.application.storeId, "interviews.create");
+  requireLocationInScope(detail.job?.location || detail.profile?.location, access.locationIds, "interviews.create");
   const interview = getApplicantStore().createInterview({
     applicationId: params.id,
     date: body?.date,

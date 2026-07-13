@@ -7,8 +7,6 @@ import { EmptyState } from "@/components/states";
 import { IconClock, IconUsers, IconUserPlus, IconBriefcase, IconTargetArrow, IconLink, IconX, IconCheck } from "@/components/icons";
 import { useActiveStoreId } from "@/lib/client-session";
 
-const FALLBACK_STORE_ID = "store-sissys-little-rock";
-
 type RawStatus = "draft" | "open" | "paused" | "closed";
 
 interface JobRecord {
@@ -211,7 +209,10 @@ function EditJobModal({ storeId, job, onClose, onSaved }: { storeId: string; job
 
 export default function JobDetail(props: { params: Promise<{ slug: string }> }) {
   const params = use(props.params);
-  const STORE_ID = useActiveStoreId(FALLBACK_STORE_ID);
+  // Do not request a hard-coded store while /api/me is still resolving. For
+  // SSO-provisioned stores that first request returned 404 and permanently
+  // masked the valid response for the authenticated store.
+  const STORE_ID = useActiveStoreId("");
   const [job, setJob] = useState<JobRecord | null>(null);
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [applicants, setApplicants] = useState<ApplicantRow[]>([]);
@@ -220,6 +221,7 @@ export default function JobDetail(props: { params: Promise<{ slug: string }> }) 
   const [showEdit, setShowEdit] = useState(false);
 
   const load = useCallback(() => {
+    if (!STORE_ID) return Promise.resolve();
     return fetch(`/api/stores/${STORE_ID}/jobs/${params.slug}`)
       .then((response) => {
         if (response.status === 404) { setNotFound(true); return null; }
@@ -227,6 +229,7 @@ export default function JobDetail(props: { params: Promise<{ slug: string }> }) 
       })
       .then((data: { job: JobRecord; kpis: Kpis; applicants: ApplicantRow[] } | null) => {
         if (!data) return;
+        setNotFound(false);
         setJob(data.job);
         setKpis(data.kpis);
         setApplicants(data.applicants || []);
@@ -291,8 +294,8 @@ export default function JobDetail(props: { params: Promise<{ slug: string }> }) 
         <Stat label="Applicants" value={kpis.applicants} sub={`${kpis.uniqueApplicants} unique`} icon={<IconUsers size={13} />} />
         <Stat label="In pipeline" value={kpis.activePipeline} sub="Active stages" icon={<IconTargetArrow size={13} />} />
         <Stat label="Hired" value={kpis.hired} sub={`${job.openings} seat${job.openings === 1 ? "" : "s"}`} icon={<IconUserPlus size={13} />} />
-        <Stat label="Views" value={kpis.views} sub={`${kpis.applyClicks} apply clicks`} icon={<IconLink size={13} />} />
-        <Stat label="Apply rate" value={`${kpis.applyRate}%`} sub="Views → applies" />
+        <Stat label="Apply-page views" value={kpis.views} sub={`${kpis.applyClicks} submissions`} icon={<IconLink size={13} />} />
+        <Stat label="Apply rate" value={`${kpis.applyRate}%`} sub="Apply-page views → submissions" />
       </div>
 
       <Panel title={`Applicants (${kpis.applicants})`} action={<Link href="/pipeline" className="text-[12.5px] text-primary no-underline">Open pipeline</Link>}>

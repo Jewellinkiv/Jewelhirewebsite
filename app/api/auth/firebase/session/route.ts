@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSessionToken, findSessionForGoogleUser, SESSION_COOKIE } from "@/lib/server/auth";
+import { findSessionForGoogleUser, setSessionCookie } from "@/lib/server/auth";
 import { verifyFirebaseIdToken } from "@/lib/server/firebase-auth";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import type { AuthSession } from "@/lib/server/auth";
@@ -42,12 +42,6 @@ export const POST = withApiErrorHandling(async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ ok: true, next: destinationForSession(body.next, session) });
-  response.cookies.set(SESSION_COOKIE, createSessionToken(session), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
+  setSessionCookie(response, session);
   return response;
 });

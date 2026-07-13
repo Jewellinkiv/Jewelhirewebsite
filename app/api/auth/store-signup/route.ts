@@ -5,6 +5,8 @@ import { createPendingStoreSignup } from "@/lib/server/store-signup";
 import { createStoreSignupCheckoutLink, getStoreOwnerBillingCheckoutReadiness } from "@/lib/server/stripe-billing";
 import { enforceRateLimit } from "@/lib/server/rate-limit";
 import { validEmail } from "@/lib/server/request";
+import { acceptsCurrentLegalTerms } from "@/lib/legal";
+import { recordLegalConsent } from "@/lib/server/legal-consent";
 
 export const runtime = "nodejs";
 
@@ -27,6 +29,12 @@ export async function POST(request: Request) {
   if (!validEmail(email)) {
     return NextResponse.json({ error: { code: "invalid_email", message: "Enter a valid email address." } }, { status: 400 });
   }
+  if (!acceptsCurrentLegalTerms(body)) {
+    return NextResponse.json(
+      { error: { code: "legal_consent_required", message: "Accept the Privacy Policy and Terms of Service to continue." } },
+      { status: 400 },
+    );
+  }
   if (isConfiguredAdminEmail(email)) {
     return NextResponse.json(
       { error: { code: "use_sso", message: "This email is managed. Please sign in with Google." } },
@@ -47,6 +55,12 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
+
+  await recordLegalConsent({
+    email,
+    source: "store_signup",
+    context: { companyName },
+  });
 
   const { id } = await createPendingStoreSignup({ companyName, ownerName, ownerEmail: email, promoCode });
   const checkoutUrl = createStoreSignupCheckoutLink({ pendingId: id, promotionCode: promoCode });

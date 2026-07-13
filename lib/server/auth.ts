@@ -2,19 +2,28 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import { getPostgresPool } from "@/lib/server/postgres";
+import {
+  resolveSessionAccess,
+  type AuthRole,
+  type StoreLocationScope,
+  type StoreMembershipRole,
+} from "@/lib/auth-role-model";
 
 export const SESSION_COOKIE = "jewelhire_session";
 export const OAUTH_STATE_COOKIE = "jewelhire_oauth_state";
 export const OAUTH_NEXT_COOKIE = "jewelhire_oauth_next";
 
-export type AuthRole = "store_owner" | "associate" | "admin";
+export type { AuthRole, StoreLocationScope, StoreMembershipRole } from "@/lib/auth-role-model";
 
 export type AuthSession = {
+  version: 2;
   userId: string;
   name: string;
   email: string;
   role: AuthRole;
   storeIds: string[];
+  storeRoles: Record<string, StoreMembershipRole>;
+  locationScopes: Record<string, StoreLocationScope>;
   activeStoreId: string;
   exp: number;
   guardrails: {
@@ -91,6 +100,10 @@ export function readSessionToken(token?: string | null): AuthSession | undefined
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return undefined;
   const session = decode<AuthSession>(payload);
+  // Version 2 separates platform administrators from store-level roles and
+  // carries a role per store. Reject older cookies so a pre-deploy session
+  // cannot retain the previous, over-broad owner/admin interpretation.
+  if (session.version !== 2 || !session.storeRoles || !session.locationScopes) return undefined;
   if (!session.exp || session.exp * 1000 < Date.now()) return undefined;
   return session;
 }
@@ -141,12 +154,26 @@ export async function findSessionForGoogleUser(input: { email: string; name?: st
     name: string;
     store_id: string | null;
     store_role: string | null;
+    all_locations: boolean | null;
+    location_ids: string[] | null;
   }>(
     `
-      select u.id, u.email, u.name, su.store_id, su.role as store_role
+      select
+        u.id,
+        u.email,
+        u.name,
+        su.store_id,
+        su.role as store_role,
+        su.all_locations,
+        coalesce(
+          array_agg(suls.location_id) filter (where suls.location_id is not null),
+          array[]::text[]
+        ) as location_ids
       from users u
       left join store_users su on su.user_id = u.id and su.status = 'active'
+      left join store_user_location_scopes suls on suls.store_user_id = su.id
       where u.email_normalized = $1 and u.status = 'active'
+      group by u.id, u.email, u.name, su.store_id, su.role, su.all_locations, su.created_at
       order by su.created_at asc
     `,
     [email],
@@ -156,14 +183,30 @@ export async function findSessionForGoogleUser(input: { email: string; name?: st
 
   const first = result.rows[0];
   const storeIds = isConfiguredAdmin ? await allStoreIds() : result.rows.map((row) => row.store_id).filter((id): id is string => Boolean(id));
-  const hasAdminRole = isConfiguredAdmin || result.rows.some((row) => row.store_role === "admin");
-  const role: AuthRole = hasAdminRole ? "admin" : storeIds.length ? "store_owner" : "associate";
+  // `store_users.role = admin` is an organization/store administrator, never a
+  // JewelHire platform administrator. Only the explicit server-side allowlist
+  // can mint the platform `admin` role.
+  const access = resolveSessionAccess({
+    isPlatformAdmin: isConfiguredAdmin,
+    storeIds,
+    memberships: result.rows
+      .filter((row): row is typeof row & { store_id: string } => Boolean(row.store_id))
+      .map((row) => ({
+        storeId: row.store_id,
+        storeRole: row.store_role,
+        allLocations: row.all_locations,
+        locationIds: row.location_ids,
+      })),
+  });
   return {
+    version: 2,
     userId: first?.id || `admin-${email}`,
     name: first?.name || input.name || email,
     email: first?.email || email,
-    role,
+    role: access.role,
     storeIds,
+    storeRoles: access.storeRoles,
+    locationScopes: access.locationScopes,
     activeStoreId: storeIds[0] || "",
     exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
     guardrails: guardrails(),

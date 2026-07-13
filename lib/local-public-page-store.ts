@@ -297,11 +297,20 @@ export function createPublicPagePreview(storeId: string) {
   return preview;
 }
 
-export function getPublishedPublicPage(_storeSlug: string) {
-  const storeId = "store-sissys-little-rock";
-  const page = getStorePublicPage(storeId);
+export function getPublishedPublicPage(storeSlug: string) {
+  const publicPage = STORE_PUBLIC_PAGES.find((item) => item.slug === storeSlug);
+  if (!publicPage) return undefined;
+  const config = ensureConfig(publicPage.storeId);
+  if (config.status !== "published") return undefined;
+  const page = getStorePublicPage(publicPage.storeId);
   return {
     ...page,
-    reviews: listPublicPageReviews(storeId),
+    reviews: listPublicPageReviews(publicPage.storeId),
   };
+}
+
+export function getPreviewPublicPage(storeSlug: string) {
+  const publicPage = STORE_PUBLIC_PAGES.find((item) => item.slug === storeSlug);
+  if (!publicPage) return undefined;
+  return getStorePublicPage(publicPage.storeId);
 }

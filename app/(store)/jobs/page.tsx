@@ -78,8 +78,8 @@ function ProfileCard({ item }: { item: JobItem }) {
               <span className="text-[11.5px] bg-page border border-line rounded-full px-2.5 py-1 text-body">{kpis.applicants} applicant{kpis.applicants === 1 ? "" : "s"}</span>
               <span className="text-[11.5px] bg-[#e8f1ff] text-primary rounded-full px-2.5 py-1">{kpis.activePipeline} in pipeline</span>
               <span className="text-[11.5px] bg-[#dff3e8] text-[#0f6e56] rounded-full px-2.5 py-1">{kpis.hired} hired</span>
-              <span className="text-[11.5px] bg-page border border-line rounded-full px-2.5 py-1 text-body">{kpis.views} view{kpis.views === 1 ? "" : "s"}</span>
-              <span className="text-[11.5px] bg-page border border-line rounded-full px-2.5 py-1 text-body">{kpis.applyClicks} apply click{kpis.applyClicks === 1 ? "" : "s"}</span>
+              <span className="text-[11.5px] bg-page border border-line rounded-full px-2.5 py-1 text-body">{kpis.views} apply-page view{kpis.views === 1 ? "" : "s"}</span>
+              <span className="text-[11.5px] bg-page border border-line rounded-full px-2.5 py-1 text-body">{kpis.applyClicks} submission{kpis.applyClicks === 1 ? "" : "s"}</span>
             </div>
           </div>
           <Link href={`/jobs/${job.slug}`} className="inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-2 text-[12.5px] font-medium text-body no-underline hover:bg-rowhover shrink-0">
