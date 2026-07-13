@@ -1,6 +1,6 @@
 # JewelHire/JewelLink production integration provisioning
 
-Updated: 2026-07-12
+Updated: 2026-07-13
 
 This runbook provisions the missing production configuration without sharing
 cookies, session keys, or database credentials between products. Do not run it
@@ -81,14 +81,73 @@ migration credential, or a missing dedicated migration identity.
 
 ## Cutover
 
-1. Record both live revision names and confirm both database backups.
-2. Merge and review both repositories; deploy only committed `origin/main`.
-3. Run JewelLink with `DATABASE_BACKUP_CONFIRMED=1 ./deploy.sh`.
-4. Confirm its three integration migrations are applied and `/login` is healthy.
-5. Explicitly choose JewelHire Postmark dry-run or acknowledge live delivery.
-6. Dispatch JewelHire's production workflow with the backup confirmation.
-7. Complete every post-deploy check in `production-rollout-checklist.md`.
+Keep JewelHire disabled while the compatible code and schema reach both
+products. Enable only an approved pilot company after both live revisions pass
+their non-integration smoke checks.
+
+1. Record both live revision names, image digests, and traffic assignments.
+   Confirm current backups of both production databases and record their backup
+   identifiers and timestamps.
+2. Merge the reviewed safety PR before the stacked integration PR. Require green
+   CI in both repositories and deploy only a clean local `main` that exactly
+   matches `origin/main`.
+3. Verify the legacy JewelLink main-push Cloud Build trigger is still disabled.
+   Provision the two shared-secret pairs, `MIGRATION_DATABASE_URL`, and the
+   dedicated JewelLink migration identity described above.
+4. Build JewelLink's integration-disabled candidate:
+
+   ```bash
+   DATABASE_BACKUP_CONFIRMED=1 ./deploy.sh candidate
+   ```
+
+   Record the candidate revision, tag URL, image digest, and current live
+   revision. Production traffic is unchanged.
+5. Re-run the read-only `_prisma_migrations` ledger comparison against the exact
+   candidate commit. Continue only when there are no failed rows, no
+   applied-but-missing migrations, and the reviewed pending list contains only:
+
+   - `20260712043000_add_jewelhire_sso_codes`
+   - `20260712052000_add_jewelhire_hire_provisioning`
+   - `20260712053000_add_jewelhire_jewelcert_results`
+
+6. Apply the three migrations from the immutable candidate image, then promote
+   the same disabled revision:
+
+   ```bash
+   DATABASE_BACKUP_CONFIRMED=1 \
+   MIGRATION_LEDGER_AUDIT_CONFIRMED=1 \
+   MIGRATION_CONFIRMED=1 \
+   ./deploy.sh migrate <candidate-revision>
+
+   PROMOTE_CONFIRMED=1 \
+   MIGRATION_STATUS_CONFIRMED=1 \
+   ./deploy.sh promote <candidate-revision>
+   ```
+
+7. Mount JewelHire's URL and Secret Manager references with `--no-traffic`,
+   explicitly choose Postmark dry-run or acknowledge live delivery, and dispatch
+   JewelHire's manual production workflow with backup confirmation. Its workflow
+   creates a no-traffic candidate, applies migrations from that image, smokes the
+   public routes, and restores the previous revision if the live smoke fails.
+8. After both compatible revisions are live, build a second JewelLink candidate
+   for one approved company ID:
+
+   ```bash
+   DATABASE_BACKUP_CONFIRMED=1 \
+   JEWELHIRE_INTEGRATION_ENABLED=true \
+   JEWELHIRE_ROLLOUT_MODE=pilot \
+   JEWELHIRE_PILOT_COMPANY_IDS='<approved-company-id>' \
+   ./deploy.sh candidate
+   ```
+
+   Run the complete candidate SSO/role/new-tab/cancellation smoke. Because the
+   reviewed migrations are already applied, verify their status and promote the
+   exact pilot revision only with the explicit promotion confirmations.
+9. Complete every post-deploy check in `production-rollout-checklist.md`. Hold
+   the pilot for an agreed observation window before considering `all` mode.
 
 If a migration, candidate smoke, or SSO check fails, do not move traffic. If a
 post-cutover isolation or authorization check fails, restore traffic to the
-recorded previous revision immediately and preserve logs for diagnosis.
+recorded previous revision immediately and preserve logs for diagnosis. Traffic
+rollback does not reverse schema changes; use the reviewed forward-repair plan
+for any migration issue.

@@ -1,6 +1,6 @@
 # JewelHire production rollout checklist
 
-Updated: 2026-07-12
+Updated: 2026-07-13
 
 ## Current release-candidate status
 
@@ -9,7 +9,14 @@ Updated: 2026-07-12
 - [x] Cross-store application and JewelLink integration isolation checks pass.
 - [x] JewelLink SSO, hire handoff, and JewelCert handoff source audits pass.
 - [x] Chrome QA confirms the local JewelLink button and profile-menu entry open JewelHire in a new tab.
-- [x] Chrome QA confirms a JewelLink Director lands in the store-owner dashboard with no role switcher.
+- [x] Live-like local database QA confirms a JewelLink Director is provisioned as
+  `store_owner`, a Manager as location-scoped `manager`, and a Student as an
+  applicant with no store membership.
+- [x] The one-time SSO exchange completed through both running products, left no
+  outstanding authorization code, and rendered the provisioned organization,
+  location, and user identity rather than demo branding.
+- [x] Pausing the local JewelLink company removes both launchers and direct SSO
+  fails closed on a branded retained-data recovery screen.
 - [x] Public careers, application, résumé, preview-token, SEO, consent, and aggregate-analytics audits pass.
 - [x] Billing, notification wiring, Firebase, legal-source, and invalid-input audits pass. The config-exposure audit passes secret/public-data checks and intentionally holds on explicit live-email acknowledgement.
 - [x] Local SSO QA database has migrations `0012` through `0018` applied.
@@ -31,16 +38,16 @@ evidence template: `production-backup-and-rollback.md`.
   `20260712052000_add_jewelhire_hire_provisioning`, and
   `20260712053000_add_jewelhire_jewelcert_results`.
 - [ ] Obtain and store a privileged JewelLink `MIGRATION_DATABASE_URL`. The
-  current runtime database user cannot create schema objects. The migration
-  history also contains three fully rolled-back rows for the absent
-  `20260709170000_add_timepiece_occasion_deadlines` migration; confirm Prisma
-  accepts those rolled-back entries during the no-traffic migration job before
-  moving traffic.
-- [ ] Resolve or formally risk-accept the JewelLink production dependency
-  audit. On 2026-07-12, `npm audit --omit=dev` reports 13 high and 12 moderate
-  findings, including the pinned Next.js 14.2.35 and Prisma 7.5.0 dependency
-  trees. Do not silently treat a successful application build as resolution of
-  this security gate.
+  current runtime database user cannot create schema objects. A 2026-07-13
+  read-only ledger comparison found 109 applied repository migrations, zero
+  failed rows, no applied-but-missing drift, and only the three reviewed
+  JewelHire integration migrations pending. Re-run and record that comparison
+  against the exact no-traffic candidate before executing the migration job.
+- [ ] Record the JewelLink production dependency audit disposition. On
+  2026-07-13, `npm audit --omit=dev --audit-level=high` passes with zero high or
+  critical findings and reports three moderate advisories in Prisma tooling.
+  Keep the report with the release evidence and do not broaden the dependency
+  upgrade inside this cutover.
 - [ ] Configure `JEWELLINK_URL=https://ai.jewellink.com`, `JEWELLINK_SSO_SHARED_SECRET`, and `JEWELLINK_INTEGRATION_SHARED_SECRET` on the JewelHire Cloud Run service. They are absent from the current production revision and no matching Secret Manager entries exist yet.
 - [ ] Configure the matching high-entropy SSO and integration secrets on the production JewelLink service and verify its JewelHire callback/base URL points to `https://app.jewelhire.com`.
 - [ ] Deploy the current release candidate. The currently deployed revision redirects `/privacy` and `/terms` to login; the local release candidate returns `200` for both.
@@ -53,16 +60,20 @@ evidence template: `production-backup-and-rollback.md`.
 1. Back up both production databases and record both current Cloud Run revisions.
 2. Provision the integration secrets and dedicated JewelLink migration identity
    using `production-integration-provisioning.md`.
-3. Deploy JewelLink from the reviewed `origin/main`. Its script creates a
-   no-traffic candidate, applies migrations from that candidate's immutable
-   image, smokes `/login`, and only then moves traffic.
-4. Mount the JewelLink URL and both shared secrets on JewelHire.
+3. Deploy JewelLink from the reviewed `origin/main` with the JewelHire rollout
+   master switch disabled. Its script creates a no-traffic candidate, applies
+   migrations from that candidate's immutable image, smokes `/login`, and only
+   then moves traffic.
+4. Mount the JewelLink URL and both shared secrets on JewelHire with no traffic.
 5. Decide whether launch email should be dry-run or live and mount
    `POSTMARK_DRY_RUN` explicitly.
 6. Run the manual JewelHire production workflow. It creates a no-traffic
    candidate, applies migrations from the exact candidate image, smokes public
    routes, and only then moves traffic.
-7. Run the post-deploy checks below. Roll traffic back to the recorded revision
+7. Create a second JewelLink no-traffic candidate with `pilot` mode and one
+   approved company ID. Run the full SSO and role smoke against its tagged URL
+   before explicitly promoting it.
+8. Run the post-deploy checks below. Roll traffic back to the recorded revision
    if any blocking check fails.
 
 ## Required post-deploy smoke
