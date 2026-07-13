@@ -12,7 +12,7 @@ migration, send email, or move traffic.
 | Product | Reviewed source | Promotion state | Production snapshot |
 | --- | --- | --- | --- |
 | JewelHire | `main@4ec2c4796406630b002a602df145491c55e6a20e` | Release-control hardening merged; exact-head validation passed | `jewelhire-00082-q7t` at 100% |
-| JewelLink | `SmokeMain@0854b699b9162616190df7e39affa6a5de4c12f3` | PR `#166` is draft, mergeable, and green; `main` remains `f20a46cc04d0593842b1be21705c7adab0e30e4c` | `jewellink-dev-01069-qik` at 100% |
+| JewelLink | `SmokeMain@c4320a00982d1caa681859b53ec5823321434123` | PR `#166` remains draft and mergeable; exact-head PR CI, SmokeMain push CI, and the main-source gate passed; `main` remains `f20a46cc04d0593842b1be21705c7adab0e30e4c` | `jewellink-dev-01069-qik` at 100% |
 
 The 2026-07-13 read-only cloud snapshot found the legacy regional JewelLink
 main-push direct-deploy trigger
@@ -63,10 +63,12 @@ No secret payload or database credential was read during this snapshot.
   false, and do not use a real applicant. This proves non-delivery and the
   adapter's `dry_run` result; metadata scrubbing remains static/mock evidence
   until a separately approved live-provider smoke.
-- **JewelLink hire email:** Keep JewelHire-hire welcome email disabled for the
-  initial pilot. Its fail-closed delivery guard must be merged and deployed
-  first. Any allowlist-only live smoke requires a separate approval and may
-  target only the recorded internal recipient.
+- **JewelLink hire email:** The fail-closed delivery guard merged into
+  `SmokeMain` through PR `#168` and its exact-head and post-merge checks passed.
+  Keep `JEWELHIRE_HIRE_EMAIL_MODE=disabled` for the initial candidate,
+  compatibility promotion, and pilot. No production setting changed. Any
+  allowlist-only live smoke requires a separate approval, must stay on a
+  no-traffic candidate, and may target only the recorded internal recipient.
 - **Rollout:** Keep the JewelLink integration master switch `off` while the
   compatible code and schema are deployed. Pilot mode may contain exactly one
   internal, staff-controlled company ID. No customer or demo fixture is

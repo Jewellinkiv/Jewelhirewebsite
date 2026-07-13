@@ -133,7 +133,11 @@ their non-integration smoke checks.
 4. Build JewelLink's integration-disabled candidate:
 
    ```bash
-   DATABASE_BACKUP_CONFIRMED=1 ./deploy.sh candidate
+   DATABASE_BACKUP_CONFIRMED=1 \
+   JEWELHIRE_INTEGRATION_ENABLED=false \
+   JEWELHIRE_ROLLOUT_MODE=off \
+   JEWELHIRE_HIRE_EMAIL_MODE=disabled \
+   ./deploy.sh candidate
    ```
 
    Record the candidate revision, tag URL, image digest, and current live
@@ -173,6 +177,7 @@ their non-integration smoke checks.
    JEWELHIRE_INTEGRATION_ENABLED=true \
    JEWELHIRE_ROLLOUT_MODE=pilot \
    JEWELHIRE_PILOT_COMPANY_IDS='<approved-company-id>' \
+   JEWELHIRE_HIRE_EMAIL_MODE=disabled \
    ./deploy.sh candidate
    ```
 

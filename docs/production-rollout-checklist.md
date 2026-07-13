@@ -7,9 +7,10 @@ Updated: 2026-07-13
 - [x] JewelHire release-control hardening is merged on
   `main@4ec2c4796406630b002a602df145491c55e6a20e`; its exact-head push
   validation passed and the production deploy job stayed skipped.
-- [x] JewelLink integration CI hardening is merged on
-  `SmokeMain@0854b699b9162616190df7e39affa6a5de4c12f3`; both the branch push and
-  refreshed promotion PR checks passed.
+- [x] JewelLink integration CI hardening and the hire-email delivery guard are
+  merged on `SmokeMain@c4320a00982d1caa681859b53ec5823321434123`; the guard's
+  exact-head CI, the branch push, refreshed promotion PR, and main-source gate
+  all passed.
 - [x] Production build compiles and TypeScript passes.
 - [x] Store owner, manager, location-scoped manager, applicant, and platform-admin role policy audits pass.
 - [x] Cross-store application and JewelLink integration isolation checks pass.
@@ -75,10 +76,11 @@ in `production-launch-control-2026-07-13.md`.
   upgrade inside this cutover.
 - [ ] Configure `JEWELLINK_URL=https://ai.jewellink.com`, `JEWELLINK_SSO_SHARED_SECRET`, and `JEWELLINK_INTEGRATION_SHARED_SECRET` on the JewelHire Cloud Run service. They are absent from the current production revision and no matching Secret Manager entries exist yet.
 - [ ] Configure the matching high-entropy SSO and integration secrets on the production JewelLink service and verify its JewelHire callback/base URL points to `https://app.jewelhire.com`.
-- [ ] Land and validate the JewelLink hire-email guard before refreshing the
-  final promotion head: disabled by default, allowlist-only for controlled
-  pilot delivery, live mode only by explicit configuration, and
-  `invitationSent=true` only after confirmed provider success.
+- [x] JewelLink PR `#168` landed and validated the hire-email guard on the final
+  promotion head: disabled by default, allowlist-only for controlled
+  no-traffic testing, live mode only by explicit configuration,
+  `invitationSent=true` only after confirmed provider success, and durable
+  claim fencing that prevents a replay from sending twice.
 - [ ] Deploy the current release candidate. The currently deployed revision redirects `/privacy` and `/terms` to login; the local release candidate returns `200` for both.
 - [ ] Apply the selected candidate/pilot email posture:
   JewelHire `EMAIL_NOTIFICATIONS_ENABLED=true` plus `POSTMARK_DRY_RUN=true`, no
