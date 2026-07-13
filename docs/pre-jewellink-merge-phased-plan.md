@@ -1,6 +1,6 @@
 # JewelHire/JewelLink pre-merge phased plan
 
-Updated: 2026-07-12
+Updated: 2026-07-13
 
 ## Objective
 
@@ -284,7 +284,8 @@ Gate:
 
 ## Phase 5 — Hold point while the large JewelLink merge completes
 
-Status: mandatory stop line.
+Status: release-on-`main` and CI exit criteria met; production-baseline
+confirmation remains outstanding.
 
 While waiting:
 
@@ -296,21 +297,15 @@ While waiting:
 - Track the final merge PR/commit, dependency changes, schema migrations,
   deployment changes, and its production verification result.
 
-Current moving-release evidence is recorded in
-`docs/jewellink-pending-merge-validation.md`. PR #132 has merged into
-`SmokeMain`; its earlier external build moved JewelLink production traffic to a
-new revision from the existing `main` SHA. PR #133 is still open at
-`a5e3285ecd40143f616c0e9e9284a27b22c0040b` and passes
-build/type/tests/mobile validation locally, but its scoped lint has four errors
-and its mobile runtime tree has one critical and three high dependency
-findings.
+The release train reached `main` at
+`83de30f51276f5c0c8abfa61d7157d1fe0e847bf` through PR #152. GitHub Actions CI
+completed successfully for that exact commit. The prior PR #133 dependency
+findings are superseded by the current lockfiles: the local high-severity gates
+now pass with three moderate root findings and 19 moderate mobile findings.
 
-A local-only integration preview at `b6a748b8cdd7`, containing PR #133's exact
-current head, has also completed the source contracts, integration/deployment audit,
-Prisma generation, typecheck, 199 web tests, targeted integration lint,
-Next.js production build, Docker production build, runtime migration/CLI
-inspection, and container `/login` smoke. It is clean, bundled, not pushed, and
-does not advance Phase 6 because the final release is not yet on `main`.
+The exact rebaseline and validation evidence is recorded in
+`docs/jewellink-main-rebaseline-2026-07-13.md`. Production revision/baseline
+confirmation remains a separate read-only gate before cutover.
 
 Exit criteria:
 
@@ -321,7 +316,9 @@ Exit criteria:
 
 ## Phase 6 — Post-merge discovery and reintegration
 
-Status: deferred until Phase 5 exit criteria are met.
+Status: local discovery, merge, and validation completed on 2026-07-13;
+publication, review, authenticated stateful replay, and production changes
+remain gated.
 
 1. Fetch the new JewelLink `main` and create a fresh integration branch from
    that exact SHA.
@@ -333,6 +330,19 @@ Status: deferred until Phase 5 exit criteria are met.
 6. Run `npm ci`, build/type checks, dependency audit, Prisma validation, local
    Docker build, container `/login` smoke, and the cross-product runner.
 7. Open a focused integration PR with the merge dossier and QA evidence.
+
+Local result:
+
+- Current `main` was merged into
+  `codex/jewellink-integration-preview-next15` at `5577fe110ab0`.
+- The two manual conflicts preserved guarded deployment and both products'
+  current test contracts.
+- TypeScript, 307 web tests, five PostgreSQL lifecycle integration tests,
+  scoped lint, mobile iOS validation, production build, Docker build/runtime,
+  and the full cross-product suite pass.
+- The branch is clean, four commits ahead of `origin/main`, zero behind, and
+  preserved in a verified complete-history bundle.
+- Nothing was pushed or deployed.
 
 Gate:
 
@@ -359,7 +369,7 @@ Status: deferred and approval-gated.
 
 ## Immediate work queue
 
-Before the JewelLink merge lands, complete in this order:
+After the JewelLink `main` rebaseline, continue in this order:
 
 1. Phase 0: preserve both worktrees safely. **Complete.**
 2. Phase 1: curate and validate the JewelHire release branch. **Complete.**
@@ -368,8 +378,10 @@ Before the JewelLink merge lands, complete in this order:
 4. Phase 3: finish the JewelLink merge dossier. **Complete.**
 5. Phase 4: close every non-mutating production-readiness item. **Complete;
    external approvals and production mutations remain gated.**
-6. Stop at Phase 5 and wait for the final JewelLink merge SHA. **Active hold;
-   the PR #133-based local integration preview is complete and preserved.**
+6. Phase 5: record the exact final JewelLink `main` and green CI. **Complete;
+   production baseline confirmation remains.**
+7. Phase 6: merge and validate the integration locally. **Complete through
+   local QA at `5577fe110ab0`; PR publication and review remain gated.**
 
 ## Responsibility split
 
