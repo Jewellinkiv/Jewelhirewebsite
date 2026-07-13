@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { readinessExitCode } from "./lib/release-readiness.mjs";
 
 const args = new Map(
   process.argv.slice(2).map((arg) => {
@@ -239,7 +240,9 @@ function main() {
 
   console.log(`Notification readiness report: ${path.relative(process.cwd(), OUT)}/notification-readiness-report.md`);
   console.log(`Blockers: ${blockers.length}; warnings: ${warnings.length}; send adapter found: ${hasSendAdapter ? "yes" : "no"}`);
-  process.exit(0);
+  const exitCode = readinessExitCode({ blockers, warnings });
+  if (exitCode) console.error("Notification readiness audit failed; resolve all blockers before release.");
+  process.exit(exitCode);
 }
 
 main();

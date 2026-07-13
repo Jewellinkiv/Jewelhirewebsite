@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { readinessExitCode } from "./lib/release-readiness.mjs";
 
 const args = new Map(
   process.argv.slice(2).map((arg) => {
@@ -21,9 +22,10 @@ function read(file) {
   return fs.existsSync(path.resolve(process.cwd(), file)) ? fs.readFileSync(path.resolve(process.cwd(), file), "utf8") : "";
 }
 
-function record(name, pass, details = {}) {
-  checks.push({ name, pass, ...details });
-  console.log(`${pass ? "PASS" : "FAIL"} ${name}`);
+function record(name, pass, { severity = "blocking", ...details } = {}) {
+  checks.push({ name, pass, severity, ...details });
+  const outcome = pass ? "PASS" : severity === "warning" ? "WARN" : "FAIL";
+  console.log(`${outcome} ${name}`);
 }
 
 async function readBody(response) {
@@ -82,7 +84,10 @@ async function main() {
   record("stripe dependency or manual webhook verifier present", hasStripeDependency || hasManualWebhookVerifier || !hasWebhookRoute, {
     status: hasStripeDependency ? "stripe_sdk_present" : hasManualWebhookVerifier ? "manual_hmac_verifier_present" : "not_required_until_webhook_route_exists",
   });
-  record("stripe payment link env is referenced", hasPaymentLinkEnv);
+  record("stripe payment link env is referenced", hasPaymentLinkEnv, {
+    severity: "warning",
+    requiredForLaunch: false,
+  });
   record("stripe secret env is referenced by readiness/security surface", hasSecretEnv);
   record("stripe webhook secret env is referenced by readiness/security surface", hasWebhookSecretEnv);
   record("stripe webhook route implemented", hasWebhookRoute, { requiredForLaunch: true });
@@ -120,7 +125,7 @@ async function main() {
     status: webhookProbe.status,
   });
 
-  const failures = checks.filter((check) => !check.pass);
+  const failures = checks.filter((check) => !check.pass && check.severity === "blocking");
   fs.mkdirSync(OUT, { recursive: true });
   fs.writeFileSync(
     path.join(OUT, "billing-readiness-report.json"),
@@ -139,7 +144,7 @@ async function main() {
       "",
       "## Checks",
       "",
-      ...checks.map((check) => `- ${check.pass ? "PASS" : "FAIL"} ${check.name}`),
+      ...checks.map((check) => `- ${check.pass ? "PASS" : check.severity === "warning" ? "WARN" : "FAIL"} ${check.name}`),
       "",
       "## Blockers",
       "",
@@ -154,7 +159,10 @@ async function main() {
   );
 
   console.log(`Report: ${path.relative(process.cwd(), OUT)}/billing-readiness-report.md`);
-  process.exit(0);
+  const exitCode = readinessExitCode({ failures, blockers, warnings });
+  console.log(`Failures: ${failures.length}; blockers: ${blockers.length}; warnings: ${warnings.length}.`);
+  if (exitCode) console.error("Billing readiness audit failed; resolve all failed checks and blockers before release.");
+  process.exit(exitCode);
 }
 
 main().catch((error) => {
