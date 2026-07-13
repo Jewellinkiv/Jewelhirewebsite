@@ -4,6 +4,13 @@ Updated: 2026-07-13
 
 ## Current release-candidate status
 
+- [x] JewelHire release-control hardening is merged on
+  `main@4ec2c4796406630b002a602df145491c55e6a20e`; its exact-head push
+  validation passed and the production deploy job stayed skipped.
+- [x] JewelLink integration CI hardening and the hire-email delivery guard are
+  merged on `SmokeMain@c4320a00982d1caa681859b53ec5823321434123`; the guard's
+  exact-head CI, the branch push, refreshed promotion PR, and main-source gate
+  all passed.
 - [x] Production build compiles and TypeScript passes.
 - [x] Store owner, manager, location-scoped manager, applicant, and platform-admin role policy audits pass.
 - [x] Cross-store application and JewelLink integration isolation checks pass.
@@ -28,6 +35,12 @@ Updated: 2026-07-13
 
 Read-only baseline: `premerge-production-baseline.md`. Backup and rollback
 evidence template: `production-backup-and-rollback.md`.
+The dated owner, window, pilot, email, and observation decisions are recorded
+in `production-launch-control-2026-07-13.md`.
+
+- [ ] Replace every `UNASSIGNED` or `UNSELECTED` blocker in the dated launch
+  control record, obtain both independent reviews, and explicitly approve the
+  maintenance window before merging the final JewelLink promotion PR.
 
 - [ ] Apply the seven pending JewelHire migrations, `0012` through
   `0018_public_careers_daily_events.sql`, with the guarded candidate-image job.
@@ -40,12 +53,22 @@ evidence template: `production-backup-and-rollback.md`.
   `20260712043000_add_jewelhire_sso_codes`,
   `20260712052000_add_jewelhire_hire_provisioning`, and
   `20260712053000_add_jewelhire_jewelcert_results`.
-- [ ] Obtain and store a privileged JewelLink `MIGRATION_DATABASE_URL`. The
-  current runtime database user cannot create schema objects. A 2026-07-13
-  read-only ledger comparison found 109 applied repository migrations, zero
-  failed rows, no applied-but-missing drift, and only the three reviewed
-  JewelHire integration migrations pending. Re-run and record that comparison
-  against the exact no-traffic candidate before executing the migration job.
+- [ ] Remove the JewelLink web runtime's project-wide Secret Manager accessor
+  before creating `MIGRATION_DATABASE_URL`: inventory every current secret
+  consumer, grant per-secret access to the existing mounted references plus the
+  two runtime integration secrets, validate the proposed policy with a canary
+  identity or Policy Simulator, record the exact IAM rollback, remove the
+  project binding, immediately validate the current and no-traffic revisions,
+  and prove the web runtime cannot read a migration-only test secret. Traffic
+  rollback does not undo IAM. Follow the ordered procedure in
+  `production-integration-provisioning.md`.
+- [ ] Obtain and store a privileged JewelLink `MIGRATION_DATABASE_URL` only
+  after the narrow runtime policy passes. The current runtime database user
+  cannot create schema objects. A 2026-07-13 read-only ledger comparison found
+  109 applied repository migrations, zero failed rows, no applied-but-missing
+  drift, and only the three reviewed JewelHire integration migrations pending.
+  Re-run and record that comparison against the exact no-traffic candidate
+  before executing the migration job.
 - [ ] Record the JewelLink production dependency audit disposition. On
   2026-07-13, `npm audit --omit=dev --audit-level=high` passes with zero high or
   critical findings and reports three moderate advisories in Prisma tooling.
@@ -53,9 +76,23 @@ evidence template: `production-backup-and-rollback.md`.
   upgrade inside this cutover.
 - [ ] Configure `JEWELLINK_URL=https://ai.jewellink.com`, `JEWELLINK_SSO_SHARED_SECRET`, and `JEWELLINK_INTEGRATION_SHARED_SECRET` on the JewelHire Cloud Run service. They are absent from the current production revision and no matching Secret Manager entries exist yet.
 - [ ] Configure the matching high-entropy SSO and integration secrets on the production JewelLink service and verify its JewelHire callback/base URL points to `https://app.jewelhire.com`.
+- [x] JewelLink PR `#168` landed and validated the hire-email guard on the final
+  promotion head: disabled by default, allowlist-only for controlled
+  no-traffic testing, live mode only by explicit configuration,
+  `invitationSent=true` only after confirmed provider success, and durable
+  claim fencing that prevents a replay from sending twice.
 - [ ] Deploy the current release candidate. The currently deployed revision redirects `/privacy` and `/terms` to login; the local release candidate returns `200` for both.
-- [ ] Explicitly approve the production email posture. `EMAIL_NOTIFICATIONS_ENABLED=true` and a secret-backed Postmark token are currently mounted; `POSTMARK_DRY_RUN` is not mounted, so notifications are live rather than dry-run.
-- [ ] Send one controlled internal Postmark smoke for application confirmation and one manager notification, then verify delivery and metadata scrubbing. Do not use a real applicant during this test.
+- [ ] Apply the selected candidate/pilot email posture:
+  JewelHire `EMAIL_NOTIFICATIONS_ENABLED=true` plus `POSTMARK_DRY_RUN=true`, no
+  live-email workflow acknowledgement, and no real applicant recipient;
+  JewelLink hire email disabled. The current JewelHire service has
+  notifications enabled and a secret-backed Postmark token but no dry-run
+  setting, so this remains blocking until the no-traffic configuration proves
+  the explicit dry-run value.
+- [ ] Exercise one controlled dry-run application confirmation and one manager
+  notification and verify the `dry_run`/non-delivery result. Verify provider
+  metadata scrubbing with static/mock payload-capture evidence. Any later
+  live-provider smoke is a separate allowlist-only approval gate.
 - [ ] Exercise one Stripe test-mode checkout and signed webhook reconciliation against the release candidate. The code/readiness audit is green, but no checkout mutation was performed in this QA pass.
 
 ## Deployment order
@@ -68,8 +105,8 @@ evidence template: `production-backup-and-rollback.md`.
    migrations from that candidate's immutable image, smokes `/login`, and only
    then moves traffic.
 4. Mount the JewelLink URL and both shared secrets on JewelHire with no traffic.
-5. Decide whether launch email should be dry-run or live and mount
-   `POSTMARK_DRY_RUN` explicitly.
+5. Mount the selected candidate/pilot posture explicitly as
+   `POSTMARK_DRY_RUN=true`; live delivery remains a separate later approval.
 6. Run the manual JewelHire production workflow. It creates a no-traffic
    candidate, applies migrations from the exact candidate image, smokes public
    routes, and only then moves traffic.

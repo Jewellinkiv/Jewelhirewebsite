@@ -34,7 +34,43 @@ two projects; the two rows must not match each other.
 
 Grant the JewelHire runtime identity `roles/secretmanager.secretAccessor` only
 on the two JewelHire secrets. Grant the JewelLink runtime identity that role
-only on the two JewelLink secrets.
+only on the two JewelLink integration secrets in addition to its explicitly
+approved existing per-secret grants.
+
+## Remove broad JewelLink runtime secret access
+
+The 2026-07-13 read-only snapshot found that the JewelLink web runtime still
+has project-wide `roles/secretmanager.secretAccessor`. Do not create the
+privileged migration credential while that binding exists; doing so would
+expose it to the web service.
+
+Use this ordered conversion before creating `MIGRATION_DATABASE_URL`:
+
+1. Inventory every secret referenced by the current service and any required
+   dynamic consumer. Record the nonsecret secret names and dependent workload.
+2. Add per-secret accessor grants for the current runtime identity on every
+   approved runtime secret, including the two JewelHire integration secrets.
+3. Before touching the live identity, use IAM Policy Simulator or a temporary
+   canary identity with the proposed per-secret grants to verify every required
+   access and deny an unrelated/migration-only test secret. A live-service
+   smoke while the broad binding remains cannot prove the narrow grants are
+   complete.
+4. Record the exact project-level member binding that will be removed and the
+   approved command/operator for immediately restoring that same binding.
+   Validate the currently serving revision and a no-traffic revision against
+   core authentication, CRM, UP, POS, settings, provider, and public-form paths.
+5. Remove the project-wide accessor binding from the web runtime identity,
+   then immediately repeat the current/no-traffic smoke and effective-IAM
+   checks. If any required access fails, re-add the recorded binding first,
+   verify service recovery, and stop the cutover.
+6. Only after the narrow policy passes, create `MIGRATION_DATABASE_URL` and
+   grant access solely to the dedicated migration identity. Never mount it on
+   the web service.
+
+Record the before/after IAM policy evidence without secret payloads. Keep the
+existing production revision available for application rollback, but note that
+traffic rollback does not undo a project IAM change; the recorded IAM binding
+restore is a separate required recovery action.
 
 ## JewelLink migration identity
 
@@ -97,7 +133,11 @@ their non-integration smoke checks.
 4. Build JewelLink's integration-disabled candidate:
 
    ```bash
-   DATABASE_BACKUP_CONFIRMED=1 ./deploy.sh candidate
+   DATABASE_BACKUP_CONFIRMED=1 \
+   JEWELHIRE_INTEGRATION_ENABLED=false \
+   JEWELHIRE_ROLLOUT_MODE=off \
+   JEWELHIRE_HIRE_EMAIL_MODE=disabled \
+   ./deploy.sh candidate
    ```
 
    Record the candidate revision, tag URL, image digest, and current live
@@ -137,6 +177,7 @@ their non-integration smoke checks.
    JEWELHIRE_INTEGRATION_ENABLED=true \
    JEWELHIRE_ROLLOUT_MODE=pilot \
    JEWELHIRE_PILOT_COMPANY_IDS='<approved-company-id>' \
+   JEWELHIRE_HIRE_EMAIL_MODE=disabled \
    ./deploy.sh candidate
    ```
 
