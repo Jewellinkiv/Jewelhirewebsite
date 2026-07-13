@@ -73,6 +73,8 @@ Local migration commands:
 
 ```sh
 npm run db:migrate:status
+npm run db:migrate:verify
+npm run db:migrate:verify:clean
 APPLY_DATABASE_MIGRATIONS=1 npm run db:migrate:apply
 ```
 
@@ -80,13 +82,25 @@ The runner:
 
 - Loads `DATABASE_URL` or `POSTGRES_URL` from `.env.local` or the shell environment.
 - Prints only redacted connection metadata.
-- Creates `schema_migrations` to track applied SQL files.
+- Keeps `status` and `verify` read-only; only confirmed local/development first-run `apply` may
+  create `schema_migrations`. `status` reports an uninitialized ledger without changing it, while
+  `verify` fails closed when the ledger is missing.
+- Verifies every applied migration still has a repository file with the exact recorded filename and
+  SHA-256 checksum, and fails on missing applied files or drift.
+- Requires applied migrations to form a contiguous prefix of repository filename order; an applied
+  migration after any pending file is treated as invalid history and blocks apply.
+- Lets `verify` accept pending additive migrations, while `verify:clean` also requires zero pending.
 - Applies pending files in filename order.
 - Wraps each migration in a transaction.
+- Logs a pre-apply ledger verification, then verifies integrity and zero pending migrations after
+  apply.
 - Refuses to apply migrations unless `APPLY_DATABASE_MIGRATIONS=1` is set.
+- Supports `REQUIRE_EXISTING_MIGRATION_LEDGER=1`, which is mandatory in the production migration
+  job so a missing ledger cannot be silently initialized during a release.
 
-Do not run `db:migrate:apply` against production. The current PlanetScale target is treated as
-disposable development/staging, and the shared credential must be rotated before wider use.
+Do not run `db:migrate:apply` interactively against production. Production migrations are executed
+only by the guarded candidate-image workflow after backup confirmation; local use remains limited
+to disposable development/staging targets with rotated credentials.
 
 ## Demo Seed Runner
 

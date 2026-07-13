@@ -32,7 +32,10 @@ evidence template: `production-backup-and-rollback.md`.
 - [ ] Apply the seven pending JewelHire migrations, `0012` through
   `0018_public_careers_daily_events.sql`, with the guarded candidate-image job.
   Migrations `0017` and `0018` must exist before the new application-detail and
-  analytics queries run.
+  analytics queries run. Use `npm run db:migrate:verify` before apply; the
+  guarded apply command then performs its own pre-apply verification and a
+  checksum-aware, zero-pending post-apply verification. The production job sets
+  `REQUIRE_EXISTING_MIGRATION_LEDGER=1` and must stop if the ledger is absent.
 - [ ] Apply the three pending JewelLink integration migrations in order:
   `20260712043000_add_jewelhire_sso_codes`,
   `20260712052000_add_jewelhire_hire_provisioning`, and

@@ -49,6 +49,7 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: npm run test:release-controls
       - run: npm run lint
       - run: npm run build
       - run: npm audit --audit-level=moderate
@@ -162,7 +163,7 @@ jobs:
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
           echo "previous_revision=$PREVIOUS_REVISION" >> "$GITHUB_OUTPUT"
 
-      - name: Apply production database migrations
+      - name: Apply and verify production database migrations
         env:
           IMAGE: ${{ steps.candidate.outputs.image }}
         run: |
@@ -179,7 +180,7 @@ jobs:
             --image "$IMAGE" \
             --service-account "$RUNTIME_SERVICE_ACCOUNT" \
             --set-secrets "DATABASE_URL=${DATABASE_SECRET}:${DATABASE_SECRET_VERSION}" \
-            --set-env-vars "APPLY_DATABASE_MIGRATIONS=1,POSTGRES_POOL_MAX=1" \
+            --set-env-vars "APPLY_DATABASE_MIGRATIONS=1,REQUIRE_EXISTING_MIGRATION_LEDGER=1,POSTGRES_POOL_MAX=1" \
             --command npm \
             --args run,db:migrate:apply \
             --max-retries 0 \
