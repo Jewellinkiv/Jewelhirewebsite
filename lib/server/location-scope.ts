@@ -1,4 +1,4 @@
-import { AccessDeniedError } from "@/lib/server/access-control";
+import { AccessDeniedError } from "@/lib/server/access-errors";
 
 export function normalizeLocationKey(value?: string | null) {
   return (value || "")
@@ -16,6 +16,16 @@ export function locationInScope(value: string | null | undefined, locationIds?: 
     const allowed = normalizeLocationKey(locationId);
     return key === allowed || key.includes(allowed) || allowed.includes(key);
   });
+}
+
+// Authorization checks that already hold a persisted location id must never
+// use the label-friendly substring matching above. In particular, `north`
+// must not authorize `north-mall` merely because one identifier prefixes the
+// other.
+export function locationIdInScope(value: string | null | undefined, locationIds?: string[]) {
+  if (!locationIds) return true;
+  const key = normalizeLocationKey(value);
+  return Boolean(key) && locationIds.some((locationId) => normalizeLocationKey(locationId) === key);
 }
 
 export function requireLocationInScope(value: string | null | undefined, locationIds: string[] | undefined, operation: string) {

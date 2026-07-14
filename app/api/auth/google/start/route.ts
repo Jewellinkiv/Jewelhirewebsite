@@ -1,19 +1,9 @@
 import { NextResponse } from "next/server";
 import { OAUTH_NEXT_COOKIE, OAUTH_STATE_COOKIE, randomState } from "@/lib/server/auth";
+import { safeSameOriginPathOrRoot } from "@/lib/server/safe-redirect";
 
 function appBaseUrl(request: Request) {
   return (process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin).replace(/\/$/, "");
-}
-
-function safeNext(value: unknown) {
-  if (typeof value !== "string") return "/";
-  let decoded = "";
-  try {
-    decoded = decodeURIComponent(value);
-  } catch {
-    return "/";
-  }
-  return value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") && !decoded.includes("\\") ? value : "/";
 }
 
 export function GET(request: Request) {
@@ -37,6 +27,6 @@ export function GET(request: Request) {
   const response = NextResponse.redirect(authUrl);
   const secure = process.env.NODE_ENV === "production";
   response.cookies.set(OAUTH_STATE_COOKIE, state, { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 600 });
-  response.cookies.set(OAUTH_NEXT_COOKIE, safeNext(next), { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 600 });
+  response.cookies.set(OAUTH_NEXT_COOKIE, safeSameOriginPathOrRoot(next), { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 600 });
   return response;
 }

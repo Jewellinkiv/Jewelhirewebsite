@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCourseAssignment } from "@/lib/local-api-store";
+import { getCourseAssignment, getCourseAssignmentAccessScope } from "@/lib/local-api-store";
 import { requireRecipientOrStoreAccess, requireStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import {
@@ -55,6 +55,9 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
   await requireRecipientOrStoreAccess({
     storeId: assignment.storeId,
     recipientEmail: assignment.recipientEmail,
+    resourceLocation: getStorageRuntime() === "postgres"
+      ? assignment.resourceLocation
+      : getCourseAssignmentAccessScope(assignmentId)?.resourceLocation,
     operation: "course_test_attempts.create",
   });
 

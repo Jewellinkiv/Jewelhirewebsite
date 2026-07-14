@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { PoolClient } from "pg";
 import { isConfiguredAdminEmail } from "@/lib/server/auth";
 import { getPostgresPool } from "@/lib/server/postgres";
-import { createActionToken } from "@/lib/server/action-tokens";
+import { withReplacingActionToken } from "@/lib/server/action-tokens";
 import { notifyStoreOwnerClaim } from "@/lib/server/notifications";
 
 // Store-owner paid signup: a pending row is created at form submit, and the real
@@ -148,7 +148,8 @@ export async function provisionStoreFromPendingSignup(input: {
     return { provisioned: false, reason };
   };
 
-  // Configured admin emails would resolve to an admin session — never provision one.
+  // Platform-admin emails authenticate only through MFA-backed JewelLink SSO;
+  // never provision one through native store signup.
   if (isConfiguredAdminEmail(emailNorm)) return cancel("admin_email_blocked");
   // The paying Stripe customer must match the email the store is being created for.
   if (input.customerEmail && input.customerEmail.trim().toLowerCase() !== emailNorm) {
@@ -227,15 +228,29 @@ export async function provisionStoreFromPendingSignup(input: {
   // claimEmailSent) so a paid-but-unemailed owner can be found and recovered.
   let claimEmailSent = false;
   try {
-    const token = await createActionToken({ purpose: "account_claim", userId, email: row.owner_email, ttlMinutes: CLAIM_TTL_MINUTES });
-    await notifyStoreOwnerClaim({
-      toEmail: row.owner_email,
-      name: row.owner_name,
-      companyName: row.company_name,
-      token,
-      existingAccount: false,
-    });
-    claimEmailSent = true;
+    claimEmailSent = await withReplacingActionToken(
+      {
+        purpose: "account_claim",
+        userId,
+        email: row.owner_email,
+        companyId,
+        ttlMinutes: CLAIM_TTL_MINUTES,
+      },
+      async ({ token }) => {
+        const notification = await notifyStoreOwnerClaim({
+          toEmail: row.owner_email,
+          name: row.owner_name,
+          companyName: row.company_name,
+          token,
+          existingAccount: false,
+        });
+        const delivered = notification.status === "sent" || notification.status === "dry_run";
+        return { commit: delivered, value: delivered };
+      },
+    );
+    if (!claimEmailSent) {
+      console.error(`[store-signup] claim email was not accepted for provisioned owner ${userId} (company ${companyId}).`);
+    }
   } catch (error) {
     console.error(`[store-signup] claim email FAILED for provisioned owner ${userId} <${row.owner_email}> (company ${companyId}). They can recover via forgot-password.`, error);
   }

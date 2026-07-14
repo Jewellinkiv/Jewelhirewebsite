@@ -4,6 +4,7 @@ import process from "node:process";
 import pg from "pg";
 import {
   loadMigrationFiles,
+  migrationFilesThrough,
   migrationChecksum,
   verifyMigrationLedger,
 } from "./lib/migration-ledger.mjs";
@@ -12,7 +13,13 @@ const { Pool } = pg;
 const rootDir = process.cwd();
 const migrationsDir = path.join(rootDir, "db", "migrations");
 const command = process.argv[2] || "status";
-const requireZeroPending = process.argv.slice(3).includes("--require-zero-pending");
+const commandArguments = process.argv.slice(3);
+const requireZeroPending = commandArguments.includes("--require-zero-pending");
+const throughArguments = commandArguments.filter((argument) => argument.startsWith("--through="));
+if (throughArguments.length > 1) throw new Error("Specify at most one --through=<migration-id> boundary.");
+const throughMigrationId = throughArguments[0]?.slice("--through=".length).trim() || undefined;
+const migrationLockTimeout = "5s";
+const migrationStatementTimeout = "2min";
 
 function loadEnvFile(filename) {
   const filePath = path.join(rootDir, filename);
@@ -53,6 +60,7 @@ function usage() {
   npm run db:migrate:verify
   npm run db:migrate:verify:clean
   APPLY_DATABASE_MIGRATIONS=1 npm run db:migrate:apply
+  APPLY_DATABASE_MIGRATIONS=1 npm run db:migrate:apply -- --through=<migration-id>
 
 Environment:
   DATABASE_URL or POSTGRES_URL must be set in .env.local or shell env.
@@ -62,6 +70,10 @@ Safety:
   verify:clean also fails when migrations are pending.
   apply refuses to run unless APPLY_DATABASE_MIGRATIONS=1 is set. It verifies the
   ledger before applying and verifies integrity plus zero pending migrations after.
+  --through is apply-only and commits exactly a repository prefix; later files
+  remain pending for an explicit contract-phase apply.
+  Each migration fails fast after a 5-second lock wait and has a 2-minute
+  statement timeout; a timeout rolls back the migration and stops the release.
   Set REQUIRE_EXISTING_MIGRATION_LEDGER=1 for production release jobs.`);
 }
 
@@ -144,14 +156,23 @@ async function apply(client) {
   });
   assertValid(preApply, "Pre-apply migration ledger verification failed; no migrations were applied.");
 
+  const repositoryFiles = loadMigrationFiles(migrationsDir);
+  const selectedPrefix = migrationFilesThrough(repositoryFiles, throughMigrationId);
+  const selectedIds = new Set(selectedPrefix.map((file) => file.id));
+  const selectedPending = preApply.pending.filter((file) => selectedIds.has(file.id));
+
   if (!preApply.ledgerExists) {
     console.log("Initializing schema_migrations for this confirmed non-production/first-run apply.");
     await ensureMigrationTable(client);
   }
 
-  if (!preApply.pending.length) console.log("No pending migrations.");
+  if (!selectedPending.length) {
+    console.log(throughMigrationId
+      ? `No pending migrations through ${throughMigrationId}.`
+      : "No pending migrations.");
+  }
 
-  for (const file of preApply.pending) {
+  for (const file of selectedPending) {
     const sql = fs.readFileSync(file.path, "utf8");
     const digest = migrationChecksum(sql);
     if (digest !== file.checksum) {
@@ -161,6 +182,8 @@ async function apply(client) {
     console.log(`Applying ${file.filename} (sha256:${digest.slice(0, 12)})...`);
     await client.query("begin");
     try {
+      await client.query("select set_config('lock_timeout', $1, true)", [migrationLockTimeout]);
+      await client.query("select set_config('statement_timeout', $1, true)", [migrationStatementTimeout]);
       await client.query(sql);
       await client.query(
         "insert into schema_migrations (id, filename, checksum) values ($1, $2, $3)",
@@ -175,11 +198,19 @@ async function apply(client) {
   }
 
   const postApply = await verifyWithClient(client, {
-    label: "Post-apply migration ledger verification (zero pending required)",
+    label: throughMigrationId
+      ? `Post-apply migration ledger verification (prefix through ${throughMigrationId})`
+      : "Post-apply migration ledger verification (zero pending required)",
     requireLedger: true,
-    zeroPending: true,
+    zeroPending: !throughMigrationId,
   });
   assertValid(postApply, "Post-apply migration ledger verification failed.");
+  const pendingInsideSelectedPrefix = postApply.pending.filter((file) => selectedIds.has(file.id));
+  if (pendingInsideSelectedPrefix.length) {
+    throw new Error(
+      `Post-apply verification found pending migration(s) inside the selected prefix: ${pendingInsideSelectedPrefix.map((file) => file.id).join(", ")}.`,
+    );
+  }
 }
 
 async function main() {
@@ -190,6 +221,10 @@ async function main() {
   if (!["status", "verify", "apply"].includes(command)) {
     usage();
     throw new Error(`Unknown command: ${command}`);
+  }
+  if (throughMigrationId && command !== "apply") {
+    usage();
+    throw new Error("--through is supported only by the apply command.");
   }
   if (command === "apply" && process.env.APPLY_DATABASE_MIGRATIONS !== "1") {
     throw new Error("Refusing to apply migrations without APPLY_DATABASE_MIGRATIONS=1.");

@@ -138,7 +138,7 @@ async function main() {
   record("login renders standard email password form", fileIncludes("app/(auth)/login/page.tsx", ["password-login-form", "/api/auth/password/session", "Sign in with email"]));
   record("password credential storage exists", fileIncludes("db/migrations/0003_password_credentials.sql", ["password_credentials", "password_hash"]));
   record("password session route exists", fileIncludes("app/api/auth/password/session/route.ts", ["loginWithPassword", "setSessionCookie"]));
-  record("password login routes admins to admin panel by default", fileIncludes("app/api/auth/password/session/route.ts", ["destinationForSession", "session.role === \"admin\"", "\"/admin\""]));
+  record("password login routes configured admins to JewelLink MFA", fileIncludes("lib/server/password-auth.ts", ["isConfiguredAdminEmail(row.email)", "jewellink_required"]));
   record("root dashboard redirects admin sessions", fileIncludes("app/(store)/page.tsx", ["router.replace(\"/admin\")", "session.role === \"admin\""]));
   await auditFirebaseSetup();
 

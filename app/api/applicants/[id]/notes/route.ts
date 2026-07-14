@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
+import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { requireLocationInScope } from "@/lib/server/location-scope";
 import {
@@ -49,7 +49,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
       storeId: scope.storeId,
       body: text,
       noteType,
-      actorUserId: (await getSessionContext()).userId,
+      actorUserId: access.session.userId,
     });
     if (!note) return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
     return NextResponse.json({ note }, { status: 201 });

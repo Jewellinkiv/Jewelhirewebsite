@@ -3,6 +3,7 @@ import { CompanyStatus, PlanTier } from "@/lib/admin";
 import { requireAdminAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { getAdminStore } from "@/lib/server/stores/admin-store";
+import { teamInvitesEnabled } from "@/lib/server/team-invite-policy";
 
 const plans: PlanTier[] = ["Starter", "Growth", "Pro"];
 const statuses: CompanyStatus[] = ["Active", "Trial", "Suspended"];
@@ -14,7 +15,10 @@ export const GET = withApiErrorHandling(async function GET(_request: Request, pr
   await requireAdminAccess("admin.companies.detail");
   const company = await getAdminStore().getCompany(params.id);
   if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
-  return NextResponse.json({ company });
+  return NextResponse.json({
+    company,
+    capabilities: { teamInvitesEnabled: teamInvitesEnabled() },
+  });
 });
 
 export const PATCH = withApiErrorHandling(async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {

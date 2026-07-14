@@ -358,6 +358,7 @@ interface CourseAssignmentRow {
   completed_at: string | null;
   last_activity_at: string;
   credential_id: string | null;
+  resource_location: string | null;
 }
 
 interface CourseCatalogRow {
@@ -960,6 +961,31 @@ function slugExpression(column: string) {
   return `regexp_replace(regexp_replace(lower(trim(${column})), '[^a-z0-9]+', '-', 'g'), '(^-|-$)', '', 'g')`;
 }
 
+function resolvedJobLocationJoin(jobLocationColumn: string, storeIdColumn: string, alias: string) {
+  const jobLocationSlug = slugExpression(jobLocationColumn);
+  const candidateLocationSlug = slugExpression("candidate_location.name");
+  return `
+    left join lateral (
+      select case
+        when count(*) filter (where ${jobLocationSlug} = ${candidateLocationSlug}) = 1
+          then min(candidate_location.id) filter (where ${jobLocationSlug} = ${candidateLocationSlug})
+        when count(*) filter (where ${jobLocationSlug} = ${candidateLocationSlug}) = 0
+          and count(*) = 1
+          then min(candidate_location.id)
+      end as location_id
+      from locations candidate_location
+      where candidate_location.store_id = ${storeIdColumn}
+        and ${jobLocationSlug} <> ''
+        and ${candidateLocationSlug} <> ''
+        and (
+          ${jobLocationSlug} = ${candidateLocationSlug}
+          or ${jobLocationSlug} like ('%' || ${candidateLocationSlug} || '%')
+          or ${candidateLocationSlug} like ('%' || ${jobLocationSlug} || '%')
+        )
+    ) ${alias} on true
+  `;
+}
+
 function slugify(value: string) {
   return value
     .trim()
@@ -1215,6 +1241,7 @@ function mapCourseAssignment(row: CourseAssignmentRow) {
     courseStats: stats,
     lastActivityAt: row.last_activity_at,
     credentialId: optional(row.credential_id),
+    resourceLocation: optional(row.resource_location),
   };
 }
 
@@ -3939,25 +3966,52 @@ export async function completePostgresGemMatchResponse(input: { inviteId: string
 }
 
 export async function getPostgresGemMatchInviteScope(inviteId: string) {
-  const result = await getPostgresPool().query<{ store_id: string; recipient_email: string | null }>(
+  const result = await getPostgresPool().query<{
+    store_id: string;
+    recipient_email: string | null;
+    application_source: string;
+    external_user_id: string | null;
+    resource_location: string | null;
+  }>(
     `
-      select gi.store_id, ap.email as recipient_email
+      select gi.store_id, ap.email as recipient_email, a.source as application_source,
+             (
+               select external_invite.external_user_id
+               from jewelcert_invites external_invite
+               where external_invite.application_id = a.id
+                 and external_invite.external_user_id is not null
+               order by external_invite.created_at desc, external_invite.id desc
+               limit 1
+             ) as external_user_id,
+             resource_location.location_id as resource_location
       from gemmatch_invites gi
       join applications a on a.id = gi.application_id
       join applicant_profiles ap on ap.id = a.applicant_profile_id
+      left join public_jobs pj on pj.id = a.job_id
+      ${resolvedJobLocationJoin("pj.location", "a.store_id", "resource_location")}
       where gi.id = $1
       union all
-      select ji.store_id, coalesce(ap.email, ji.sent_to_email) as recipient_email
+      select ji.store_id, coalesce(ap.email, ji.sent_to_email) as recipient_email,
+             a.source as application_source, ji.external_user_id,
+             resource_location.location_id as resource_location
       from jewelcert_invites ji
       join applications a on a.id = ji.application_id
       join applicant_profiles ap on ap.id = a.applicant_profile_id
+      left join public_jobs pj on pj.id = a.job_id
+      ${resolvedJobLocationJoin("pj.location", "a.store_id", "resource_location")}
       where ji.id = $1
       limit 1
     `,
     [inviteId],
   );
   const row = result.rows[0];
-  return row ? { storeId: row.store_id, recipientEmail: row.recipient_email || undefined } : undefined;
+  return row ? {
+    storeId: row.store_id,
+    recipientEmail: row.recipient_email || undefined,
+    externalUserId: row.external_user_id || undefined,
+    applicationSource: row.application_source,
+    resourceLocation: row.resource_location || undefined,
+  } : undefined;
 }
 
 export async function getPostgresGemMatchCompletionNotificationContext(inviteId: string) {
@@ -5387,7 +5441,7 @@ export async function getPostgresApplicantProfile(email?: string | null) {
         updated_at::text
       from applicant_profiles
       where email_normalized = $1
-      order by updated_at desc, created_at desc
+      order by updated_at desc, created_at desc, id asc
       limit 1
     `,
     [normalizedEmail],
@@ -5528,8 +5582,21 @@ function applicantInviteJob(row: { job_id: string | null; job_title: string | nu
     : undefined;
 }
 
-export async function listPostgresApplicantInvites(email?: string | null, status?: string | null) {
+export type ApplicantInviteIdentity = {
+  authSource?: "native" | "jewellink_sso";
+  upstreamUserId?: string | null;
+};
+
+export async function listPostgresApplicantInvites(
+  email?: string | null,
+  status?: string | null,
+  identity?: ApplicantInviteIdentity,
+) {
   const normalizedEmail = normalizeEmail(email || "maya.chen@email.com");
+  const authSource = identity?.authSource || "native";
+  const upstreamUserId = authSource === "jewellink_sso"
+    ? identity?.upstreamUserId?.trim() || ""
+    : "";
   const jewelcertResult = await getPostgresPool().query<
     JewelCertInviteRow & {
       application_id: string;
@@ -5582,10 +5649,20 @@ export async function listPostgresApplicantInvites(email?: string | null, status
       join applicant_profiles ap on ap.id = a.applicant_profile_id
       join stores s on s.id = ji.store_id
       left join public_jobs pj on pj.id = a.job_id
-      where ap.email_normalized = $1
+      where (
+        (
+          ji.external_user_id is null
+          and a.source <> 'jewellink_employee'
+          and ap.email_normalized = $1
+        )
+        or (
+          $2::text = 'jewellink_sso'
+          and ji.external_user_id = $3
+        )
+      )
       order by ji.sent_at desc nulls last, ji.completed_at desc nulls last, ji.id desc
     `,
-    [normalizedEmail],
+    [normalizedEmail, authSource, upstreamUserId],
   );
   const gemmatchResult = await getPostgresPool().query<
     GemMatchInviteRow & {
@@ -5636,10 +5713,30 @@ export async function listPostgresApplicantInvites(email?: string | null, status
       join applicant_profiles ap on ap.id = a.applicant_profile_id
       join stores s on s.id = gi.store_id
       left join public_jobs pj on pj.id = a.job_id
-      where ap.email_normalized = $1
+      where (
+        (
+          a.source <> 'jewellink_employee'
+          and ap.email_normalized = $1
+          and not exists (
+            select 1
+            from jewelcert_invites external_invite
+            where external_invite.application_id = a.id
+              and external_invite.external_user_id is not null
+          )
+        )
+        or (
+          $2::text = 'jewellink_sso'
+          and exists (
+            select 1
+            from jewelcert_invites external_invite
+            where external_invite.application_id = a.id
+              and external_invite.external_user_id = $3
+          )
+        )
+      )
       order by gi.created_at desc, gi.id desc
     `,
-    [normalizedEmail],
+    [normalizedEmail, authSource, upstreamUserId],
   );
   const items = [
     ...jewelcertResult.rows.map((row) => ({
@@ -5664,12 +5761,15 @@ export async function listPostgresApplicantInvites(email?: string | null, status
   return items;
 }
 
-export async function getPostgresApplicantHome(email?: string | null) {
+export async function getPostgresApplicantHome(
+  email?: string | null,
+  inviteIdentity?: ApplicantInviteIdentity,
+) {
   const [applicant, applications, interviews, invites] = await Promise.all([
     getPostgresApplicantProfile(email),
     listPostgresApplicantApplications(email),
     listPostgresApplicantInterviews(email),
-    listPostgresApplicantInvites(email),
+    listPostgresApplicantInvites(email, null, inviteIdentity),
   ]);
   const active = applications.filter((item) =>
     ["applied", "jewelcert", "gemmatch", "interview", "offer"].includes(item.application.stage),
@@ -6700,7 +6800,8 @@ export async function createPostgresJewelCertInvite(
       `
         insert into jewelcert_invites (
           id, application_id, store_id, assessment_package_id, sent_by_user_id, sent_to_email,
-          status, component_ids, course_slugs, expires_at, sent_at, created_at
+          status, component_ids, course_slugs, expires_at, sent_at, created_at,
+          claim_token_version
         )
         values (
           $1,
@@ -6714,7 +6815,8 @@ export async function createPostgresJewelCertInvite(
           $8::jsonb,
           $9,
           $10,
-          $10
+          $10,
+          2
         )
         returning
           id, application_id, store_id, assessment_package_id, sent_by_user_id, sent_to_email,
@@ -8314,6 +8416,7 @@ export async function getPostgresApplicantResume(email?: string | null) {
       from applicant_profiles ap
       left join applicant_resumes ar on ar.applicant_profile_id = ap.id
       where ap.email_normalized = $1
+      order by ap.updated_at desc, ap.created_at desc, ap.id asc
       limit 1
     `,
     [normalizedEmail],
@@ -8352,6 +8455,8 @@ export async function updatePostgresApplicantResume(input: UpdatePostgresApplica
         from applicant_profiles ap
         left join applicant_resumes ar on ar.applicant_profile_id = ap.id
         where ap.email_normalized = $1
+        order by ap.updated_at desc, ap.created_at desc, ap.id asc
+        limit 1
         for update of ap
       `,
       [lookupEmail],
@@ -8458,7 +8563,7 @@ export async function getPostgresApplicantNotificationPrefs(email?: string | nul
       from applicant_profiles ap
       left join applicant_notification_prefs anp on anp.applicant_profile_id = ap.id
       where ap.email_normalized = $1
-      order by ap.updated_at desc
+      order by ap.updated_at desc, ap.created_at desc, ap.id asc
       limit 1
     `,
     [normalizedEmail],
@@ -8481,7 +8586,10 @@ export async function updatePostgresApplicantNotificationPrefs(input: {
   const normalizedEmail = normalizeEmail(input.email || "maya.chen@email.com");
   const current = await getPostgresApplicantNotificationPrefs(normalizedEmail);
   const profile = await getPostgresPool().query<{ id: string }>(
-    "select id from applicant_profiles where email_normalized = $1 order by updated_at desc limit 1",
+    `select id from applicant_profiles
+     where email_normalized = $1
+     order by updated_at desc, created_at desc, id asc
+     limit 1`,
     [normalizedEmail],
   );
   const profileId = profile.rows[0]?.id;
@@ -8637,11 +8745,18 @@ async function queryPostgresCourseAssignmentsWithClient(client: PoolClient, inpu
         ca.due_at::text,
         ca.completed_at::text,
         ca.last_activity_at::text,
-        cc.id as credential_id
+        cc.id as credential_id,
+        case
+          when ca.recipient_type = 'team_member' then tm.location_id
+          else resource_location.location_id
+        end as resource_location
       from course_assignments ca
       join courses c on c.id = ca.course_id
       left join applicant_profiles ap on ap.id = ca.recipient_id and ca.recipient_type = 'applicant'
       left join team_members tm on tm.id = ca.team_member_id and ca.recipient_type = 'team_member'
+      left join applications a on a.id = ca.application_id and ca.recipient_type = 'applicant'
+      left join public_jobs pj on pj.id = a.job_id
+      ${resolvedJobLocationJoin("pj.location", "ca.store_id", "resource_location")}
       left join course_credentials cc on cc.course_assignment_id = ca.id
       where ($1::text is null or ca.store_id = $1)
         and ($2::text is null or c.slug = $2)
@@ -8673,19 +8788,30 @@ async function queryPostgresCourseAssignments(input: ListPostgresCourseAssignmen
 }
 
 export async function getPostgresInterviewRsvpScope(interviewId: string) {
-  const result = await getPostgresPool().query<{ store_id: string; recipient_email: string | null }>(
+  const result = await getPostgresPool().query<{
+    store_id: string;
+    recipient_email: string | null;
+    resource_location: string | null;
+  }>(
     `
-      select i.store_id, ap.email as recipient_email
+      select i.store_id, ap.email as recipient_email,
+             resource_location.location_id as resource_location
       from interviews i
       join applications a on a.id = i.application_id
       join applicant_profiles ap on ap.id = a.applicant_profile_id
+      left join public_jobs pj on pj.id = a.job_id
+      ${resolvedJobLocationJoin("pj.location", "a.store_id", "resource_location")}
       where i.id = $1
       limit 1
     `,
     [interviewId],
   );
   const row = result.rows[0];
-  return row ? { storeId: row.store_id, recipientEmail: row.recipient_email || undefined } : undefined;
+  return row ? {
+    storeId: row.store_id,
+    recipientEmail: row.recipient_email || undefined,
+    resourceLocation: row.resource_location || undefined,
+  } : undefined;
 }
 
 export async function listPostgresCourseAssignments(input: ListPostgresCourseAssignmentsInput = {}) {

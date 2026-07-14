@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
+import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { requireLocationInScope } from "@/lib/server/location-scope";
 import { getPostgresApplicationDetail, getPostgresApplicationStoreId, getPostgresHirePreview, getPostgresHireSyncForApplication, hirePostgresApplication } from "@/lib/server/postgres-phase1";
@@ -47,7 +47,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
     const sync = await hirePostgresApplication({
       applicationId: params.id,
       storeId,
-      actorUserId: (await getSessionContext()).userId,
+      actorUserId: access.session.userId,
       role: body?.role,
       locationId: body?.locationId,
     });

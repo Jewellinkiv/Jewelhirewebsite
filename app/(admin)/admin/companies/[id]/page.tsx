@@ -17,21 +17,24 @@ export default function CompanyDetail() {
   const [impersonate, setImpersonate] = useState(false);
   const [claimTarget, setClaimTarget] = useState<AdminCompanyUser | null>(null);
   const [claimSending, setClaimSending] = useState(false);
+  const [teamInvitesEnabled, setTeamInvitesEnabled] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/admin/companies/${companyId}`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data: { company: AdminCompany }) => {
+      .then((data: { company: AdminCompany; capabilities?: { teamInvitesEnabled?: boolean } }) => {
         if (!cancelled) {
           setCompany(data.company);
           setUsers(data.company.users);
+          setTeamInvitesEnabled(data.capabilities?.teamInvitesEnabled === true);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setCompany(fallbackCompany);
           setUsers(fallbackCompany?.users ?? []);
+          setTeamInvitesEnabled(false);
         }
       });
     return () => {
@@ -55,8 +58,21 @@ export default function CompanyDetail() {
     setNotice("User removed from the company.");
   };
   const resend = async (id: string, name: string) => {
+    if (!teamInvitesEnabled) {
+      setNotice("Team invitations are paused while JewelHire completes secure invitation setup.");
+      return;
+    }
     const response = await fetch(`/api/admin/users/${id}/resend`, { method: "POST" });
-    setNotice(response.ok ? `Invite re-sent to ${name}.` : "Invite could not be re-sent locally.");
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      setNotice(body?.error?.message || "The invitation could not be resent.");
+      return;
+    }
+    setNotice(
+      body?.notification?.status === "sent" && body?.notification?.delivery === "accepted"
+        ? `Invitation email accepted for delivery to ${name}.`
+        : `The invitation record for ${name} was refreshed, but no email was sent.`,
+    );
   };
   const startImpersonation = async () => {
     const response = await fetch(`/api/admin/companies/${company.id}/impersonation`, { method: "POST" });
@@ -104,6 +120,12 @@ export default function CompanyDetail() {
         <div className="mb-4 flex items-center gap-2 bg-[#e1f5ee] border border-[#cdeadd] text-[#0f6e56] rounded-md px-3.5 py-2.5 text-[13px]"><IconCheck size={15} /> {notice}<button onClick={() => setNotice("")} className="ml-auto"><IconX size={15} /></button></div>
       )}
 
+      {!teamInvitesEnabled && (
+        <div className="mb-4 rounded-md border border-[#cfe0fb] bg-[#eef4ff] px-3.5 py-2.5 text-[12.5px] text-body">
+          <span className="font-medium text-head">Team onboarding is paused for the pilot.</span> Existing users can still be viewed or removed; secure retained-owner access links remain available.
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-[18px]">
         {[["Seats", company.seats], ["Stores", company.stores.length], ["Assessments sent", company.assessmentsSent], ["Hires", company.hires]].map(([k, v]) => (
           <div key={k as string} className="bg-panel border border-line rounded px-4 py-3"><div className="text-[11.5px] text-muted">{k}</div><div className="text-xl font-semibold text-head mt-0.5">{v}</div></div>
@@ -134,7 +156,7 @@ export default function CompanyDetail() {
                   {u.role === "Admin" ? (
                     <button onClick={() => setClaimTarget(u)} className="text-[11.5px] px-2 py-1 rounded border border-line text-primary hover:bg-[#e8f1ff]">Send access link</button>
                   ) : (
-                    <button onClick={() => resend(u.id, u.name)} className="text-[11.5px] px-2 py-1 rounded border border-line text-body hover:bg-rowhover">Resend</button>
+                    <button disabled={!teamInvitesEnabled} onClick={() => resend(u.id, u.name)} className="text-[11.5px] px-2 py-1 rounded border border-line text-body hover:bg-rowhover disabled:cursor-not-allowed disabled:opacity-50">{teamInvitesEnabled ? "Resend" : "Invites paused"}</button>
                   )}
                   {u.role !== "Admin" && <button onClick={() => deactivate(u.id)} className="w-7 h-7 rounded border border-line text-muted hover:bg-[#fcebeb] hover:text-[#a32d2d] flex items-center justify-center"><IconX size={14} /></button>}
                 </div>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCourseAssignment, updateTrainingProgress } from "@/lib/local-api-store";
+import { getCourseAssignment, getCourseAssignmentAccessScope, updateTrainingProgress } from "@/lib/local-api-store";
 import { requireRecipientOrStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { notifyTrainingAssignment } from "@/lib/server/notifications";
@@ -44,6 +44,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
     await requireRecipientOrStoreAccess({
       storeId: before.storeId,
       recipientEmail: before.recipientEmail,
+      resourceLocation: before.resourceLocation,
       operation: "course_assignments.progress",
     });
     const assignment = await updatePostgresTrainingProgress({ assignmentId: params.id, progress });
@@ -54,9 +55,11 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
 
   const before = getCourseAssignment(params.id);
   if (!before) return NextResponse.json({ error: "Course assignment not found" }, { status: 404 });
+  const accessScope = getCourseAssignmentAccessScope(params.id);
   await requireRecipientOrStoreAccess({
     storeId: before.storeId,
     recipientEmail: before.recipientEmail,
+    resourceLocation: accessScope?.resourceLocation,
     operation: "course_assignments.progress",
   });
   const assignment = updateTrainingProgress(params.id, progress);

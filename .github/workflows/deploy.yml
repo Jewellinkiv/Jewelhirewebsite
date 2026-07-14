@@ -27,6 +27,11 @@ on:
         required: true
         default: false
         type: boolean
+      legacy_jewelcert_invites_cleared:
+        description: Confirm every sent/started legacy JewelCert invite is cancelled before the post-promotion 0024 fence
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: jewelhire-production
@@ -40,6 +45,20 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: applicant_signup_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      JEWELHIRE_TEST_POSTGRES_ADMIN_URL: postgresql://postgres:applicant_signup_ci_only@127.0.0.1:5432/postgres?sslmode=disable
     steps:
       - uses: actions/checkout@v4
 
@@ -50,6 +69,23 @@ jobs:
 
       - run: npm ci
       - run: npm run test:release-controls
+      - run: npm run test:team-invite-gate
+      - run: npm run test:applicant-signup-hardening
+      - run: npm run test:applicant-signup-postgres
+      - run: npm run test:jewelcert-claim-hardening
+      - run: npm run test:jewelcert-claim-postgres
+      - run: npm run test:jewelcert-cutover-postgres
+      - run: npm run test:jewelcert-claim-browser
+      - run: npm run test:password-reset-hardening
+      - run: npm run test:password-reset-postgres
+      - run: npm run test:password-reset-browser
+      - run: npm run test:account-claim-hardening
+      - run: npm run test:account-claim-browser
+      - run: npm run test:request-security
+      - run: npm run test:hybrid-location-access
+      - run: npm run test:hybrid-location-access-postgres
+      - run: npm run test:jewellink-sso-hardening
+      - run: npm run test:jewellink-sso-postgres
       - run: npm run lint
       - run: npm run build
       - run: npm audit --audit-level=moderate
@@ -84,10 +120,15 @@ jobs:
         env:
           DATABASE_BACKUP_CONFIRMED: ${{ inputs.database_backup_confirmed }}
           ACKNOWLEDGE_LIVE_EMAIL: ${{ inputs.acknowledge_live_email }}
+          LEGACY_JEWELCERT_INVITES_CLEARED: ${{ inputs.legacy_jewelcert_invites_cleared }}
         run: |
           set -euo pipefail
           if [[ "$DATABASE_BACKUP_CONFIRMED" != "true" ]]; then
             echo "A current production database backup must be confirmed before deployment."
+            exit 1
+          fi
+          if [[ "$LEGACY_JEWELCERT_INVITES_CLEARED" != "true" ]]; then
+            echo "Every sent/started legacy JewelCert invite must be cancelled before the post-promotion 0024 fence."
             exit 1
           fi
 
@@ -96,7 +137,7 @@ jobs:
             --region us-central1 \
             --format=json > /tmp/jewelhire-service.json
 
-          for name in DATABASE_URL AUTH_SECRET JEWELLINK_URL JEWELLINK_SSO_SHARED_SECRET JEWELLINK_INTEGRATION_SHARED_SECRET JEWELHIRE_JEWELLINK_DIRECTOR_ROLE JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS; do
+          for name in DATABASE_URL AUTH_SECRET JEWELLINK_URL JEWELLINK_SSO_SHARED_SECRET JEWELLINK_INTEGRATION_SHARED_SECRET JEWELHIRE_JEWELLINK_DIRECTOR_ROLE JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS JEWELHIRE_TEAM_INVITES_ENABLED JEWELHIRE_TRUSTED_PROXY_HOPS JEWELHIRE_REQUIRE_AUTH AUTH_MODE JEWELHIRE_STORAGE JEWELHIRE_ENABLE_SESSION_OVERRIDE EMAIL_NOTIFICATIONS_ENABLED POSTMARK_DRY_RUN POSTMARK_SERVER_TOKEN POSTMARK_FROM_EMAIL POSTMARK_MESSAGE_STREAM; do
             if ! jq -e --arg name "$name" '.spec.template.spec.containers[0].env[] | select(.name == $name)' /tmp/jewelhire-service.json >/dev/null; then
               echo "Missing required Cloud Run environment setting: $name"
               exit 1
@@ -120,7 +161,32 @@ jobs:
             exit 1
           fi
 
-          for name in DATABASE_URL AUTH_SECRET JEWELLINK_SSO_SHARED_SECRET JEWELLINK_INTEGRATION_SHARED_SECRET; do
+          REQUIRE_AUTH=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELHIRE_REQUIRE_AUTH") | .value // ""' /tmp/jewelhire-service.json)
+          AUTH_MODE_VALUE=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "AUTH_MODE") | .value // ""' /tmp/jewelhire-service.json)
+          STORAGE_MODE=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELHIRE_STORAGE") | .value // ""' /tmp/jewelhire-service.json)
+          SESSION_OVERRIDE=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELHIRE_ENABLE_SESSION_OVERRIDE") | .value // ""' /tmp/jewelhire-service.json)
+          if [[ "$REQUIRE_AUTH" != "1" || "$AUTH_MODE_VALUE" != "google" ]]; then
+            echo "Production requires JEWELHIRE_REQUIRE_AUTH=1 and AUTH_MODE=google."
+            exit 1
+          fi
+          if [[ "$STORAGE_MODE" != "postgres" || "$SESSION_OVERRIDE" != "0" ]]; then
+            echo "Production requires JEWELHIRE_STORAGE=postgres and JEWELHIRE_ENABLE_SESSION_OVERRIDE=0."
+            exit 1
+          fi
+
+          TEAM_INVITES_ENABLED=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELHIRE_TEAM_INVITES_ENABLED") | .value // ""' /tmp/jewelhire-service.json)
+          if [[ "$TEAM_INVITES_ENABLED" != "0" ]]; then
+            echo "JEWELHIRE_TEAM_INVITES_ENABLED must be explicitly 0 for the Diamond Exchange pilot."
+            exit 1
+          fi
+
+          TRUSTED_PROXY_HOPS=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELHIRE_TRUSTED_PROXY_HOPS") | .value // ""' /tmp/jewelhire-service.json)
+          if [[ ! "$TRUSTED_PROXY_HOPS" =~ ^[0-8]$ ]]; then
+            echo "JEWELHIRE_TRUSTED_PROXY_HOPS must be an explicit integer from 0 through 8."
+            exit 1
+          fi
+
+          for name in DATABASE_URL AUTH_SECRET JEWELLINK_SSO_SHARED_SECRET JEWELLINK_INTEGRATION_SHARED_SECRET POSTMARK_SERVER_TOKEN; do
             if ! jq -e --arg name "$name" '
               .spec.template.spec.containers[0].env[]
               | select(.name == $name)
@@ -133,8 +199,16 @@ jobs:
 
           EMAIL_ENABLED=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "EMAIL_NOTIFICATIONS_ENABLED") | .value // "false"' /tmp/jewelhire-service.json)
           POSTMARK_DRY_RUN=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "POSTMARK_DRY_RUN") | .value // "false"' /tmp/jewelhire-service.json)
-          if [[ "$EMAIL_ENABLED" == "true" && "$POSTMARK_DRY_RUN" != "true" && "$POSTMARK_DRY_RUN" != "1" && "$ACKNOWLEDGE_LIVE_EMAIL" != "true" ]]; then
-            echo "Postmark delivery is live. Check acknowledge_live_email to approve this posture."
+          if [[ "$EMAIL_ENABLED" != "true" ]]; then
+            echo "Verified applicant signup requires EMAIL_NOTIFICATIONS_ENABLED=true before traffic moves."
+            exit 1
+          fi
+          if [[ "$POSTMARK_DRY_RUN" == "true" || "$POSTMARK_DRY_RUN" == "1" ]]; then
+            echo "Verified applicant signup cannot deliver its secret token while POSTMARK_DRY_RUN is enabled."
+            exit 1
+          fi
+          if [[ "$ACKNOWLEDGE_LIVE_EMAIL" != "true" ]]; then
+            echo "Postmark delivery must be live for verified applicant signup. Check acknowledge_live_email to approve this posture."
             exit 1
           fi
 
@@ -163,7 +237,7 @@ jobs:
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
           echo "previous_revision=$PREVIOUS_REVISION" >> "$GITHUB_OUTPUT"
 
-      - name: Apply and verify production database migrations
+      - name: Apply rollback-compatible expand migrations through 0023
         env:
           IMAGE: ${{ steps.candidate.outputs.image }}
         run: |
@@ -174,7 +248,7 @@ jobs:
           DATABASE_SECRET_VERSION=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "DATABASE_URL") | (.valueSource.secretKeyRef.version // .valueFrom.secretKeyRef.key // "latest")' <<<"$SERVICE_JSON")
           test -n "$RUNTIME_SERVICE_ACCOUNT" && test -n "$DATABASE_SECRET"
 
-          gcloud run jobs deploy jewelhire-migrate \
+          gcloud run jobs deploy jewelhire-migrate-expand \
             --project jewelhire-prod-20260626 \
             --region us-central1 \
             --image "$IMAGE" \
@@ -182,11 +256,11 @@ jobs:
             --set-secrets "DATABASE_URL=${DATABASE_SECRET}:${DATABASE_SECRET_VERSION}" \
             --set-env-vars "APPLY_DATABASE_MIGRATIONS=1,REQUIRE_EXISTING_MIGRATION_LEDGER=1,POSTGRES_POOL_MAX=1" \
             --command npm \
-            --args run,db:migrate:apply \
+            --args run,db:migrate:apply,--,--through=0023_jewelcert_claim_token_version \
             --max-retries 0 \
             --task-timeout 15m \
             --quiet
-          gcloud run jobs execute jewelhire-migrate \
+          gcloud run jobs execute jewelhire-migrate-expand \
             --project jewelhire-prod-20260626 \
             --region us-central1 \
             --wait
@@ -196,13 +270,38 @@ jobs:
           TAG_URL: ${{ steps.candidate.outputs.tag_url }}
         run: |
           set -euo pipefail
-          for path in /login /privacy /terms /signup /signup/store; do
+          for path in /login /forgot-password /reset-password /privacy /terms /signup /verify-email /signup/store; do
             STATUS=$(curl --fail --silent --show-error --retry 5 --retry-all-errors --output /dev/null --write-out '%{http_code}' "${TAG_URL}${path}")
             if [[ "$STATUS" != "200" ]]; then
               echo "Candidate ${path} returned ${STATUS}; expected 200."
               exit 1
             fi
           done
+
+      - name: Probe applicant signup provider on no-traffic candidate
+        env:
+          TAG_URL: ${{ steps.candidate.outputs.tag_url }}
+          JEWELHIRE_RELEASE_PROBE_EMAIL: ${{ secrets.JEWELHIRE_RELEASE_PROBE_EMAIL }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$JEWELHIRE_RELEASE_PROBE_EMAIL" ]]; then
+            echo "The required JEWELHIRE_RELEASE_PROBE_EMAIL production secret is missing."
+            exit 1
+          fi
+
+          PROBE_PAYLOAD=$(jq -cn --arg email "$JEWELHIRE_RELEASE_PROBE_EMAIL" '{email: $email}')
+          STATUS=$(curl --silent --show-error \
+            --connect-timeout 10 \
+            --max-time 20 \
+            --output /tmp/jewelhire-signup-provider-probe.json \
+            --write-out '%{http_code}' \
+            --header 'content-type: application/json' \
+            --data-binary "$PROBE_PAYLOAD" \
+            "${TAG_URL}/api/auth/applicant-signup")
+          if [[ "$STATUS" != "202" ]] || ! jq -e '.ok == true' /tmp/jewelhire-signup-provider-probe.json >/dev/null; then
+            echo "The no-traffic applicant signup provider probe was not accepted; refusing to move traffic."
+            exit 1
+          fi
 
       - name: Move production traffic to candidate
         env:
@@ -221,7 +320,7 @@ jobs:
         run: |
           set -euo pipefail
           FAILED=0
-          for path in /login /privacy /terms /signup /signup/store; do
+          for path in /login /forgot-password /reset-password /privacy /terms /signup /verify-email /signup/store; do
             STATUS=$(curl --fail --silent --show-error --retry 5 --retry-all-errors --output /dev/null --write-out '%{http_code}' "https://app.jewelhire.com${path}" || true)
             if [[ "$STATUS" != "200" ]]; then
               echo "Production ${path} returned ${STATUS}; expected 200."
@@ -237,3 +336,49 @@ jobs:
               --quiet
             exit 1
           fi
+
+      - name: Apply post-promotion 0024 fence and final readiness
+        env:
+          IMAGE: ${{ steps.candidate.outputs.image }}
+        run: |
+          set -euo pipefail
+          echo "The v2-writing revision owns traffic. After this contract migration, do not restore a pre-v2 revision."
+          SERVICE_JSON=$(gcloud run services describe jewelhire --project jewelhire-prod-20260626 --region us-central1 --format=json)
+          RUNTIME_SERVICE_ACCOUNT=$(jq -r '.spec.template.spec.serviceAccountName // .spec.template.spec.serviceAccount' <<<"$SERVICE_JSON")
+          DATABASE_SECRET=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "DATABASE_URL") | (.valueSource.secretKeyRef.secret // .valueFrom.secretKeyRef.name)' <<<"$SERVICE_JSON")
+          DATABASE_SECRET_VERSION=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "DATABASE_URL") | (.valueSource.secretKeyRef.version // .valueFrom.secretKeyRef.key // "latest")' <<<"$SERVICE_JSON")
+          test -n "$RUNTIME_SERVICE_ACCOUNT" && test -n "$DATABASE_SECRET"
+
+          gcloud run jobs deploy jewelhire-migrate-contract \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --image "$IMAGE" \
+            --service-account "$RUNTIME_SERVICE_ACCOUNT" \
+            --set-secrets "DATABASE_URL=${DATABASE_SECRET}:${DATABASE_SECRET_VERSION}" \
+            --set-env-vars "APPLY_DATABASE_MIGRATIONS=1,REQUIRE_EXISTING_MIGRATION_LEDGER=1,POSTGRES_POOL_MAX=1" \
+            --command npm \
+            --args run,db:migrate:apply \
+            --max-retries 0 \
+            --task-timeout 15m \
+            --quiet
+          gcloud run jobs execute jewelhire-migrate-contract \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --wait
+
+          gcloud run jobs deploy jewelhire-readiness \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --image "$IMAGE" \
+            --service-account "$RUNTIME_SERVICE_ACCOUNT" \
+            --set-secrets "DATABASE_URL=${DATABASE_SECRET}:${DATABASE_SECRET_VERSION}" \
+            --set-env-vars "POSTGRES_POOL_MAX=1" \
+            --command npm \
+            --args run,db:readiness \
+            --max-retries 0 \
+            --task-timeout 15m \
+            --quiet
+          gcloud run jobs execute jewelhire-readiness \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --wait

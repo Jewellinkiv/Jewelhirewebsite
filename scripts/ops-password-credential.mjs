@@ -6,6 +6,13 @@ const { Pool } = pg;
 const passwordKeyLength = 64;
 const passwordParams = { N: 16_384, r: 8, p: 1 };
 
+function sslConfig(rawUrl) {
+  const url = new URL(rawUrl);
+  const sslmode = url.searchParams.get("sslmode");
+  if (sslmode === "disable" || ["localhost", "127.0.0.1", "::1"].includes(url.hostname)) return false;
+  return { rejectUnauthorized: true };
+}
+
 function parseArgs(argv) {
   const parsed = { dryRun: false };
   for (let index = 0; index < argv.length; index += 1) {
@@ -39,6 +46,8 @@ function usage() {
     "  --email <email>            Existing active JewelHire user email.",
     "  --password-env <env var>   Env var containing the new password. Defaults to JEWELHIRE_OPERATOR_PASSWORD.",
     "  --dry-run                  Validate target user without writing.",
+    "",
+    "A successful write atomically advances the user's native session epoch, revokes older native cookies, and invalidates outstanding reset/claim links.",
   ].join("\n");
 }
 
@@ -63,7 +72,7 @@ async function main() {
     connectionTimeoutMillis: 15_000,
     idleTimeoutMillis: 30_000,
     max: 1,
-    ssl: { rejectUnauthorized: true },
+    ssl: sslConfig(databaseUrl),
   });
 
   try {
@@ -83,19 +92,67 @@ async function main() {
       return;
     }
 
-    const id = existing.rows[0]?.id || `pwcred_${randomBytes(12).toString("hex")}`;
     const passwordHash = await hashPassword(password);
-    await pool.query(
-      `
-        insert into password_credentials (id, user_id, password_hash)
-        values ($1, $2, $3)
-        on conflict (user_id)
-        do update set password_hash = excluded.password_hash, updated_at = now()
-      `,
-      [id, user.id, passwordHash],
-    );
-
-    console.log(JSON.stringify({ ok: true, action, email: user.email, userId: user.id }, null, 2));
+    const client = await pool.connect();
+    try {
+      await client.query("begin");
+      const lockedUser = await client.query(
+        `select id, email, native_auth_epoch
+         from users
+         where id = $1 and email_normalized = $2 and status = 'active'
+         for update`,
+        [user.id, email],
+      );
+      if (!lockedUser.rows[0]) {
+        throw new Error("The target identity changed before the credential write; no password was changed.");
+      }
+      const lockedCredential = await client.query(
+        "select id from password_credentials where user_id = $1 for update",
+        [user.id],
+      );
+      const lockedAction = lockedCredential.rows.length ? "rotate" : "create";
+      const id = lockedCredential.rows[0]?.id || `pwcred_${randomBytes(12).toString("hex")}`;
+      await client.query(
+        `insert into password_credentials (id, user_id, password_hash)
+         values ($1, $2, $3)
+         on conflict (user_id)
+         do update set password_hash = excluded.password_hash, updated_at = now()`,
+        [id, user.id, passwordHash],
+      );
+      const epoch = await client.query(
+        `update users
+         set native_auth_epoch = native_auth_epoch + 1, updated_at = now()
+         where id = $1
+         returning native_auth_epoch`,
+        [user.id],
+      );
+      if (epoch.rows[0]?.native_auth_epoch !== lockedUser.rows[0].native_auth_epoch + 1) {
+        throw new Error("Password credential write could not advance the native session epoch.");
+      }
+      await client.query(
+        `update auth_action_tokens
+         set used_at = now()
+         where user_id = $1
+           and purpose in ('password_reset', 'account_claim')
+           and used_at is null`,
+        [user.id],
+      );
+      const settlement = await client.query("commit");
+      if (settlement.command !== "COMMIT") {
+        throw new Error("Password credential transaction did not commit.");
+      }
+      console.log(JSON.stringify({
+        ok: true,
+        action: lockedAction,
+        email: lockedUser.rows[0].email,
+        userId: user.id,
+      }, null, 2));
+    } catch (error) {
+      await client.query("rollback").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
   } finally {
     await pool.end();
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { InterviewStatus } from "@/lib/applicant-lifecycle";
-import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
+import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { requireLocationInScope } from "@/lib/server/location-scope";
 import { getPostgresInterviewStoreId, listPostgresStoreInterviews, updatePostgresInterview } from "@/lib/server/postgres-phase1";
@@ -22,7 +22,7 @@ export const PATCH = withApiErrorHandling(async function PATCH(request: Request,
     requireLocationInScope(current?.job?.location, access.locationIds, "interviews.update");
     const interview = await updatePostgresInterview({
       interviewId: params.id,
-      actorUserId: (await getSessionContext()).userId,
+      actorUserId: access.session.userId,
       status,
       notes: typeof body?.notes === "string" ? body.notes : undefined,
     });
@@ -54,7 +54,7 @@ export const DELETE = withApiErrorHandling(async function DELETE(_request: Reque
     requireLocationInScope(current?.job?.location, access.locationIds, "interviews.delete");
     const interview = await updatePostgresInterview({
       interviewId: params.id,
-      actorUserId: (await getSessionContext()).userId,
+      actorUserId: access.session.userId,
       status: "cancelled",
       notes: "Interview cancelled by store",
     });

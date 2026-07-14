@@ -35,7 +35,7 @@ import { listStoreAssessments } from "@/lib/local-assessment-store";
 import { SESSION } from "@/lib/session";
 import { COURSES, courseStats, getCourse } from "@/lib/training-center";
 import { courseTitleById } from "@/lib/courses";
-import { addTeamMember, getTeamComposition, listStoreTeamMembers } from "@/lib/local-team-store";
+import { addTeamMember, getTeamComposition, listStoreLocations, listStoreTeamMembers } from "@/lib/local-team-store";
 
 export type CourseAssignmentRecord = TrainingAssignment & {
   storeId: string;
@@ -53,6 +53,7 @@ export type CourseAssignmentRecord = TrainingAssignment & {
   courseStats: ReturnType<typeof courseStats>;
   lastActivityAt: string;
   credentialId?: string;
+  resourceLocation?: string;
 };
 
 type StoreState = {
@@ -163,6 +164,7 @@ export function getCurrentSession() {
     storeRoles: { [DEFAULT_STORE_ID]: "store_owner" as const },
     locationScopes: { [DEFAULT_STORE_ID]: { allLocations: true, locationIds: [] } },
     activeStoreId: DEFAULT_STORE_ID,
+    authSource: "native" as const,
     guardrails: {
       phase: "phase_1_single_store" as const,
       applicantScope: "store_private" as const,
@@ -691,6 +693,51 @@ export function listCourseAssignments(input: {
 
 export function getCourseAssignment(assignmentId: string) {
   return state().trainingAssignments.find((assignment) => assignment.id === assignmentId);
+}
+
+function localResourceLocationId(storeId: string, value?: string | null) {
+  const normalized = (value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  if (!normalized) return undefined;
+
+  const locations = listStoreLocations(storeId);
+  const exact = locations.filter((location) => {
+    const id = location.id.toLowerCase();
+    const name = location.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return normalized === id || normalized === name;
+  });
+  if (exact.length === 1) return exact[0].id;
+
+  const compatible = locations.filter((location) => {
+    const name = location.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return normalized.includes(name) || name.includes(normalized);
+  });
+  return compatible.length === 1 ? compatible[0].id : undefined;
+}
+
+export function getCourseAssignmentAccessScope(assignmentId: string) {
+  const assignment = getCourseAssignment(assignmentId);
+  if (!assignment) return undefined;
+
+  let resourceLocation: string | undefined;
+  if (assignment.applicationId) {
+    const jobLocation = getApplicationDetail(assignment.applicationId)?.job?.location;
+    resourceLocation = localResourceLocationId(assignment.storeId, jobLocation);
+  } else if (assignment.teamMemberId) {
+    const teamMember = listStoreTeamMembers(assignment.storeId).find(
+      (member) => member.id === assignment.teamMemberId,
+    );
+    resourceLocation = teamMember?.locationId || teamMember?.location;
+  }
+
+  return {
+    storeId: assignment.storeId,
+    recipientEmail: assignment.recipientEmail,
+    resourceLocation,
+  };
 }
 
 export function createCourseAssignments(input: {
@@ -1438,6 +1485,7 @@ export function getInterviewRsvpScope(interviewId: string) {
   return {
     storeId: interview.storeId,
     recipientEmail: detail?.profile?.email,
+    resourceLocation: localResourceLocationId(interview.storeId, detail?.job?.location),
   };
 }
 
@@ -1455,6 +1503,10 @@ export function getGemMatchInviteScope(inviteId: string) {
   return {
     storeId: invite?.storeId || jewelcert?.storeId || detail?.application.storeId,
     recipientEmail: detail?.profile?.email,
+    resourceLocation: localResourceLocationId(
+      invite?.storeId || jewelcert?.storeId || detail?.application.storeId || "",
+      detail?.job?.location,
+    ),
   };
 }
 

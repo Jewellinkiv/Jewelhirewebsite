@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  migrationFilesThrough,
   migrationChecksum,
   verifyMigrationLedger,
 } from "./lib/migration-ledger.mjs";
@@ -117,6 +118,66 @@ test("first-run status remains read-only-compatible when the ledger is not initi
   assert.equal(result.valid, true);
   assert.equal(result.ledgerExists, false);
   assert.deepEqual(result.pending.map((pending) => pending.id), [file.id]);
+});
+
+test("bounded migration apply selects one contiguous repository prefix", () => {
+  const first = migration("0001_expand");
+  const second = migration("0002_expand");
+  const contract = migration("0003_contract");
+  assert.deepEqual(
+    migrationFilesThrough([first, second, contract], second.id).map((file) => file.id),
+    [first.id, second.id],
+  );
+  assert.throws(
+    () => migrationFilesThrough([first, second, contract], "0004_missing"),
+    /boundary 0004_missing does not exist/,
+  );
+});
+
+test("JewelCert v2 cutover is operator-confirmed, database-enforced, and written by every issuer", () => {
+  const workflow = fs.readFileSync(".github/workflows/deploy.yml", "utf8");
+  const expandMigration = fs.readFileSync("db/migrations/0023_jewelcert_claim_token_version.sql", "utf8");
+  const contractMigration = fs.readFileSync("db/migrations/0024_jewelcert_claim_token_version_fence.sql", "utf8");
+  const migrationRunner = fs.readFileSync("scripts/run-migrations.mjs", "utf8");
+  const internalIssuer = fs.readFileSync("lib/server/postgres-phase1.ts", "utf8");
+  const jewelLinkIssuer = fs.readFileSync("app/api/integrations/jewellink/jewelcert/invites/route.ts", "utf8");
+  const serverReadiness = fs.readFileSync("lib/server/postgres-readiness.ts", "utf8");
+  const commandReadiness = fs.readFileSync("scripts/check-database-readiness.mjs", "utf8");
+  const cutoverPostgresTest = fs.readFileSync("scripts/jewelcert-cutover-postgres.test.mjs", "utf8");
+
+  assert.match(workflow, /legacy_jewelcert_invites_cleared:/);
+  assert.match(workflow, /if \[\[ "\$LEGACY_JEWELCERT_INVITES_CLEARED" != "true" \]\]/);
+  assert.match(workflow, /--args run,db:readiness/);
+  const expandApply = workflow.indexOf("--through=0023_jewelcert_claim_token_version");
+  const promotion = workflow.indexOf("Move production traffic to candidate");
+  const rollbackCompatibleSmoke = workflow.indexOf("Verify public production routes");
+  const contractApply = workflow.indexOf("jewelhire-migrate-contract");
+  const finalReadiness = workflow.indexOf("jewelhire-readiness", contractApply);
+  assert.ok(expandApply >= 0 && expandApply < promotion);
+  assert.ok(promotion < rollbackCompatibleSmoke);
+  assert.ok(rollbackCompatibleSmoke < contractApply);
+  assert.ok(contractApply < finalReadiness);
+  assert.match(workflow, /After this contract migration, do not restore a pre-v2 revision/);
+  assert.match(workflow, /JEWELHIRE_REQUIRE_AUTH=1 and AUTH_MODE=google/);
+  assert.match(workflow, /JEWELHIRE_STORAGE=postgres and JEWELHIRE_ENABLE_SESSION_OVERRIDE=0/);
+  assert.match(workflow, /npm run test:jewelcert-cutover-postgres/);
+  assert.match(expandMigration, /claim_token_version smallint not null default 1/);
+  assert.doesNotMatch(expandMigration, /jewelcert_invites_active_claim_token_version_check/);
+  assert.match(contractMigration, /status in \('sent', 'started'\)/);
+  assert.match(contractMigration, /raise exception 'Cancel every active legacy JewelCert invite before applying 0024'/);
+  assert.match(contractMigration, /jewelcert_invites_active_claim_token_version_check/);
+  assert.match(contractMigration, /status not in \('sent', 'started'\) or claim_token_version >= 2/);
+  assert.match(migrationRunner, /--through=<migration-id>/);
+  assert.match(cutoverPostgresTest, /--through=0023_jewelcert_claim_token_version/);
+  assert.match(cutoverPostgresTest, /legacy-after-fence/);
+  assert.match(internalIssuer, /claim_token_version[\s\S]*?2/);
+  assert.match(jewelLinkIssuer, /claim_token_version[\s\S]*?2/);
+  for (const readinessSource of [serverReadiness, commandReadiness]) {
+    assert.match(readinessSource, /0023_jewelcert_claim_token_version/);
+    assert.match(readinessSource, /0024_jewelcert_claim_token_version_fence/);
+    assert.match(readinessSource, /jewelcert_invites_active_claim_token_version_check/);
+    assert.match(readinessSource, /column_name = 'claim_token_version'/);
+  }
 });
 
 test("billing audit keeps optional warnings nonblocking while required failures block", async (context) => {

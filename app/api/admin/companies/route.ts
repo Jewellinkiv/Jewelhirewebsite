@@ -3,6 +3,7 @@ import { PlanTier } from "@/lib/admin";
 import { requireAdminAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { getAdminStore } from "@/lib/server/stores/admin-store";
+import { assertTeamInvitesEnabled, teamInvitesEnabled } from "@/lib/server/team-invite-policy";
 
 const plans: PlanTier[] = ["Starter", "Growth", "Pro"];
 
@@ -15,11 +16,13 @@ export const GET = withApiErrorHandling(async function GET(request: Request) {
   return NextResponse.json({
     count: items.length,
     items,
+    capabilities: { teamInvitesEnabled: teamInvitesEnabled() },
   });
 });
 
 export const POST = withApiErrorHandling(async function POST(request: Request) {
   await requireAdminAccess("admin.companies.create");
+  assertTeamInvitesEnabled();
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const owner = typeof body?.owner === "string" ? body.owner.trim() : "";

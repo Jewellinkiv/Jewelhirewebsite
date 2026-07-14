@@ -8,6 +8,7 @@
   "store_integrations",
   "external_identities",
   "applicant_profiles",
+  "pending_applicant_signups",
   "applicant_resumes",
   "store_public_pages",
   "public_page_assets",

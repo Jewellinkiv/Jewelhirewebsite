@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { AccessDeniedError } from "@/lib/server/access-control";
 import { UnauthenticatedError } from "@/lib/server/auth";
 import { StorageAdapterUnavailableError } from "@/lib/server/storage-runtime";
+import { TeamInvitesDisabledError } from "@/lib/server/team-invite-policy";
 
 export function apiErrorResponse(error: unknown) {
   if (error instanceof UnauthenticatedError) {
@@ -19,6 +20,13 @@ export function apiErrorResponse(error: unknown) {
     return NextResponse.json(
       { error: { code: "storage_adapter_unavailable", message: error.message } },
       { status: 501 },
+    );
+  }
+
+  if (error instanceof TeamInvitesDisabledError) {
+    return NextResponse.json(
+      { error: { code: "team_invites_disabled", message: error.message } },
+      { status: 503 },
     );
   }
 

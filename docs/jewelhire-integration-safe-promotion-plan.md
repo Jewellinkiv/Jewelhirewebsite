@@ -153,8 +153,12 @@ unchanged.
 ## Stage 4 — Stateful staging acceptance
 
 1. Build one immutable image from the exact final `SmokeMain` SHA.
-2. Apply the three migrations to an isolated database restored from a recent
-   production-shaped backup.
+2. Apply the seven reviewed integration/auth migrations to an isolated database
+   restored from a recent production-shaped backup.
+   `20260714110000_deactivate_email_integrations_on_company_change` must prove
+   that moving a user to another tenant forces every old-company mailbox
+   integration into a fail-closed, inactive state until it is reconnected
+   inside the current company.
 3. Run both products with matched synthetic secrets and rollout mode `pilot`.
 4. Execute the complete stateful role matrix:
    - Director becomes JewelHire store owner;
@@ -175,8 +179,8 @@ workflow regresses.
 
 1. End the merge freeze only long enough to synchronize `SmokeMain` with any
    approved `main` movement, then rerun the complete checks.
-2. Open one `SmokeMain` to `main` promotion PR showing only the three reviewed
-   integration commits.
+2. Open one `SmokeMain` to `main` promotion PR showing only the reviewed final
+   integration and authentication commits.
 3. Require two named approvals and green CI on the exact promotion SHA. The
    author does not perform the final merge.
 4. Keep the automatic deployment trigger disabled.

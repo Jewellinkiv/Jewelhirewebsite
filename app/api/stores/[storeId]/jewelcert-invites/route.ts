@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
+import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import {
   createPostgresJewelCertInvite,
   getPostgresApplicationDetail,
@@ -50,7 +50,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
     getStorageRuntime() === "postgres"
       ? await createPostgresJewelCertInvite({
           ...input,
-          actorUserId: (await getSessionContext()).userId,
+          actorUserId: access.session.userId,
         })
       : getApplicantStore().createJewelCertInvite(input)
   );

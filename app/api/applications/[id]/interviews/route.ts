@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
+import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { requireLocationInScope } from "@/lib/server/location-scope";
 import { createPostgresInterview, getPostgresApplicationDetail, getPostgresApplicationStoreId } from "@/lib/server/postgres-phase1";
@@ -18,11 +18,10 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
     const access = await requireLocationScopedStoreAccess(storeId, "interviews.create");
     const detail = await getPostgresApplicationDetail({ applicationId: params.id, storeId });
     requireLocationInScope(detail?.job?.location || detail?.profile?.location, access.locationIds, "interviews.create");
-    const session = await getSessionContext();
     const interview = await createPostgresInterview({
       applicationId: params.id,
       storeId,
-      actorUserId: session.userId,
+      actorUserId: access.session.userId,
       date: body?.date,
       time: body?.time,
       startsAt: body?.startsAt,

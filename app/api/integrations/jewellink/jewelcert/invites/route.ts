@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { acquireJewelCertInviteTransactionLock } from "@/lib/server/jewelcert-invite-lock";
 import { getPostgresPool } from "@/lib/server/postgres";
 import { notifyJewelCertInviteCreated } from "@/lib/server/notifications";
 
@@ -68,16 +69,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "JewelLink organization or location is not linked" }, { status: 404 });
     }
 
-    const existingProfile = await client.query<{ id: string }>(
+    const inviteId = stableId("jewelcert", `${linked.store_id}:${input.idempotencyKey}`);
+    // Native claim takes this same invite-scoped lock before its email/row
+    // locks. Resend and reassignment therefore cannot invert profile→invite
+    // against invite→profile and deadlock the two transactions.
+    await acquireJewelCertInviteTransactionLock(client, inviteId);
+    // Verified applicant signup takes this same normalized-email lock before
+    // creating or adopting an identity. Keeping the invite lock first matches
+    // the claim flow and prevents an external invite from racing a native
+    // signup into the same applicant profile.
+    await client.query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [input.email]);
+
+    const stableProfileId = stableId("profile", input.userId);
+    const existingProfile = await client.query<{ id: string; owner_user_id: string | null }>(
       `
-        select id from applicant_profiles
-        where owner_user_id = $1 or email_normalized = $2
-        order by (owner_user_id = $1) desc, created_at asc
+        select id, owner_user_id from applicant_profiles
+        where owner_user_id = $1 or email_normalized = $2 or id = $3
+        order by (owner_user_id = $1) desc, (id = $3) desc, created_at asc
         limit 1
       `,
-      [linked.recipient_user_id, input.email],
+      [linked.recipient_user_id, input.email, stableProfileId],
     );
-    const profileId = existingProfile.rows[0]?.id || stableId("profile", input.userId);
+    if (
+      existingProfile.rows[0]?.owner_user_id
+      && existingProfile.rows[0].owner_user_id !== linked.recipient_user_id
+    ) {
+      await client.query("rollback");
+      return NextResponse.json(
+        { error: "The JewelCert recipient profile is already owned by another identity" },
+        { status: 409 },
+      );
+    }
+    const profileId = existingProfile.rows[0]?.id || stableProfileId;
     if (existingProfile.rows[0]) {
       await client.query(
         `update applicant_profiles set owner_user_id = coalesce(owner_user_id, $1), full_name = $2,
@@ -109,19 +132,23 @@ export async function POST(request: Request) {
       [applicationId, linked.store_id, profileId],
     );
 
-    const inviteId = stableId("jewelcert", `${linked.store_id}:${input.idempotencyKey}`);
     const invite = await client.query<{ id: string; status: string }>(
       `
         insert into jewelcert_invites (
           id, application_id, store_id, assessment_package_id, sent_by_user_id,
           sent_to_email, status, component_ids, expires_at, sent_at,
-          external_request_id, external_user_id, external_company_id, external_location_id
+          external_request_id, external_user_id, external_company_id, external_location_id,
+          claim_token_version
         ) values (
           $1, $2, $3, 'gemmatch', $4, $5, 'sent', '["gemmatch"]'::jsonb,
-          now() + interval '14 days', now(), $6, $7, $8, $9
+          now() + interval '14 days', now(), $6, $7, $8, $9, 2
         )
         on conflict (store_id, external_request_id) where external_request_id is not null
-        do update set sent_to_email = excluded.sent_to_email
+        do update set sent_to_email = excluded.sent_to_email,
+                      external_user_id = excluded.external_user_id,
+                      external_company_id = excluded.external_company_id,
+                      external_location_id = excluded.external_location_id,
+                      claim_token_version = excluded.claim_token_version
         returning id, status
       `,
       [inviteId, applicationId, linked.store_id, linked.actor_user_id, input.email, input.idempotencyKey, input.userId, input.companyId, input.locationId],
@@ -142,7 +169,7 @@ export async function POST(request: Request) {
       status: invite.rows[0].status,
       notification,
     }, { status: 201, headers: { "Cache-Control": "no-store" } });
-  } catch (error) {
+  } catch {
     await client.query("rollback").catch(() => undefined);
     return NextResponse.json({ error: "Unable to create JewelCert invite" }, { status: 500 });
   } finally {

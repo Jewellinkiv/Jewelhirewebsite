@@ -1,24 +1,14 @@
 import { NextResponse } from "next/server";
-import { findSessionForGoogleUser, setSessionCookie } from "@/lib/server/auth";
+import { findSessionForGoogleUser, isJewelLinkSsoOnlyEmail, setSessionCookie } from "@/lib/server/auth";
 import { verifyFirebaseIdToken } from "@/lib/server/firebase-auth";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import type { AuthSession } from "@/lib/server/auth";
+import { safeSameOriginPathOrRoot } from "@/lib/server/safe-redirect";
 
 export const runtime = "nodejs";
 
-function safeNext(value: unknown) {
-  if (typeof value !== "string") return "/";
-  let decoded = "";
-  try {
-    decoded = decodeURIComponent(value);
-  } catch {
-    return "/";
-  }
-  return value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") && !decoded.includes("\\") ? value : "/";
-}
-
 function destinationForSession(next: unknown, session: AuthSession) {
-  const safe = safeNext(next);
+  const safe = safeSameOriginPathOrRoot(next);
   if (safe !== "/") return safe;
   if (session.role === "admin") return "/admin";
   if (session.role === "associate") return "/portal";
@@ -34,6 +24,13 @@ export const POST = withApiErrorHandling(async function POST(request: Request) {
   const firebaseUser = await verifyFirebaseIdToken(body.idToken).catch(() => undefined);
   if (!firebaseUser) {
     return NextResponse.json({ error: { code: "invalid_firebase_token", message: "Firebase sign-in could not be verified." } }, { status: 401 });
+  }
+
+  if (await isJewelLinkSsoOnlyEmail(firebaseUser.email)) {
+    return NextResponse.json(
+      { error: { code: "jewellink_required", message: "This account must continue with JewelLink and complete MFA to sign in." } },
+      { status: 403 },
+    );
   }
 
   const session = await findSessionForGoogleUser({ email: firebaseUser.email, name: firebaseUser.name });
