@@ -134,6 +134,14 @@ test("bounded migration apply selects one contiguous repository prefix", () => {
   );
 });
 
+test("Cloud Run jobs preserve the buildpack runtime environment", () => {
+  const workflow = fs.readFileSync(".github/workflows/deploy.yml", "utf8");
+  const launcherCommands = workflow.match(/--command \/cnb\/lifecycle\/launcher/g) ?? [];
+
+  assert.equal(launcherCommands.length, 3);
+  assert.doesNotMatch(workflow, /--command npm/);
+});
+
 test("JewelCert v2 cutover is operator-confirmed, database-enforced, and written by every issuer", () => {
   const workflow = fs.readFileSync(".github/workflows/deploy.yml", "utf8");
   const expandMigration = fs.readFileSync("db/migrations/0023_jewelcert_claim_token_version.sql", "utf8");
