@@ -140,6 +140,19 @@ test("Cloud Run jobs preserve the buildpack runtime environment", () => {
 
   assert.equal(launcherCommands.length, 3);
   assert.doesNotMatch(workflow, /--command npm/);
+  assert.match(
+    workflow,
+    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:migrate:apply,--,--through=0023_jewelcert_claim_token_version/,
+  );
+  assert.match(
+    workflow,
+    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:migrate:apply \\/,
+  );
+  assert.match(
+    workflow,
+    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:readiness \\/,
+  );
+  assert.doesNotMatch(workflow, /--args run,/);
 });
 
 test("JewelCert v2 cutover is operator-confirmed, database-enforced, and written by every issuer", () => {
@@ -155,7 +168,7 @@ test("JewelCert v2 cutover is operator-confirmed, database-enforced, and written
 
   assert.match(workflow, /legacy_jewelcert_invites_cleared:/);
   assert.match(workflow, /if \[\[ "\$LEGACY_JEWELCERT_INVITES_CLEARED" != "true" \]\]/);
-  assert.match(workflow, /--args run,db:readiness/);
+  assert.match(workflow, /--args npm,run,db:readiness/);
   const expandApply = workflow.indexOf("--through=0023_jewelcert_claim_token_version");
   const promotion = workflow.indexOf("Move production traffic to candidate");
   const rollbackCompatibleSmoke = workflow.indexOf("Verify public production routes");
