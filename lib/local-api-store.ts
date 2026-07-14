@@ -163,6 +163,7 @@ export function getCurrentSession() {
     storeRoles: { [DEFAULT_STORE_ID]: "store_owner" as const },
     locationScopes: { [DEFAULT_STORE_ID]: { allLocations: true, locationIds: [] } },
     activeStoreId: DEFAULT_STORE_ID,
+    authSource: "native" as const,
     guardrails: {
       phase: "phase_1_single_store" as const,
       applicantScope: "store_private" as const,

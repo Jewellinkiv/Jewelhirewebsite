@@ -50,7 +50,7 @@ const fixtures = {
     { id: "fixture-manager", jewelLinkRole: "MANAGER", expectedJewelHireRole: "manager", scope: "assigned locations only" },
     { id: "fixture-student", jewelLinkRole: "STUDENT", expectedJewelHireRole: "applicant", scope: "personal portal" },
     { id: "fixture-consultant", jewelLinkRole: "CONSULTANT", expectedJewelHireRole: "applicant", scope: "personal portal" },
-    { id: "fixture-platform-admin", jewelLinkRole: null, expectedJewelHireRole: "admin", scope: "explicit JewelHire claim only" },
+    { id: "fixture-platform-admin", jewelLinkRole: "SUPER_ADMIN", expectedJewelHireRole: "admin", scope: "explicit JewelHire allowlist after MFA-backed JewelLink SSO only" },
   ],
 };
 
@@ -114,6 +114,10 @@ function contractChecks() {
     ["JewelLink SSO code migration is present", fs.existsSync(path.join(jewelLinkRepo, "prisma/migrations/20260712043000_add_jewelhire_sso_codes/migration.sql"))],
     ["JewelLink hire ledger migration is present", fs.existsSync(path.join(jewelLinkRepo, "prisma/migrations/20260712052000_add_jewelhire_hire_provisioning/migration.sql"))],
     ["JewelLink JewelCert result migration is present", fs.existsSync(path.join(jewelLinkRepo, "prisma/migrations/20260712053000_add_jewelhire_jewelcert_results/migration.sql"))],
+    ["JewelLink email-verification migration is present", fs.existsSync(path.join(jewelLinkRepo, "prisma/migrations/20260713120000_add_email_verification/migration.sql"))],
+    ["JewelLink auth-session policy migration is present", fs.existsSync(path.join(jewelLinkRepo, "prisma/migrations/20260713130000_add_auth_session_policy/migration.sql"))],
+    ["JewelLink company auth-invalidation migration is present", fs.existsSync(path.join(jewelLinkRepo, "prisma/migrations/20260714100000_invalidate_company_auth_sessions/migration.sql"))],
+    ["JewelLink tenant-reassignment mailbox invalidation migration is present", fs.existsSync(path.join(jewelLinkRepo, "prisma/migrations/20260714110000_deactivate_email_integrations_on_company_change/migration.sql"))],
   ];
   return checks.map(([name, pass]) => ({ name, pass }));
 }

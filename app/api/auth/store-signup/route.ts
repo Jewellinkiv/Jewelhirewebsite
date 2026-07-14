@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   }
   if (isConfiguredAdminEmail(email)) {
     return NextResponse.json(
-      { error: { code: "use_sso", message: "This email is managed. Please sign in with Google." } },
+      { error: { code: "jewellink_required", message: "Platform administrators must continue with JewelLink and complete MFA to sign in." } },
       { status: 403 },
     );
   }

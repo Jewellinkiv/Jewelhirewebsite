@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { consumeActionToken, invalidateActionTokens, isActionTokenValid } from "@/lib/server/action-tokens";
-import { isStrongPassword, setPassword } from "@/lib/server/password-auth";
-import { findSessionForGoogleUser, setSessionCookie } from "@/lib/server/auth";
+import { findActionTokenSubject, isActionTokenValid } from "@/lib/server/action-tokens";
+import { completeStandaloneAccountClaim, isStrongPassword } from "@/lib/server/password-auth";
+import { findSessionForGoogleUser, isConfiguredAdminEmail, setSessionCookie } from "@/lib/server/auth";
 import { enforceRateLimit } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const claim = await consumeActionToken({ purpose: "account_claim", token });
+  const claim = await findActionTokenSubject({ purpose: "account_claim", token });
   if (!claim) {
     return NextResponse.json(
       { error: { code: "invalid_token", message: "This link is invalid or has expired. Request a new one." } },
@@ -45,11 +45,48 @@ export async function POST(request: Request) {
     );
   }
 
-  await setPassword(claim.userId, password);
-  // Any other outstanding claim/reset tokens for this user are now moot.
-  await invalidateActionTokens("account_claim", claim.userId);
+  if (isConfiguredAdminEmail(claim.email) || (claim.currentEmail && isConfiguredAdminEmail(claim.currentEmail))) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "jewellink_required",
+          message: "Platform administrators must continue with JewelLink and complete MFA to sign in.",
+        },
+      },
+      { status: 403 },
+    );
+  }
 
-  const session = await findSessionForGoogleUser({ email: claim.email });
+  const converted = await completeStandaloneAccountClaim({ token, password });
+  if (!converted.ok && converted.reason === "invalid_token") {
+    return NextResponse.json(
+      { error: { code: "invalid_token", message: "This link is invalid or has expired. Request a new one." } },
+      { status: 400 },
+    );
+  }
+  if (!converted.ok && converted.reason === "jewellink_required") {
+    return NextResponse.json(
+      {
+        error: {
+          code: "jewellink_required",
+          message: "Platform administrators must continue with JewelLink and complete MFA to sign in.",
+        },
+      },
+      { status: 403 },
+    );
+  }
+  if (!converted.ok) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "standalone_entitlement_required",
+          message: "This account is still managed by JewelLink. An active standalone JewelHire plan is required before claiming password access.",
+        },
+      },
+      { status: 403 },
+    );
+  }
+  const session = await findSessionForGoogleUser({ email: converted.email });
   // If the account isn't active (findSessionForGoogleUser returns nothing), don't
   // claim a logged-in landing — send them to sign in.
   const response = NextResponse.json({ ok: true, next: session ? nextForRole(session.role) : "/login" });

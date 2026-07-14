@@ -109,6 +109,14 @@ function errorMessage(error: string) {
       return "Email/password login is not configured for this environment yet.";
     case "too_many":
       return "Too many sign-in attempts. Please wait a few minutes and try again.";
+    case "jewellink_required":
+      return "This account, including every platform administrator, signs in only through JewelLink MFA. Continue with JewelLink below.";
+    case "jewellink_state":
+      return "That JewelLink sign-in was opened in another browser or has already been used. Start again with Continue with JewelLink.";
+    case "jewellink_assurance":
+      return "JewelLink could not confirm a recent MFA sign-in. Return to JewelLink, complete MFA, and launch JewelHire again.";
+    case "jewellink_identity":
+      return "That email is already attached to a different JewelHire identity. Contact support before linking this JewelLink account.";
     case "jewellink_code":
     case "jewellink_exchange":
       return "That JewelLink sign-in link is invalid or expired. Please launch JewelHire from JewelLink again.";

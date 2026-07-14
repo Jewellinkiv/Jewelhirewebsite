@@ -149,8 +149,17 @@ their non-integration smoke checks.
    - `20260712043000_add_jewelhire_sso_codes`
    - `20260712052000_add_jewelhire_hire_provisioning`
    - `20260712053000_add_jewelhire_jewelcert_results`
+   - `20260713120000_add_email_verification`
+   - `20260713130000_add_auth_session_policy`
+   - `20260714100000_invalidate_company_auth_sessions`
+   - `20260714110000_deactivate_email_integrations_on_company_change`
 
-6. Apply the three migrations from the immutable candidate image, then promote
+   The final migration forces old-company mailbox integrations into a
+   fail-closed, inactive state when a user is reassigned to another tenant. A
+   mailbox must be reconnected inside the user's current company before it can
+   be used again.
+
+6. Apply the seven migrations from the immutable candidate image, then promote
    the same disabled revision:
 
    ```bash

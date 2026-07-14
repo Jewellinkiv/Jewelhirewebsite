@@ -1,8 +1,20 @@
 import { headers } from "next/headers";
 import { getCurrentSession } from "@/lib/local-api-store";
-import { authRequired, readSessionCookie, UnauthenticatedError, type AuthSession } from "@/lib/server/auth";
+import {
+  authRequired,
+  readSessionCookie,
+  revalidateJewelLinkSession,
+  revalidateNativeSession,
+  UnauthenticatedError,
+  type AuthSession,
+} from "@/lib/server/auth";
 
-type SessionContext = Omit<AuthSession, "version" | "exp">;
+type SessionContext = Omit<AuthSession, "version" | "exp" | "upstreamAssurance">;
+
+function publicSessionContext(session: AuthSession): SessionContext {
+  const { version: _version, exp: _exp, upstreamAssurance: _upstreamAssurance, ...context } = session;
+  return context;
+}
 
 const STAGING_SESSIONS: Record<string, SessionContext> = {
   sissys: {
@@ -14,6 +26,7 @@ const STAGING_SESSIONS: Record<string, SessionContext> = {
     storeRoles: { "store-sissys-little-rock": "store_owner" },
     locationScopes: { "store-sissys-little-rock": { allLocations: true, locationIds: [] } },
     activeStoreId: "store-sissys-little-rock",
+    authSource: "native",
     guardrails: {
       phase: "phase_1_single_store",
       applicantScope: "store_private",
@@ -30,6 +43,7 @@ const STAGING_SESSIONS: Record<string, SessionContext> = {
     storeRoles: { "store-harbor-memphis": "store_owner" },
     locationScopes: { "store-harbor-memphis": { allLocations: true, locationIds: [] } },
     activeStoreId: "store-harbor-memphis",
+    authSource: "native",
     guardrails: {
       phase: "phase_1_single_store",
       applicantScope: "store_private",
@@ -46,6 +60,7 @@ const STAGING_SESSIONS: Record<string, SessionContext> = {
     storeRoles: {},
     locationScopes: {},
     activeStoreId: "",
+    authSource: "native",
     guardrails: {
       phase: "phase_1_single_store",
       applicantScope: "store_private",
@@ -62,6 +77,7 @@ const STAGING_SESSIONS: Record<string, SessionContext> = {
     storeRoles: {},
     locationScopes: {},
     activeStoreId: "store-sissys-little-rock",
+    authSource: "native",
     guardrails: {
       phase: "phase_1_single_store",
       applicantScope: "store_private",
@@ -78,6 +94,7 @@ const STAGING_SESSIONS: Record<string, SessionContext> = {
     storeRoles: { "store-sissys-little-rock": "manager" },
     locationScopes: { "store-sissys-little-rock": { allLocations: true, locationIds: [] } },
     activeStoreId: "store-sissys-little-rock",
+    authSource: "native",
     guardrails: {
       phase: "phase_1_single_store",
       applicantScope: "store_private",
@@ -94,6 +111,7 @@ const STAGING_SESSIONS: Record<string, SessionContext> = {
     storeRoles: { "store-sissys-little-rock": "manager" },
     locationScopes: { "store-sissys-little-rock": { allLocations: false, locationIds: ["little-rock"] } },
     activeStoreId: "store-sissys-little-rock",
+    authSource: "native",
     guardrails: {
       phase: "phase_1_single_store",
       applicantScope: "store_private",
@@ -156,7 +174,16 @@ export async function getSessionContext(): Promise<SessionContext> {
   const override = STAGING_SESSIONS[await sessionOverrideKey()];
   if (override) return override;
   const session = await readSessionCookie();
-  if (session) return session;
+  if (session?.authSource === "jewellink_sso") {
+    const revalidated = await revalidateJewelLinkSession(session);
+    if (!revalidated) throw new UnauthenticatedError("Your JewelLink access is no longer active. Continue with JewelLink to sign in again.");
+    return publicSessionContext(revalidated);
+  }
+  if (session?.authSource === "native") {
+    const revalidated = await revalidateNativeSession(session);
+    if (!revalidated) throw new UnauthenticatedError("This sign-in is no longer active. Continue with JewelLink if your account is managed there.");
+    return publicSessionContext(revalidated);
+  }
   if (authRequired()) throw new UnauthenticatedError();
   return getCurrentSession();
 }

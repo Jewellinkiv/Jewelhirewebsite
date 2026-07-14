@@ -71,16 +71,23 @@ copy. Never store database dumps in either Git repository or `docs/qa-runs`.
 
 ## Migration policy
 
-- Apply JewelLink's three integration migrations from the exact no-traffic
-  candidate image using only the dedicated migration identity.
-- Apply JewelHire migrations `0012` through `0018` from its exact no-traffic
+- Apply JewelLink's seven reviewed integration/auth migrations from the exact
+  no-traffic candidate image using only the dedicated migration identity.
+  `20260714110000_deactivate_email_integrations_on_company_change` forces
+  old-company mailbox integrations into a fail-closed, inactive state on user
+  tenant reassignment; do not reactivate one unless it has been reconnected
+  inside the current company.
+- Apply JewelHire migrations `0012` through `0019` from its exact no-traffic
   candidate image.
 - Capture migration status before and after each job.
 - Stop before traffic movement on any failed, unexpected, missing, or modified
   migration.
-- These migrations are additive. Do not improvise a destructive down migration
-  during an incident. Roll traffic back first, preserve evidence, and decide
-  whether a point-in-time/full restore is actually required.
+- The schema changes are forward-compatible, but JewelHire migration `0019`
+  intentionally disables native auth for linked identities, expires legacy
+  company-unbound claims, and deduplicates outstanding action tokens. Do not
+  improvise a destructive down migration during an incident. Roll traffic back
+  first, preserve evidence, and decide whether a point-in-time/full restore is
+  actually required.
 
 ## Traffic rollback
 

@@ -1,6 +1,6 @@
 # JewelHire production rollout checklist
 
-Updated: 2026-07-13
+Updated: 2026-07-14
 
 ## Current release-candidate status
 
@@ -26,7 +26,8 @@ Updated: 2026-07-13
   fails closed on a branded retained-data recovery screen.
 - [x] Public careers, application, résumé, preview-token, SEO, consent, and aggregate-analytics audits pass.
 - [x] Billing, notification wiring, Firebase, legal-source, and invalid-input audits pass. The config-exposure audit passes secret/public-data checks and intentionally holds on explicit live-email acknowledgement.
-- [x] Local SSO QA database has migrations `0012` through `0018` applied.
+- [x] A fresh local migration-validation database has migrations `0012`
+  through `0019` applied.
 - [x] Production role-readiness audit confirms active users, manager mappings,
   applicants, and at least one active store owner per active store are valid.
 - [x] Temporary applications, résumé files, and synthetic analytics used during QA were removed.
@@ -42,17 +43,31 @@ in `production-launch-control-2026-07-13.md`.
   control record, obtain both independent reviews, and explicitly approve the
   maintenance window before merging the final JewelLink promotion PR.
 
-- [ ] Apply the seven pending JewelHire migrations, `0012` through
-  `0018_public_careers_daily_events.sql`, with the guarded candidate-image job.
+- [ ] Apply the eight pending JewelHire migrations, `0012` through
+  `0019_jewellink_native_auth_policy.sql`, with the guarded candidate-image job.
   Migrations `0017` and `0018` must exist before the new application-detail and
-  analytics queries run. Use `npm run db:migrate:verify` before apply; the
-  guarded apply command then performs its own pre-apply verification and a
+  analytics queries run. Migration `0019` must fail every preexisting
+  JewelLink-linked identity closed to native authentication, expire legacy
+  company-unbound account claims, and enforce one outstanding token per
+  user/purpose. Record the schema state before apply, then record both
+  linked-user counts after the no-traffic migration and before SSO is enabled;
+  any unexpected linked identity is a stop condition and must follow the
+  reviewed, identity-specific exception process in `jewellink-integration.md`.
+  Use `npm run db:migrate:verify` before apply; the guarded apply command then
+  performs its own pre-apply verification and a
   checksum-aware, zero-pending post-apply verification. The production job sets
   `REQUIRE_EXISTING_MIGRATION_LEDGER=1` and must stop if the ledger is absent.
-- [ ] Apply the three pending JewelLink integration migrations in order:
+- [ ] Apply the seven pending JewelLink integration/auth migrations in order:
   `20260712043000_add_jewelhire_sso_codes`,
-  `20260712052000_add_jewelhire_hire_provisioning`, and
-  `20260712053000_add_jewelhire_jewelcert_results`.
+  `20260712052000_add_jewelhire_hire_provisioning`,
+  `20260712053000_add_jewelhire_jewelcert_results`,
+  `20260713120000_add_email_verification`,
+  `20260713130000_add_auth_session_policy`,
+  `20260714100000_invalidate_company_auth_sessions`, and
+  `20260714110000_deactivate_email_integrations_on_company_change`. The last
+  migration forces old-company mailbox integrations into a fail-closed,
+  inactive state on user tenant reassignment; reconnect the mailbox only in
+  the user's current company.
 - [ ] Remove the JewelLink web runtime's project-wide Secret Manager accessor
   before creating `MIGRATION_DATABASE_URL`: inventory every current secret
   consumer, grant per-secret access to the existing mounted references plus the
@@ -66,7 +81,8 @@ in `production-launch-control-2026-07-13.md`.
   after the narrow runtime policy passes. The current runtime database user
   cannot create schema objects. A 2026-07-13 read-only ledger comparison found
   109 applied repository migrations, zero failed rows, no applied-but-missing
-  drift, and only the three reviewed JewelHire integration migrations pending.
+  drift. The final candidate must show only the seven reviewed JewelLink
+  integration/auth migrations above as pending.
   Re-run and record that comparison against the exact no-traffic candidate
   before executing the migration job.
 - [ ] Record the JewelLink production dependency audit disposition. On

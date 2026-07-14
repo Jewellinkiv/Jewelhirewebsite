@@ -11,6 +11,8 @@
     "start": "next start -p ${PORT:-3000}",
     "lint": "eslint .",
     "test:release-controls": "node --test scripts/release-control-hardening.test.mjs",
+    "test:jewellink-sso-hardening": "node --import tsx --test scripts/jewellink-sso-hardening.test.mjs",
+    "test:jewellink-sso-postgres": "node --import tsx scripts/jewellink-sso-postgres.test.mjs",
     "db:migrate:status": "node scripts/run-migrations.mjs status",
     "db:migrate:verify": "node scripts/run-migrations.mjs verify",
     "db:migrate:verify:clean": "node scripts/run-migrations.mjs verify --require-zero-pending",

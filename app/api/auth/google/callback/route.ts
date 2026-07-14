@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import {
-  createSessionToken,
   findSessionForGoogleUser,
+  isJewelLinkSsoOnlyEmail,
   OAUTH_NEXT_COOKIE,
   OAUTH_STATE_COOKIE,
-  SESSION_COOKIE,
+  setSessionCookie,
 } from "@/lib/server/auth";
 import type { AuthSession } from "@/lib/server/auth";
+import { safeSameOriginPathOrRoot } from "@/lib/server/safe-redirect";
 
 type GoogleTokenResponse = {
   access_token?: string;
@@ -30,21 +31,23 @@ function redirectToLogin(request: Request, error: string) {
   return NextResponse.redirect(login);
 }
 
-function safeNext(value: string) {
-  // Must be a same-origin path-relative URL. Reject protocol-relative ("//host")
-  // and backslash tricks ("/\\host", "/\/host") which the WHATWG URL parser
-  // normalizes to "//host" for http(s), turning it into an external open redirect.
-  let decoded = "";
+function cookieValue(request: Request, name: string) {
+  const raw = request.headers.get("cookie") || "";
+  const encoded = raw
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+  if (!encoded) return undefined;
   try {
-    decoded = decodeURIComponent(value);
+    return decodeURIComponent(encoded);
   } catch {
-    return "/";
+    return undefined;
   }
-  return value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") && !decoded.includes("\\") ? value : "/";
 }
 
 function destinationForSession(next: string, session: AuthSession) {
-  const safe = safeNext(next);
+  const safe = safeSameOriginPathOrRoot(next);
   if (safe !== "/") return safe;
   if (session.role === "admin") return "/admin";
   if (session.role === "associate") return "/portal";
@@ -55,9 +58,8 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const cookieHeader = request.headers.get("cookie") || "";
-  const stateCookie = cookieHeader.match(new RegExp(`${OAUTH_STATE_COOKIE}=([^;]+)`))?.[1];
-  const nextCookie = decodeURIComponent(cookieHeader.match(new RegExp(`${OAUTH_NEXT_COOKIE}=([^;]+)`))?.[1] || "/");
+  const stateCookie = cookieValue(request, OAUTH_STATE_COOKIE);
+  const nextCookie = cookieValue(request, OAUTH_NEXT_COOKIE) || "/";
   if (!code || !state || !stateCookie || state !== stateCookie) return redirectToLogin(request, "state");
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) return redirectToLogin(request, "config");
 
@@ -81,14 +83,14 @@ export async function GET(request: Request) {
   });
   const profile = (await profileResponse.json().catch(() => ({}))) as GoogleProfile;
   if (!profileResponse.ok || !profile.email || profile.email_verified === false) return redirectToLogin(request, "profile");
+  if (await isJewelLinkSsoOnlyEmail(profile.email)) return redirectToLogin(request, "jewellink_required");
 
   const session = await findSessionForGoogleUser({ email: profile.email, name: profile.name });
   if (!session) return redirectToLogin(request, "unauthorized");
 
   const destination = new URL(destinationForSession(nextCookie, session), appBaseUrl(request));
   const response = NextResponse.redirect(destination);
-  const secure = process.env.NODE_ENV === "production";
-  response.cookies.set(SESSION_COOKIE, createSessionToken(session), { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 60 * 60 * 24 * 7 });
+  setSessionCookie(response, session);
   response.cookies.delete(OAUTH_STATE_COOKIE);
   response.cookies.delete(OAUTH_NEXT_COOKIE);
   return response;

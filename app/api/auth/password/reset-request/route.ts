@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { findActiveUserByEmail } from "@/lib/server/password-auth";
-import { createActionToken, invalidateActionTokens } from "@/lib/server/action-tokens";
+import { createActionToken } from "@/lib/server/action-tokens";
 import { notifyPasswordReset } from "@/lib/server/notifications";
 import { enforceRateLimit } from "@/lib/server/rate-limit";
 
@@ -23,7 +23,6 @@ export async function POST(request: Request) {
   try {
     const user = await findActiveUserByEmail(email);
     if (user) {
-      await invalidateActionTokens("password_reset", user.id);
       const token = await createActionToken({ purpose: "password_reset", userId: user.id, email: user.email, ttlMinutes: 60 });
       const resetUrl = `${appBaseUrl(request)}/reset-password?token=${encodeURIComponent(token)}`;
       await notifyPasswordReset({ toEmail: user.email, name: user.name, resetUrl });

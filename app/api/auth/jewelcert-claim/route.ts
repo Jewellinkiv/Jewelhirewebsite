@@ -57,8 +57,8 @@ export async function POST(request: Request) {
   if (await userExistsForEmail(invite.email)) {
     return NextResponse.json({ existingAccount: true, next });
   }
-  // Never create a password account for a configured admin email (would mint an
-  // admin session); route them to SSO instead.
+  // The platform-admin allowlist is usable only after MFA-backed JewelLink SSO;
+  // never create a native password identity for one of those addresses.
   if (isConfiguredAdminEmail(invite.email)) {
     return NextResponse.json({ existingAccount: true, next: "/login" });
   }

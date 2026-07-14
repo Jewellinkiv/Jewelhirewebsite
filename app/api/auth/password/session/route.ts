@@ -4,22 +4,12 @@ import { loginWithPassword } from "@/lib/server/password-auth";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { clientIp } from "@/lib/server/request";
 import type { AuthSession } from "@/lib/server/auth";
+import { safeSameOriginPathOrRoot } from "@/lib/server/safe-redirect";
 
 export const runtime = "nodejs";
 
-function safeNext(value: unknown) {
-  if (typeof value !== "string") return "/";
-  let decoded = "";
-  try {
-    decoded = decodeURIComponent(value);
-  } catch {
-    return "/";
-  }
-  return value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") && !decoded.includes("\\") ? value : "/";
-}
-
 function destinationForSession(next: string, session: AuthSession) {
-  const safe = safeNext(next);
+  const safe = safeSameOriginPathOrRoot(next);
   if (safe !== "/") return safe;
   if (session.role === "admin") return "/admin";
   if (session.role === "associate") return "/portal";
@@ -41,7 +31,7 @@ async function readBody(request: Request) {
 
 function redirectToLogin(request: Request, next: string, error: string) {
   const url = new URL("/login", appBaseUrl(request));
-  url.searchParams.set("next", safeNext(next));
+  url.searchParams.set("next", safeSameOriginPathOrRoot(next));
   url.searchParams.set("error", error);
   return NextResponse.redirect(url, { status: 303 });
 }
@@ -61,7 +51,12 @@ export async function POST(request: Request) {
 
   const result = await loginWithPassword({ email, password });
   if (!result.ok) {
-    return redirectToLogin(request, next, result.code === "config" ? "password_config" : "password");
+    const error = result.code === "config"
+      ? "password_config"
+      : result.code === "jewellink_required"
+        ? "jewellink_required"
+        : "password";
+    return redirectToLogin(request, next, error);
   }
 
   const response = NextResponse.redirect(new URL(destinationForSession(next, result.session), appBaseUrl(request)), { status: 303 });

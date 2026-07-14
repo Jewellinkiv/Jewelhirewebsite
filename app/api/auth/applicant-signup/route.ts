@@ -30,11 +30,11 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  // Configured admin emails resolve to an admin session via the env allowlist —
-  // never let one be claimed through unauthenticated self-service signup.
+  // The admin allowlist grants authorization only after MFA-backed JewelLink
+  // SSO; it never grants a native applicant/password session.
   if (isConfiguredAdminEmail(email)) {
     return NextResponse.json(
-      { error: { code: "use_sso", message: "This email is managed. Please sign in with Google." } },
+      { error: { code: "jewellink_required", message: "Platform administrators must continue with JewelLink and complete MFA to sign in." } },
       { status: 403 },
     );
   }

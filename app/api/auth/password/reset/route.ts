@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { consumeActionToken, invalidateActionTokens } from "@/lib/server/action-tokens";
-import { setPassword, isStrongPassword } from "@/lib/server/password-auth";
+import { setPassword, isStrongPassword, nativeAuthEnabledForUser } from "@/lib/server/password-auth";
 import { findSessionForGoogleUser, setSessionCookie } from "@/lib/server/auth";
 import { enforceRateLimit } from "@/lib/server/rate-limit";
 
@@ -26,6 +26,13 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: { code: "invalid_token", message: "This reset link is invalid or has expired. Request a new one." } },
       { status: 400 },
+    );
+  }
+
+  if (!(await nativeAuthEnabledForUser(subject.userId))) {
+    return NextResponse.json(
+      { error: { code: "jewellink_required", message: "This account must continue with JewelLink and complete MFA to sign in." } },
+      { status: 403 },
     );
   }
 
