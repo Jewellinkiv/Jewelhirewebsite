@@ -10,12 +10,14 @@ const files = {
   migration: fs.readFileSync(new URL("../db/migrations/0014_jewellink_sso.sql", import.meta.url), "utf8"),
   nativePolicyMigration: fs.readFileSync(new URL("../db/migrations/0019_jewellink_native_auth_policy.sql", import.meta.url), "utf8"),
   auth: fs.readFileSync(new URL("../lib/server/auth.ts", import.meta.url), "utf8"),
+  introspection: fs.readFileSync(new URL("../lib/server/jewellink-session-introspection.ts", import.meta.url), "utf8"),
   access: fs.readFileSync(new URL("../lib/server/access-control.ts", import.meta.url), "utf8"),
+  me: fs.readFileSync(new URL("../app/api/me/route.ts", import.meta.url), "utf8"),
   password: fs.readFileSync(new URL("../lib/server/password-auth.ts", import.meta.url), "utf8"),
   actionTokens: fs.readFileSync(new URL("../lib/server/action-tokens.ts", import.meta.url), "utf8"),
   storeSignup: fs.readFileSync(new URL("../lib/server/store-signup.ts", import.meta.url), "utf8"),
   passwordRoute: fs.readFileSync(new URL("../app/api/auth/password/session/route.ts", import.meta.url), "utf8"),
-  resetRequest: fs.readFileSync(new URL("../app/api/auth/password/reset-request/route.ts", import.meta.url), "utf8"),
+  resetRequest: fs.readFileSync(new URL("../lib/server/password-reset-request.ts", import.meta.url), "utf8"),
   accountClaim: fs.readFileSync(new URL("../app/api/auth/account-claim/route.ts", import.meta.url), "utf8"),
   googleStart: fs.readFileSync(new URL("../app/api/auth/google/start/route.ts", import.meta.url), "utf8"),
   google: fs.readFileSync(new URL("../app/api/auth/google/callback/route.ts", import.meta.url), "utf8"),
@@ -28,6 +30,10 @@ const files = {
   storeIdentity: fs.readFileSync(new URL("../lib/server/store-shell-identity.ts", import.meta.url), "utf8"),
   topbar: fs.readFileSync(new URL("../components/Topbar.tsx", import.meta.url), "utf8"),
 };
+const membershipForRoleSource = files.service.slice(
+  files.service.indexOf("function membershipForRole"),
+  files.service.indexOf("export async function provisionJewelLinkSession"),
+);
 
 let failures = 0;
 function check(name, pass) {
@@ -44,15 +50,16 @@ check("authorization code exchange uses a server bearer secret", files.service.i
 check("authorization code exchange is no-store", files.service.includes('cache: "no-store"'));
 check("callback mints the standard signed JewelHire session", files.callback.includes("setSessionCookie(response, session)"));
 check("JewelLink claims require exact password and MFA assurance", files.service.includes("amr: string[]") && files.service.includes("mfaVerifiedAt") && files.service.includes("upstreamSessionId") && files.contract.includes('uniqueMethods.has("pwd")') && files.contract.includes('uniqueMethods.has("mfa")') && files.contract.includes("uniqueMethods.size !== 2"));
-check("all auth redirects share strict decoded same-origin path validation", files.start.includes("safeSameOriginPath") && files.service.includes("safeSameOriginPath(body.claims.returnTo)") && files.callback.includes("safeSameOriginPath(returnTo)") && files.googleStart.includes("safeSameOriginPathOrRoot") && files.google.includes("safeSameOriginPathOrRoot") && files.passwordRoute.includes("safeSameOriginPathOrRoot") && files.firebase.includes("safeSameOriginPathOrRoot") && files.safeRedirect.includes("decodeURIComponent") && files.safeRedirect.includes("CONTROL_CHARACTERS"));
+check("all auth redirects share strict decoded same-origin path validation", files.start.includes("safeSameOriginPath") && files.service.includes("safeSameOriginPath(body.claims.returnTo)") && files.callback.includes("jewelLinkSessionDestination(claims.returnTo") && files.contract.includes("const destination = safeSameOriginPath(returnTo)") && files.googleStart.includes("safeSameOriginPathOrRoot") && files.google.includes("safeSameOriginPathOrRoot") && files.passwordRoute.includes("safeSameOriginPathOrRoot") && files.firebase.includes("safeSameOriginPathOrRoot") && files.safeRedirect.includes("decodeURIComponent") && files.safeRedirect.includes("CONTROL_CHARACTERS"));
 check("JewelLink sessions are tagged and capped to upstream assurance", files.auth.includes('authSource: "jewellink_sso"') && files.auth.includes("upstreamAssurance") && files.auth.includes("remainingLifetime"));
-check("JewelLink sessions are revalidated on server access", files.access.includes("revalidateJewelLinkSession") && files.auth.includes('company_status === "active"') && files.auth.includes('entitlement_status === "active"'));
+check("JewelLink sessions are revalidated upstream and local authority cannot exceed the signed ceiling", files.access.includes("revalidateJewelLinkSession") && files.auth.includes('company_status === "active"') && files.auth.includes('entitlement_status === "active"') && files.auth.includes("await introspectJewelLinkSession") && files.auth.includes("jewelLinkSessionAccessDoesNotExpand(session, refreshed)") && files.auth.includes("s.company_id = $2") && files.auth.includes("suls.source = 'jewellink'") && files.introspection.includes("/api/integrations/jewelhire/sso/introspect") && files.introspection.includes('cache: "no-store"'));
+check("browser session metadata omits the upstream SSO binding", files.access.includes('"upstreamAssurance"') && files.access.includes("browserSessionContext") && files.access.includes("upstreamUserId: _upstreamUserId") && files.me.includes("browserSessionContext(await getSessionContext())"));
 check("native sessions rebuild current active-store authorization", files.auth.includes("const refreshed = await findNativeSession") && files.auth.includes("left join stores s on s.id = su.store_id and s.status = 'active'"));
 check("native store access is entitled per membership company", files.auth.includes("entitledStandaloneStoreMemberships") && files.auth.includes('c.id as "storeCompanyId"') && files.contract.includes("membership.storeCompanyId") && files.contract.includes("membership.storeCompanyStatus"));
 check("SSO provisioning preserves local user/company/entitlement revocations", !files.service.includes("do update set name = excluded.name, status = 'active'") && files.service.includes("on conflict (company_id) do nothing") && files.service.includes("linkedUser.rows[0].status !== \"active\""));
 check("JewelLink-linked users default to SSO-only", files.nativePolicyMigration.includes("native_auth_enabled") && files.service.includes("native_auth_enabled = false"));
-check("native password, reset, Google, and Firebase paths deny SSO-only identities", files.password.includes("native_auth_enabled") && files.reset.includes("nativeAuthEnabledForUser") && files.google.includes("isJewelLinkSsoOnlyEmail") && files.firebase.includes("jewellink_required"));
-check("platform admins are denied every native auth and recovery path", files.contract.includes("input.nativeAuthEnabled && !input.isPlatformAdmin") && files.password.includes("isConfiguredAdminEmail(row.email) || !row.native_auth_enabled") && files.password.includes("!isConfiguredAdminEmail(row.email)") && files.auth.includes("if (isConfiguredAdmin) return undefined") && files.auth.includes("if (isConfiguredAdminEmail(email)) return true") && files.auth.includes('configuredAdmin || session.role === "admin"') && files.resetRequest.includes("findActiveUserByEmail") && files.accountClaim.includes("isConfiguredAdminEmail(claim.email)") && files.claimRoute.includes("isConfiguredAdminEmail(owner.email)"));
+check("native password, reset, Google, and Firebase paths deny SSO-only identities", files.password.includes("native_auth_enabled") && files.reset.includes("completePasswordReset") && files.password.includes("completePasswordReset") && files.google.includes("isJewelLinkSsoOnlyEmail") && files.firebase.includes("jewellink_required"));
+check("platform admins are denied every native auth and recovery path", files.contract.includes("input.nativeAuthEnabled && !input.isPlatformAdmin") && files.password.includes("isConfiguredAdminEmail(row.email) || !row.native_auth_enabled") && files.password.includes("!isConfiguredAdminEmail(row.email)") && files.password.includes("isConfiguredAdminEmail(claim.token_email)") && files.auth.includes("if (isConfiguredAdmin) return undefined") && files.auth.includes("if (isConfiguredAdminEmail(email)) return true") && files.auth.includes('configuredAdmin || session.role === "admin"') && files.resetRequest.includes("findActiveUserByEmail") && files.accountClaim.includes("completeStandaloneAccountClaim") && files.claimRoute.includes("isConfiguredAdminEmail(owner.email)"));
 check("only MFA-backed JewelLink SSO can mint platform admin", files.auth.includes("export async function findJewelLinkSession") && files.auth.includes("const isConfiguredAdmin = isConfiguredAdminEmail(identity.email)") && files.auth.includes("isPlatformAdmin: isConfiguredAdmin") && files.service.includes("canAdoptAllowlistedAdmin") && files.service.includes("native_auth_enabled = false"));
 check("upstream roles use an exact allowlist and SUPER_ADMIN requires the independent JewelHire admin allowlist", files.service.includes("jewelLinkRoleAllowedForIdentity") && ["SUPER_ADMIN", "ADMIN", "DIRECTOR", "MANAGER", "CONSULTANT", "STUDENT"].every((role) => files.contract.includes(`"${role}"`)) && files.contract.includes('input.role !== "SUPER_ADMIN" || input.isPlatformAdmin') && !files.contract.includes("trim().toUpperCase()"));
 check("existing native sessions are revoked when an identity becomes SSO-only", files.access.includes("revalidateNativeSession") && files.auth.includes("export async function revalidateNativeSession"));
@@ -62,9 +69,14 @@ check("standalone conversion changes ownership only inside the claim company", f
 check("native-auth backfill fails closed without timestamp inference", files.nativePolicyMigration.includes("set native_auth_enabled = false") && files.nativePolicyMigration.includes("explicit, audited post-migration action") && !files.nativePolicyMigration.includes("password_credentials"));
 check("account claims carry durable company authority and enforce one outstanding token", files.nativePolicyMigration.includes("add column if not exists company_id") && files.nativePolicyMigration.includes("auth_action_tokens_one_outstanding_uidx") && files.actionTokens.includes("company_id") && files.actionTokens.includes("select id from users where id = $1 for update"));
 check("native company users require a current paid or contract entitlement", files.auth.includes("nativeIdentityAccessAllowed") && files.auth.includes("standaloneCompanyAccessAllowed"));
-check("account-claim redemption is atomic, audited, revokes password resets, and leaves denied links unconsumed", files.accountClaim.includes("findActionTokenSubject") && !files.accountClaim.includes("consumeActionToken") && files.password.includes("for update of token") && files.password.includes("Claimed retained account access") && files.password.includes("purpose = 'password_reset'") && files.password.includes("update auth_action_tokens") && files.password.indexOf("update auth_action_tokens") < files.password.indexOf('client.query("commit")'));
+check("account-claim redemption is atomic, audited, revokes password resets, and leaves denied links unconsumed", files.accountClaim.includes("completeStandaloneAccountClaim") && !files.accountClaim.includes("consumeActionToken") && files.password.includes('isPlausibleActionToken("account_claim"') && files.password.includes("for update of token") && files.password.includes("Claimed retained account access") && files.password.includes("purpose = 'password_reset'") && files.password.includes("update auth_action_tokens") && files.password.indexOf("update auth_action_tokens") < files.password.indexOf('client.query("commit")'));
 check("SSO provisioning rejects unrelated email collisions", files.service.includes("jewelLinkIdentityProvisionAction") && !files.service.includes("on conflict (email_normalized)"));
-check("Student and Consultant do not receive store membership", files.service.includes('if (role === "MANAGER")') && !files.service.includes('role === "STUDENT"'));
+check(
+  "Student and Consultant do not receive store membership",
+  membershipForRoleSource.includes('if (role === "MANAGER")')
+    && !membershipForRoleSource.includes('role === "STUDENT"')
+    && !membershipForRoleSource.includes('role === "CONSULTANT"'),
+);
 check("Manager maps to manager", files.service.includes('if (role === "MANAGER") return "manager"'));
 check("Director mapping is configurable", files.service.includes("JEWELHIRE_JEWELLINK_DIRECTOR_ROLE"));
 check("JewelLink entitlement is organization-level and free", files.service.includes("'jewellink_included', 'jewellink_free', 'active', 0"));

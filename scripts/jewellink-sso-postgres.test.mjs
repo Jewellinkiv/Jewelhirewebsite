@@ -37,9 +37,10 @@ async function migrateDatabase() {
     const migrationFiles = fs.readdirSync(path.join(rootDir, "db", "migrations"))
       .filter((filename) => /^\d{4}_.+\.sql$/.test(filename))
       .sort();
-    const policyMigration = migrationFiles.at(-1);
-    assert.equal(policyMigration, "0019_jewellink_native_auth_policy.sql");
-    for (const filename of migrationFiles.slice(0, -1)) {
+    const policyMigration = "0019_jewellink_native_auth_policy.sql";
+    const policyMigrationIndex = migrationFiles.indexOf(policyMigration);
+    assert.notEqual(policyMigrationIndex, -1);
+    async function applyMigration(filename) {
       const sql = fs.readFileSync(path.join(rootDir, "db", "migrations", filename), "utf8");
       await migrationClient.query("begin");
       try {
@@ -49,6 +50,9 @@ async function migrateDatabase() {
         await migrationClient.query("rollback");
         throw error;
       }
+    }
+    for (const filename of migrationFiles.slice(0, policyMigrationIndex)) {
+      await applyMigration(filename);
     }
 
     // Exercise the production-shaped upgrade, not only an empty database. Old
@@ -76,14 +80,9 @@ async function migrateDatabase() {
          ('legacy-reset-2', 'password_reset', 'legacy-token-user', 'legacy-token@example.test', 'legacy-reset-hash-2', now() + interval '1 hour', now() - interval '1 minute')`,
     );
 
-    const policySql = fs.readFileSync(path.join(rootDir, "db", "migrations", policyMigration), "utf8");
-    await migrationClient.query("begin");
-    try {
-      await migrationClient.query(policySql);
-      await migrationClient.query("commit");
-    } catch (error) {
-      await migrationClient.query("rollback");
-      throw error;
+    await applyMigration(policyMigration);
+    for (const filename of migrationFiles.slice(policyMigrationIndex + 1)) {
+      await applyMigration(filename);
     }
 
     const repaired = await migrationClient.query(
@@ -175,6 +174,31 @@ function deferred() {
   return { promise, resolve };
 }
 
+function jewelLinkClaims(input) {
+  const now = Date.now();
+  const companyId = `${input.userId}-company`;
+  const locationId = `${input.userId}-location`;
+  return {
+    issuer: "jewellink",
+    userId: input.userId,
+    email: input.email,
+    name: input.name,
+    role: input.role,
+    authVersion: 1,
+    accessFingerprint: "A".repeat(43),
+    company: { id: companyId, name: `${input.name} Company` },
+    primaryLocationId: locationId,
+    locations: [{ id: locationId, name: "Main Location" }],
+    allLocations: false,
+    amr: ["pwd", "mfa"],
+    authTime: new Date(now - 60_000).toISOString(),
+    mfaVerifiedAt: new Date(now - 30_000).toISOString(),
+    upstreamSessionId: `${input.userId}-session`,
+    issuedAt: new Date(now).toISOString(),
+    expiresAt: new Date(now + 5 * 60_000).toISOString(),
+  };
+}
+
 async function main() {
   await admin.connect();
   await admin.query(`create database "${databaseName}"`);
@@ -185,12 +209,588 @@ async function main() {
   process.env.POSTGRES_POOL_MAX = "8";
   delete process.env.JEWELHIRE_ADMIN_EMAILS;
   delete process.env.AUTH_ADMIN_EMAILS;
+  delete process.env.JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS;
 
   const actionTokens = await import("../lib/server/action-tokens.ts");
   const passwordAuth = await import("../lib/server/password-auth.ts");
   const auth = await import("../lib/server/auth.ts");
+  const applicantData = await import("../lib/server/postgres-phase1.ts");
+  const jewelLinkSso = await import("../lib/server/jewellink-sso.ts");
   const postgres = await import("../lib/server/postgres.ts");
   pool = postgres.getPostgresPool();
+
+  // Exercise the local rehydration path behind a successful upstream
+  // authorization-snapshot check. Without this stub, every revalidation exits
+  // before querying PostgreSQL and cannot catch local privilege expansion.
+  process.env.JEWELLINK_URL = "http://jewellink.example.test";
+  process.env.JEWELLINK_SSO_SHARED_SECRET = "postgres-introspection-test-secret";
+  let successfulIntrospectionCalls = 0;
+  globalThis.fetch = async (input, init) => {
+    assert.equal(
+      String(input),
+      "http://jewellink.example.test/api/integrations/jewelhire/sso/introspect",
+    );
+    assert.equal(init?.method, "POST");
+    assert.equal(init?.cache, "no-store");
+    assert.equal(init?.headers?.authorization, "Bearer postgres-introspection-test-secret");
+    successfulIntrospectionCalls += 1;
+    return new Response(JSON.stringify({ active: true }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  const freshStudentClaims = jewelLinkClaims({
+    userId: "fresh-student",
+    email: "fresh-student@example.test",
+    name: "Fresh Student",
+    role: "STUDENT",
+  });
+  const freshStudentSession = await jewelLinkSso.provisionJewelLinkSession(freshStudentClaims);
+  assert.equal(freshStudentSession?.role, "associate");
+  const freshStudentState = await pool.query(
+    `select u.id as user_id, ap.id as profile_id, ap.owner_user_id, ap.full_name,
+            count(su.id)::int as membership_count
+     from users u
+     join applicant_profiles ap on ap.owner_user_id = u.id
+     left join store_users su on su.user_id = u.id and su.status = 'active'
+     where u.jewellink_user_id = $1
+     group by u.id, ap.id, ap.owner_user_id, ap.full_name`,
+    [freshStudentClaims.userId],
+  );
+  assert.equal(freshStudentState.rows.length, 1);
+  assert.equal(freshStudentState.rows[0]?.owner_user_id, freshStudentState.rows[0]?.user_id);
+  assert.equal(freshStudentState.rows[0]?.full_name, freshStudentClaims.name);
+  assert.equal(freshStudentState.rows[0]?.membership_count, 0);
+  const freshStudentResume = await applicantData.getPostgresApplicantResume(freshStudentClaims.email);
+  assert.equal(freshStudentResume?.profile.fullName, freshStudentClaims.name);
+  assert.equal(freshStudentResume?.profile.email, freshStudentClaims.email);
+  assert.equal(freshStudentResume?.resume, undefined);
+
+  await jewelLinkSso.provisionJewelLinkSession(freshStudentClaims);
+  const freshStudentProfilesAfterRepeat = await pool.query(
+    `select count(*)::int as count
+     from applicant_profiles ap
+     join users u on u.id = ap.owner_user_id
+     where u.jewellink_user_id = $1`,
+    [freshStudentClaims.userId],
+  );
+  assert.equal(freshStudentProfilesAfterRepeat.rows[0]?.count, 1);
+
+  await pool.query(
+    `update applicant_profiles
+     set created_at = '2026-02-01T00:00:00.000Z', updated_at = '2026-02-01T00:00:00.000Z'
+     where id = $1`,
+    [freshStudentState.rows[0].profile_id],
+  );
+  await pool.query(
+    `insert into applicant_profiles (
+       id, full_name, email, email_normalized, summary, visibility, created_at, updated_at
+     ) values (
+       'fresh-student-new-email-profile', 'New Email Applicant Profile',
+       'fresh-student-new@example.test', 'fresh-student-new@example.test',
+       'New email profile summary', 'private_store_application',
+       '2026-02-01T00:00:00.000Z', '2026-02-01T00:00:00.000Z'
+     )`,
+  );
+  await pool.query(
+    `insert into applicant_resumes (
+       id, applicant_profile_id, summary, work_experience, education, skills,
+       portfolio_links, course_credential_ids, created_at, updated_at
+     ) values (
+       'fresh-student-new-email-resume', 'fresh-student-new-email-profile',
+       'New email resume summary', '[]'::jsonb, '[]'::jsonb, '["Deterministic"]'::jsonb,
+       '[]'::jsonb, '[]'::jsonb,
+       '2026-02-01T00:00:00.000Z', '2026-02-01T00:00:00.000Z'
+     )`,
+  );
+  const changedEmailStudentClaims = jewelLinkClaims({
+    userId: freshStudentClaims.userId,
+    email: "fresh-student-new@example.test",
+    name: freshStudentClaims.name,
+    role: "STUDENT",
+  });
+  const changedEmailStudentSession = await jewelLinkSso.provisionJewelLinkSession(changedEmailStudentClaims);
+  assert.equal(changedEmailStudentSession?.role, "associate");
+  assert.equal(changedEmailStudentSession?.email, changedEmailStudentClaims.email);
+  const changedEmailProfiles = await pool.query(
+    `select ap.id, ap.owner_user_id, ap.email, ap.email_normalized, u.jewellink_user_id
+     from applicant_profiles ap
+     join users u on u.id = ap.owner_user_id
+     where u.jewellink_user_id = $1
+     order by ap.id`,
+    [freshStudentClaims.userId],
+  );
+  assert.equal(changedEmailProfiles.rows.length, 2);
+  assert.ok(changedEmailProfiles.rows.every((row) => row.owner_user_id === freshStudentState.rows[0].user_id));
+  assert.ok(changedEmailProfiles.rows.every((row) => row.email === changedEmailStudentClaims.email));
+  assert.ok(changedEmailProfiles.rows.every((row) => row.email_normalized === changedEmailStudentClaims.email));
+  const canonicalChangedEmailResume = await applicantData.getPostgresApplicantResume(changedEmailStudentClaims.email);
+  assert.equal(canonicalChangedEmailResume?.profile.id, "fresh-student-new-email-profile");
+  assert.equal(canonicalChangedEmailResume?.resume?.summary, "New email resume summary");
+  assert.equal(await applicantData.getPostgresApplicantResume(freshStudentClaims.email), undefined);
+  const updatedCanonicalResume = await applicantData.updatePostgresApplicantResume({
+    lookupEmail: changedEmailStudentClaims.email,
+    summary: "Updated deterministic canonical resume",
+  });
+  assert.equal(updatedCanonicalResume?.profile.id, "fresh-student-new-email-profile");
+  const changedEmailResumeRows = await pool.query(
+    `select ap.id, ar.summary
+     from applicant_profiles ap
+     left join applicant_resumes ar on ar.applicant_profile_id = ap.id
+     where ap.owner_user_id = $1
+     order by ap.id`,
+    [freshStudentState.rows[0].user_id],
+  );
+  assert.deepEqual(changedEmailResumeRows.rows, [
+    { id: "fresh-student-new-email-profile", summary: "Updated deterministic canonical resume" },
+    { id: freshStudentState.rows[0].profile_id, summary: null },
+  ].sort((left, right) => left.id.localeCompare(right.id)));
+  await jewelLinkSso.provisionJewelLinkSession(changedEmailStudentClaims);
+  const changedEmailProfilesAfterRepeat = await pool.query(
+    "select count(*)::int as count from applicant_profiles where owner_user_id = $1",
+    [freshStudentState.rows[0].user_id],
+  );
+  assert.equal(changedEmailProfilesAfterRepeat.rows[0]?.count, 2);
+
+  await pool.query(
+    `insert into applicant_profiles (
+       id, full_name, email, email_normalized, summary, visibility
+     ) values (
+       'preexisting-student-profile', 'Applicant Authored Name',
+       'adopt-student@example.test', 'adopt-student@example.test',
+       'Applicant authored profile summary', 'private_store_application'
+     )`,
+  );
+  await pool.query(
+    `insert into applicant_resumes (
+       id, applicant_profile_id, summary, work_experience, education, skills,
+       portfolio_links, course_credential_ids
+     ) values (
+       'preexisting-student-resume', 'preexisting-student-profile',
+       'Applicant authored resume summary', '["Prior role"]'::jsonb,
+       '[]'::jsonb, '["Clienteling"]'::jsonb, '[]'::jsonb, '[]'::jsonb
+     )`,
+  );
+  const adoptStudentClaims = jewelLinkClaims({
+    userId: "adopt-student",
+    email: "adopt-student@example.test",
+    name: "Upstream Name Must Not Replace Applicant Data",
+    role: "STUDENT",
+  });
+  await jewelLinkSso.provisionJewelLinkSession(adoptStudentClaims);
+  const adoptedStudent = await pool.query(
+    `select ap.id, ap.owner_user_id, ap.full_name, ap.summary as profile_summary,
+            ar.summary as resume_summary, ar.work_experience, ar.skills,
+            u.jewellink_user_id
+     from applicant_profiles ap
+     join users u on u.id = ap.owner_user_id
+     left join applicant_resumes ar on ar.applicant_profile_id = ap.id
+     where ap.email_normalized = $1`,
+    [adoptStudentClaims.email],
+  );
+  assert.equal(adoptedStudent.rows.length, 1);
+  assert.equal(adoptedStudent.rows[0]?.id, "preexisting-student-profile");
+  assert.ok(adoptedStudent.rows[0]?.owner_user_id);
+  assert.equal(adoptedStudent.rows[0]?.full_name, "Applicant Authored Name");
+  assert.equal(adoptedStudent.rows[0]?.profile_summary, "Applicant authored profile summary");
+  assert.equal(adoptedStudent.rows[0]?.resume_summary, "Applicant authored resume summary");
+  assert.deepEqual(adoptedStudent.rows[0]?.work_experience, ["Prior role"]);
+  assert.deepEqual(adoptedStudent.rows[0]?.skills, ["Clienteling"]);
+  assert.equal(adoptedStudent.rows[0]?.jewellink_user_id, adoptStudentClaims.userId);
+
+  await pool.query(
+    `insert into users (id, email, email_normalized, name, status)
+     values ('foreign-profile-owner', 'foreign-owner@example.test',
+             'foreign-owner@example.test', 'Foreign Profile Owner', 'active')`,
+  );
+  await pool.query(
+    `insert into applicant_profiles (
+       id, owner_user_id, full_name, email, email_normalized, visibility
+     ) values (
+       'foreign-owned-profile', 'foreign-profile-owner', 'Foreign Applicant',
+       'no-steal@example.test', 'no-steal@example.test', 'private_store_application'
+     )`,
+  );
+  const noStealClaims = jewelLinkClaims({
+    userId: "no-steal-student",
+    email: "no-steal@example.test",
+    name: "No Steal Student",
+    role: "STUDENT",
+  });
+  await assert.rejects(
+    jewelLinkSso.provisionJewelLinkSession(noStealClaims),
+    (error) => error instanceof jewelLinkSso.JewelLinkIdentityConflictError,
+  );
+  const noStealState = await pool.query(
+    `select ap.id, ap.owner_user_id, u.jewellink_user_id
+     from applicant_profiles ap
+     left join users u on u.id = ap.owner_user_id
+     where ap.email_normalized = $1
+     order by ap.id`,
+    [noStealClaims.email],
+  );
+  assert.deepEqual(noStealState.rows, [{
+    id: "foreign-owned-profile",
+    owner_user_id: "foreign-profile-owner",
+    jewellink_user_id: null,
+  }]);
+  const rolledBackNoStealIdentity = await pool.query(
+    "select count(*)::int as count from users where jewellink_user_id = $1",
+    [noStealClaims.userId],
+  );
+  assert.equal(rolledBackNoStealIdentity.rows[0]?.count, 0);
+
+  for (const targetRole of ["STUDENT", "CONSULTANT"]) {
+    const suffix = targetRole.toLowerCase();
+    const demotionUserId = `demotion-${suffix}`;
+    const initialDemotionClaims = jewelLinkClaims({
+      userId: demotionUserId,
+      email: `${demotionUserId}-manager@example.test`,
+      name: `Demotion ${targetRole}`,
+      role: "MANAGER",
+    });
+    const priorManagerSession = await jewelLinkSso.provisionJewelLinkSession(initialDemotionClaims);
+    assert.equal(priorManagerSession?.role, "manager");
+    const conflictingEmail = `${demotionUserId}-applicant@example.test`;
+    await pool.query(
+      `insert into users (id, email, email_normalized, name, status)
+       values ($1, $2, $2, $3, 'active')`,
+      [`${demotionUserId}-foreign-owner`, `${demotionUserId}-foreign@example.test`, `${targetRole} Foreign Owner`],
+    );
+    await pool.query(
+      `insert into applicant_profiles (
+         id, owner_user_id, full_name, email, email_normalized, visibility
+       ) values ($1, $2, $3, $4, $4, 'private_store_application')`,
+      [
+        `${demotionUserId}-foreign-profile`,
+        `${demotionUserId}-foreign-owner`,
+        `${targetRole} Foreign Applicant`,
+        conflictingEmail,
+      ],
+    );
+    const conflictingDemotionClaims = jewelLinkClaims({
+      userId: demotionUserId,
+      email: conflictingEmail,
+      name: `Demotion ${targetRole}`,
+      role: targetRole,
+    });
+    await assert.rejects(
+      jewelLinkSso.provisionJewelLinkSession(conflictingDemotionClaims),
+      (error) => error instanceof jewelLinkSso.JewelLinkIdentityConflictError,
+    );
+    const demotionState = await pool.query(
+      `select u.email, su.status, su.source
+       from users u
+       join store_users su on su.user_id = u.id
+       where u.jewellink_user_id = $1`,
+      [demotionUserId],
+    );
+    assert.deepEqual(demotionState.rows, [{
+      email: initialDemotionClaims.email,
+      status: "inactive",
+      source: "jewellink",
+    }]);
+    assert.equal(await auth.revalidateJewelLinkSession(priorManagerSession), undefined);
+  }
+
+  const sqlFailureUserId = "demotion-non-conflict-sql-failure";
+  const sqlFailureInitialClaims = jewelLinkClaims({
+    userId: sqlFailureUserId,
+    email: `${sqlFailureUserId}-manager@example.test`,
+    name: "Demotion SQL Failure",
+    role: "MANAGER",
+  });
+  const sqlFailurePriorManagerSession = await jewelLinkSso.provisionJewelLinkSession(sqlFailureInitialClaims);
+  assert.equal(sqlFailurePriorManagerSession?.role, "manager");
+  await pool.query(
+    `create function force_applicant_profile_provision_failure() returns trigger
+     language plpgsql as $$
+     begin
+       if new.email_normalized = 'demotion-non-conflict-sql-failure-applicant@example.test' then
+         raise exception 'forced non-conflict applicant profile provisioning failure' using errcode = 'P0001';
+       end if;
+       return new;
+     end;
+     $$;
+     create trigger force_applicant_profile_provision_failure
+       before insert or update on applicant_profiles
+       for each row execute function force_applicant_profile_provision_failure()`,
+  );
+  const sqlFailureDemotionClaims = jewelLinkClaims({
+    userId: sqlFailureUserId,
+    email: `${sqlFailureUserId}-applicant@example.test`,
+    name: "Demotion SQL Failure",
+    role: "STUDENT",
+  });
+  await assert.rejects(
+    jewelLinkSso.provisionJewelLinkSession(sqlFailureDemotionClaims),
+    (error) => error?.code === "P0001"
+      && error?.message === "forced non-conflict applicant profile provisioning failure",
+  );
+  const sqlFailureDemotionState = await pool.query(
+    `select u.email, su.status, su.source
+     from users u
+     join store_users su on su.user_id = u.id
+     where u.jewellink_user_id = $1`,
+    [sqlFailureUserId],
+  );
+  assert.deepEqual(sqlFailureDemotionState.rows, [{
+    email: sqlFailureInitialClaims.email,
+    status: "inactive",
+    source: "jewellink",
+  }]);
+  assert.equal(await auth.revalidateJewelLinkSession(sqlFailurePriorManagerSession), undefined);
+  await pool.query(
+    `drop trigger force_applicant_profile_provision_failure on applicant_profiles;
+     drop function force_applicant_profile_provision_failure()`,
+  );
+
+  const earlyFailureUserId = "demotion-early-company-failure";
+  const earlyFailureInitialClaims = jewelLinkClaims({
+    userId: earlyFailureUserId,
+    email: `${earlyFailureUserId}-manager@example.test`,
+    name: "Demotion Early Company Failure",
+    role: "MANAGER",
+  });
+  const earlyFailurePriorManagerSession = await jewelLinkSso.provisionJewelLinkSession(earlyFailureInitialClaims);
+  assert.equal(earlyFailurePriorManagerSession?.role, "manager");
+  await pool.query(
+    `create function force_early_company_provision_failure() returns trigger
+     language plpgsql as $$
+     declare
+       linked_membership_status text;
+     begin
+       if new.jewellink_company_id = 'demotion-early-company-failure-company' then
+         select su.status
+           into linked_membership_status
+         from store_users su
+         join users u on u.id = su.user_id
+         where u.jewellink_user_id = 'demotion-early-company-failure'
+           and su.source = 'jewellink'
+         order by su.created_at asc
+         limit 1;
+         if linked_membership_status is distinct from 'inactive' then
+           raise exception 'durable demotion barrier was not visible before company provisioning'
+             using errcode = 'P0002';
+         end if;
+         raise exception 'forced early company provisioning failure' using errcode = 'P0001';
+       end if;
+       return new;
+     end;
+     $$;
+     create trigger force_early_company_provision_failure
+       before insert or update on companies
+       for each row execute function force_early_company_provision_failure()`,
+  );
+  const earlyFailureDemotionClaims = jewelLinkClaims({
+    userId: earlyFailureUserId,
+    email: `${earlyFailureUserId}-applicant@example.test`,
+    name: "Demotion Early Company Failure",
+    role: "STUDENT",
+  });
+  await assert.rejects(
+    jewelLinkSso.provisionJewelLinkSession(earlyFailureDemotionClaims),
+    (error) => error?.code === "P0001"
+      && error?.message === "forced early company provisioning failure",
+  );
+  const earlyFailureDemotionState = await pool.query(
+    `select u.email, su.status, su.source
+     from users u
+     join store_users su on su.user_id = u.id
+     where u.jewellink_user_id = $1`,
+    [earlyFailureUserId],
+  );
+  assert.deepEqual(earlyFailureDemotionState.rows, [{
+    email: earlyFailureInitialClaims.email,
+    status: "inactive",
+    source: "jewellink",
+  }]);
+  assert.equal(await auth.revalidateJewelLinkSession(earlyFailurePriorManagerSession), undefined);
+  await pool.query(
+    `drop trigger force_early_company_provision_failure on companies;
+     drop function force_early_company_provision_failure()`,
+  );
+
+  const consultantClaims = jewelLinkClaims({
+    userId: "fresh-consultant",
+    email: "fresh-consultant@example.test",
+    name: "Fresh Consultant",
+    role: "CONSULTANT",
+  });
+  const consultantSession = await jewelLinkSso.provisionJewelLinkSession(consultantClaims);
+  assert.equal(consultantSession?.role, "associate");
+  const consultantProfile = await pool.query(
+    `select count(*)::int as count
+     from applicant_profiles ap
+     join users u on u.id = ap.owner_user_id
+     where u.jewellink_user_id = $1`,
+    [consultantClaims.userId],
+  );
+  assert.equal(consultantProfile.rows[0]?.count, 1);
+  const changedEmailConsultantClaims = jewelLinkClaims({
+    userId: consultantClaims.userId,
+    email: "fresh-consultant-new@example.test",
+    name: consultantClaims.name,
+    role: "CONSULTANT",
+  });
+  const changedEmailConsultantSession = await jewelLinkSso.provisionJewelLinkSession(changedEmailConsultantClaims);
+  assert.equal(changedEmailConsultantSession?.role, "associate");
+  assert.equal(changedEmailConsultantSession?.email, changedEmailConsultantClaims.email);
+  await jewelLinkSso.provisionJewelLinkSession(changedEmailConsultantClaims);
+  const changedEmailConsultantState = await pool.query(
+    `select count(*)::int as profile_count, min(ap.email_normalized) as profile_email,
+            min(u.email_normalized) as user_email
+     from users u
+     join applicant_profiles ap on ap.owner_user_id = u.id
+     where u.jewellink_user_id = $1`,
+    [consultantClaims.userId],
+  );
+  assert.deepEqual(changedEmailConsultantState.rows[0], {
+    profile_count: 1,
+    profile_email: changedEmailConsultantClaims.email,
+    user_email: changedEmailConsultantClaims.email,
+  });
+
+  for (const [role, suffix] of [["MANAGER", "manager"], ["DIRECTOR", "director"], ["ADMIN", "admin"]]) {
+    const roleClaims = jewelLinkClaims({
+      userId: `role-isolation-${suffix}`,
+      email: `role-isolation-${suffix}@example.test`,
+      name: `Role Isolation ${suffix}`,
+      role,
+    });
+    const roleSession = await jewelLinkSso.provisionJewelLinkSession(roleClaims);
+    assert.notEqual(roleSession?.role, "associate");
+    const roleProfile = await pool.query(
+      `select count(*)::int as count
+       from applicant_profiles ap
+       join users u on u.id = ap.owner_user_id
+       where u.jewellink_user_id = $1`,
+      [roleClaims.userId],
+    );
+    assert.equal(roleProfile.rows[0]?.count, 0);
+  }
+
+  const boundedClaims = jewelLinkClaims({
+    userId: "bounded-local-authority",
+    email: "bounded-local-authority@example.test",
+    name: "Bounded Local Authority",
+    role: "MANAGER",
+  });
+  const boundedSession = await jewelLinkSso.provisionJewelLinkSession(boundedClaims);
+  assert.equal(boundedSession?.role, "manager");
+  const boundedBaseline = await auth.revalidateJewelLinkSession(boundedSession);
+  assert.equal(boundedBaseline?.role, "manager");
+  assert.equal(boundedBaseline?.storeIds.length, 1);
+  assert.equal(successfulIntrospectionCalls > 0, true);
+
+  const boundedState = await pool.query(
+    `select u.id as user_id, u.company_id, su.id as membership_id, su.store_id,
+            min(scope.location_id) as signed_location_id
+     from users u
+     join store_users su
+       on su.user_id = u.id and su.status = 'active' and su.source = 'jewellink'
+     left join store_user_location_scopes scope
+       on scope.store_user_id = su.id and scope.source = 'jewellink'
+     where u.jewellink_user_id = $1
+     group by u.id, u.company_id, su.id, su.store_id`,
+    [boundedClaims.userId],
+  );
+  const bounded = boundedState.rows[0];
+  assert.ok(bounded?.user_id && bounded?.company_id && bounded?.membership_id && bounded?.store_id);
+  assert.ok(bounded?.signed_location_id);
+
+  await pool.query("update store_users set role = 'store_owner' where id = $1", [bounded.membership_id]);
+  assert.equal(await auth.revalidateJewelLinkSession(boundedSession), undefined);
+  await pool.query("update store_users set role = 'manager' where id = $1", [bounded.membership_id]);
+
+  await pool.query("update store_users set all_locations = true where id = $1", [bounded.membership_id]);
+  assert.equal(await auth.revalidateJewelLinkSession(boundedSession), undefined);
+  await pool.query("update store_users set all_locations = false where id = $1", [bounded.membership_id]);
+
+  const addedLocationId = "bounded-local-authority-added-location";
+  await pool.query(
+    "insert into locations (id, store_id, name) values ($1, $2, 'Added Location')",
+    [addedLocationId, bounded.store_id],
+  );
+  await pool.query(
+    `insert into store_user_location_scopes (id, store_user_id, location_id, source)
+     values ('bounded-manual-scope', $1, $2, 'manual')`,
+    [bounded.membership_id, addedLocationId],
+  );
+  const manualScopeProjection = await auth.revalidateJewelLinkSession(boundedSession);
+  assert.deepEqual(
+    manualScopeProjection?.locationScopes[bounded.store_id]?.locationIds,
+    [bounded.signed_location_id],
+  );
+  await pool.query(
+    "update store_user_location_scopes set source = 'jewellink' where id = 'bounded-manual-scope'",
+  );
+  assert.equal(await auth.revalidateJewelLinkSession(boundedSession), undefined);
+  await pool.query("delete from store_user_location_scopes where id = 'bounded-manual-scope'");
+
+  const addedStoreId = "bounded-local-authority-added-store";
+  await pool.query(
+    `insert into stores (id, company_id, name, slug, status)
+     values ($1, $2, 'Added Store', $1, 'active')`,
+    [addedStoreId, bounded.company_id],
+  );
+  await pool.query(
+    `insert into store_users (id, store_id, user_id, role, status, all_locations, source)
+     values ('bounded-added-membership', $1, $2, 'manager', 'active', false, 'jewellink')`,
+    [addedStoreId, bounded.user_id],
+  );
+  assert.equal(await auth.revalidateJewelLinkSession(boundedSession), undefined);
+  await pool.query("delete from store_users where id = 'bounded-added-membership'");
+
+  process.env.JEWELHIRE_ADMIN_EMAILS = "bounded-local-admin@example.test";
+  await pool.query(
+    `update users
+     set email = 'bounded-local-admin@example.test', email_normalized = 'bounded-local-admin@example.test'
+     where id = $1`,
+    [bounded.user_id],
+  );
+  const locallyExpandedAdmin = await auth.findJewelLinkSession({
+    localUserId: boundedSession.userId,
+    upstreamUserId: boundedSession.upstreamAssurance.userId,
+    accessFingerprint: boundedSession.upstreamAssurance.accessFingerprint,
+    assurance: boundedSession.upstreamAssurance,
+    expiresAt: boundedSession.exp,
+  });
+  assert.equal(locallyExpandedAdmin?.role, "admin");
+  assert.equal(await auth.revalidateJewelLinkSession(boundedSession), undefined);
+  delete process.env.JEWELHIRE_ADMIN_EMAILS;
+  await pool.query(
+    `update users
+     set email = $2, email_normalized = $2
+     where id = $1`,
+    [bounded.user_id, boundedClaims.email],
+  );
+  assert.equal((await auth.revalidateJewelLinkSession(boundedSession))?.role, "manager");
+
+  const boundedStudentClaims = jewelLinkClaims({
+    userId: "bounded-student-authority",
+    email: "bounded-student-authority@example.test",
+    name: "Bounded Student Authority",
+    role: "STUDENT",
+  });
+  const boundedStudentSession = await jewelLinkSso.provisionJewelLinkSession(boundedStudentClaims);
+  assert.equal(boundedStudentSession?.role, "associate");
+  const boundedStudentState = await pool.query(
+    `select u.id as user_id, s.id as store_id
+     from users u
+     join stores s on s.company_id = u.company_id
+     where u.jewellink_user_id = $1
+     order by s.created_at asc
+     limit 1`,
+    [boundedStudentClaims.userId],
+  );
+  await pool.query(
+    `insert into store_users (id, store_id, user_id, role, status, all_locations, source)
+     values ('bounded-student-owner-grant', $1, $2, 'store_owner', 'active', true, 'jewellink')`,
+    [boundedStudentState.rows[0]?.store_id, boundedStudentState.rows[0]?.user_id],
+  );
+  assert.equal(await auth.revalidateJewelLinkSession(boundedStudentSession), undefined);
 
   const primary = await seedCompany({
     id: "primary-jewellink-company",
@@ -215,6 +815,7 @@ async function main() {
     companyId: claimCompany.companyId,
     ttlMinutes: 60,
   });
+  assert.match(claimToken, /^ac2_[A-Za-z0-9_-]{43}$/);
   const resetToken = await actionTokens.createActionToken({
     purpose: "password_reset",
     userId: "multi-company-user",
@@ -230,7 +831,13 @@ async function main() {
     userId: "multi-company-user",
     email: "multi-company@example.test",
     companyId: claimCompany.companyId,
+    nativeAuthEpoch: 1,
   });
+  assert.equal(
+    (await pool.query("select native_auth_epoch from users where id = 'multi-company-user'"))
+      .rows[0]?.native_auth_epoch,
+    1,
+  );
 
   const memberships = await pool.query(
     `select s.company_id, su.source as membership_source, scope.source as scope_source
@@ -262,6 +869,36 @@ async function main() {
        and action = 'Claimed retained account access'`,
   );
   assert.equal(claimAudit.rows[0]?.company_id, claimCompany.companyId);
+
+  const legacyQueryClaimToken = "q".repeat(43);
+  await pool.query(
+    `insert into auth_action_tokens (
+       id, purpose, user_id, email_normalized, token_hash, expires_at, company_id
+     ) values (
+       'legacy-query-account-claim', 'account_claim', 'multi-company-user',
+       'multi-company@example.test', $1, now() + interval '1 hour', $2
+     )`,
+    [actionTokens.hashActionToken(legacyQueryClaimToken), claimCompany.companyId],
+  );
+  assert.equal(
+    await actionTokens.isActionTokenValid({ purpose: "account_claim", token: legacyQueryClaimToken }),
+    false,
+  );
+  assert.deepEqual(
+    await passwordAuth.completeStandaloneAccountClaim({
+      token: legacyQueryClaimToken,
+      password: "LegacyQueryClaimMustFail123!",
+    }),
+    { ok: false, reason: "invalid_token" },
+  );
+  assert.equal(
+    (await pool.query("select used_at from auth_action_tokens where id = 'legacy-query-account-claim'"))
+      .rows[0]?.used_at,
+    null,
+  );
+  await pool.query(
+    "update auth_action_tokens set used_at = now() where id = 'legacy-query-account-claim'",
+  );
 
   const nativeSession = await auth.findSessionForGoogleUser({ email: "multi-company@example.test" });
   assert.ok(nativeSession);
@@ -502,10 +1139,22 @@ async function main() {
   console.log("PASS migration 0019 expires legacy unbound claims and repairs issuance races");
   console.log("PASS only the authorizing company's active JewelLink membership and scope become manual");
   console.log("PASS successful claim redemption invalidates outstanding password-reset links atomically");
+  console.log("PASS retained-account password replacement advances the native session epoch atomically");
   console.log("PASS revoked claim-company entitlement denies redemption without consuming the link");
+  console.log("PASS fragment-version account claims reject legacy query-string bearers without consuming them");
   console.log("PASS concurrent issuance serializes delivery and a failed replacement preserves the prior link");
   console.log("PASS concurrent successful issuance leaves exactly one valid company-bound link");
   console.log("PASS forced audit failure is savepoint-isolated and aborted COMMIT cannot report success");
+  console.log("PASS fresh and repeated Student SSO provisioning establishes one applicant profile");
+  console.log("PASS stable Student and Consultant SSO email changes remain idempotent");
+  console.log("PASS duplicate owned profiles use one deterministic resume read and write target");
+  console.log("PASS Student SSO adopts unowned applicant data without replacing authored content");
+  console.log("PASS Student SSO never steals a profile owned by another user");
+  console.log("PASS conflicting Student and Consultant demotions durably revoke old memberships");
+  console.log("PASS non-conflict profile SQL failure also durably revokes a demoted manager");
+  console.log("PASS early company provisioning failure also durably revokes a demoted manager");
+  console.log("PASS only exact Student and Consultant roles receive SSO applicant profiles");
+  console.log("PASS successful upstream introspection cannot expand signed authority through local rows");
 }
 
 try {

@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { ManagerUser, UserRole } from "@/lib/users";
 import { getSettingsStore } from "@/lib/server/stores/settings-store";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
+import { getSessionContext } from "@/lib/server/access-control";
+import { assertTeamInvitesEnabled } from "@/lib/server/team-invite-policy";
 
 const roles: UserRole[] = ["Admin", "Supervisor"];
 const statuses: ManagerUser["status"][] = ["Active", "Invited"];
 
 export const PATCH = withApiErrorHandling(async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
+  await getSessionContext();
+  assertTeamInvitesEnabled();
   const body = await request.json().catch(() => null);
   const result = await getSettingsStore().updateStoreUser({
     userId: params.id,

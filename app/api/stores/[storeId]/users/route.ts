@@ -4,6 +4,7 @@ import { notifyTeamUserInvited } from "@/lib/server/notifications";
 import { getSettingsStore } from "@/lib/server/stores/settings-store";
 import { requireStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
+import { assertTeamInvitesEnabled, teamInvitesEnabled } from "@/lib/server/team-invite-policy";
 
 const roles: UserRole[] = ["Admin", "Supervisor"];
 
@@ -11,12 +12,17 @@ export const GET = withApiErrorHandling(async function GET(_request: Request, pr
   const params = await props.params;
   const storeId = await requireStoreAccess(params.storeId, "users.list");
   const users = await getSettingsStore().listStoreUsers(storeId);
-  return NextResponse.json({ count: users.length, items: users });
+  return NextResponse.json({
+    count: users.length,
+    items: users,
+    capabilities: { teamInvitesEnabled: teamInvitesEnabled() },
+  });
 });
 
 export const POST = withApiErrorHandling(async function POST(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
   const storeId = await requireStoreAccess(params.storeId, "users.invite");
+  assertTeamInvitesEnabled();
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim() : "";

@@ -3,6 +3,7 @@ import { AdminCompanyUser } from "@/lib/admin";
 import { requireAdminAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { getAdminStore } from "@/lib/server/stores/admin-store";
+import { assertTeamInvitesEnabled } from "@/lib/server/team-invite-policy";
 
 const roles: AdminCompanyUser["role"][] = ["Admin", "Supervisor"];
 const statuses: AdminCompanyUser["status"][] = ["Active", "Invited"];
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic";
 export const PATCH = withApiErrorHandling(async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   await requireAdminAccess("admin.users.update");
+  assertTeamInvitesEnabled();
   const body = await request.json().catch(() => null);
   const result = await getAdminStore().updateUser({
     userId: params.id,

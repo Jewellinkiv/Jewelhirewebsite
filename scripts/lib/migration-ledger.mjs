@@ -29,6 +29,15 @@ export function loadMigrationFiles(migrationsDir) {
   return files;
 }
 
+export function migrationFilesThrough(files, throughId) {
+  if (!throughId) return files;
+  const index = files.findIndex((file) => file.id === throughId);
+  if (index < 0) {
+    throw new Error(`Requested migration boundary ${throughId} does not exist in db/migrations.`);
+  }
+  return files.slice(0, index + 1);
+}
+
 export function verifyMigrationLedger(
   files,
   appliedRows,

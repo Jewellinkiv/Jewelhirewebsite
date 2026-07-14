@@ -4,6 +4,7 @@ import { requireAdminAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { notifyTeamUserInvited } from "@/lib/server/notifications";
 import { getAdminStore } from "@/lib/server/stores/admin-store";
+import { assertTeamInvitesEnabled } from "@/lib/server/team-invite-policy";
 
 const roles: AdminCompanyUser["role"][] = ["Admin", "Supervisor"];
 
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic";
 export const POST = withApiErrorHandling(async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   await requireAdminAccess("admin.company_users.invite");
+  assertTeamInvitesEnabled();
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim() : "";

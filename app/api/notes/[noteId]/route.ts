@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
+import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { requireLocationInScope } from "@/lib/server/location-scope";
 import { deletePostgresApplicantNote, getPostgresApplicantNote, getPostgresApplicationDetail } from "@/lib/server/postgres-phase1";
@@ -16,7 +16,7 @@ export const DELETE = withApiErrorHandling(async function DELETE(_request: Reque
     requireLocationInScope(detail?.job?.location || detail?.profile?.location, access.locationIds, "applicant_notes.delete");
     const note = await deletePostgresApplicantNote({
       noteId: params.noteId,
-      actorUserId: (await getSessionContext()).userId,
+      actorUserId: access.session.userId,
     });
     if (!note) return NextResponse.json({ error: "Note not found" }, { status: 404 });
     return NextResponse.json({ note });

@@ -6,13 +6,16 @@ import {
   JEWELLINK_SSO_MAX_AGE_SECONDS,
   jewelLinkIdentityProvisionAction,
   jewelLinkRoleAllowedForIdentity,
+  jewelLinkSessionDestination,
   jewelLinkStateMatches,
   nativeAuthAllowed,
   standaloneClaimEntitlementAllowed,
   standaloneCompanyAccessAllowed,
+  validJewelLinkAccessFingerprint,
   validJewelLinkState,
   validateJewelLinkAssurance,
 } from "../lib/server/jewellink-sso-contract.ts";
+import { introspectJewelLinkSession } from "../lib/server/jewellink-session-introspection.ts";
 import { safeSameOriginPath, safeSameOriginPathOrRoot } from "../lib/server/safe-redirect.ts";
 
 const now = Date.parse("2026-07-13T18:00:00.000Z");
@@ -97,11 +100,13 @@ test("development launch uses a localhost-compatible cookie and rejects cross-br
     ));
     assert.equal(new URL(crossBrowser.headers.get("location")).searchParams.get("error"), "jewellink_state");
     assert.match(crossBrowser.headers.get("set-cookie") || "", /Max-Age=0/);
+    assert.doesNotMatch(crossBrowser.headers.get("set-cookie") || "", /jewelhire_session=/);
 
     const replay = await callback(new Request(
       `http://localhost:3000/api/auth/jewellink/callback?code=one-time&state=${encodeURIComponent(launchState)}`,
     ));
     assert.equal(new URL(replay.headers.get("location")).searchParams.get("error"), "jewellink_state");
+    assert.doesNotMatch(replay.headers.get("set-cookie") || "", /jewelhire_session=/);
     assert.equal(fetchCalls, 0);
   } finally {
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
@@ -136,7 +141,7 @@ test("Google callback rejects malformed redirect-cookie encoding without throwin
     if (previousClientId === undefined) delete process.env.GOOGLE_CLIENT_ID;
     else process.env.GOOGLE_CLIENT_ID = previousClientId;
     if (previousClientSecret === undefined) delete process.env.GOOGLE_CLIENT_SECRET;
-    else process.env.GOOGLE_CLIENT_SECRET = previousClientSecret;
+    else process.env["GOOGLE_CLIENT_SECRET"] = previousClientSecret;
   }
 });
 
@@ -161,6 +166,173 @@ test("SSO session lifetime is capped at eight hours from upstream authentication
   if (!result.ok) return;
   assert.equal(result.sessionExpiresAt, Math.floor(Date.parse(assurance.authTime) / 1000) + JEWELLINK_SSO_MAX_AGE_SECONDS);
   assert.ok(result.sessionExpiresAt <= Math.floor(now / 1000) + JEWELLINK_SSO_MAX_AGE_SECONDS);
+});
+
+test("JewelLink access fingerprints use the exact bounded SHA-256 token shape", () => {
+  assert.equal(validJewelLinkAccessFingerprint("A".repeat(43)), true);
+  assert.equal(validJewelLinkAccessFingerprint("A".repeat(42)), false);
+  assert.equal(validJewelLinkAccessFingerprint(`${"A".repeat(42)}=`), false);
+  assert.equal(validJewelLinkAccessFingerprint("A".repeat(44)), false);
+});
+
+test("upstream introspection is bearer-authenticated, no-store, exact, and fail-closed", async () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousUrl = process.env.JEWELLINK_URL;
+  const previousSecret = process.env.JEWELLINK_SSO_SHARED_SECRET;
+  const previousFetch = globalThis.fetch;
+  process.env.NODE_ENV = "development";
+  process.env.JEWELLINK_URL = "http://jewellink.example.test/base";
+  process.env.JEWELLINK_SSO_SHARED_SECRET = "introspection-test-secret";
+  const binding = {
+    userId: "jl-user-1",
+    upstreamSessionId: "jl-session-1",
+    accessFingerprint: "A".repeat(43),
+  };
+
+  try {
+    let calls = 0;
+    globalThis.fetch = async (input, init) => {
+      calls += 1;
+      assert.equal(String(input), "http://jewellink.example.test/api/integrations/jewelhire/sso/introspect");
+      assert.equal(init?.method, "POST");
+      assert.equal(init?.cache, "no-store");
+      assert.equal(init?.headers?.authorization, "Bearer introspection-test-secret");
+      assert.deepEqual(JSON.parse(String(init?.body)), binding);
+      return new Response(JSON.stringify({ active: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+    assert.equal(await introspectJewelLinkSession(binding), true);
+    assert.equal(calls, 1);
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ active: false }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+    assert.equal(await introspectJewelLinkSession(binding), false);
+    globalThis.fetch = async () => new Response("not available", { status: 503 });
+    assert.equal(await introspectJewelLinkSession(binding), false);
+    globalThis.fetch = async () => { throw new Error("upstream unavailable"); };
+    assert.equal(await introspectJewelLinkSession(binding), false);
+    assert.equal(await introspectJewelLinkSession({ ...binding, accessFingerprint: "invalid" }), false);
+
+    process.env.NODE_ENV = "production";
+    assert.equal(await introspectJewelLinkSession(binding), false);
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousUrl === undefined) delete process.env.JEWELLINK_URL;
+    else process.env.JEWELLINK_URL = previousUrl;
+    if (previousSecret === undefined) delete process.env.JEWELLINK_SSO_SHARED_SECRET;
+    else process.env.JEWELLINK_SSO_SHARED_SECRET = previousSecret;
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("local rehydration may narrow but never expand signed JewelLink authority", async () => {
+  const { jewelLinkSessionAccessDoesNotExpand } = await import("../lib/server/auth.ts");
+  const signed = {
+    version: 3,
+    userId: "bounded-user",
+    name: "Bounded User",
+    email: "bounded@example.test",
+    role: "manager",
+    storeIds: ["store-1"],
+    storeRoles: { "store-1": "manager" },
+    locationScopes: {
+      "store-1": { allLocations: false, locationIds: ["location-1", "location-2"] },
+    },
+    activeStoreId: "store-1",
+    authSource: "jewellink_sso",
+    upstreamAssurance: {
+      ...assurance,
+      userId: "jl-bounded-user",
+      accessFingerprint: "A".repeat(43),
+    },
+    exp: Math.floor(Date.now() / 1000) + 300,
+    guardrails: {
+      phase: "phase_1_single_store",
+      applicantScope: "store_private",
+      marketplace: false,
+      candidateReviews: false,
+    },
+  };
+  assert.equal(jewelLinkSessionAccessDoesNotExpand(signed, structuredClone(signed)), true);
+
+  const narrowedLocation = structuredClone(signed);
+  narrowedLocation.locationScopes["store-1"].locationIds = ["location-1"];
+  assert.equal(jewelLinkSessionAccessDoesNotExpand(signed, narrowedLocation), true);
+
+  const ownerPromotion = structuredClone(signed);
+  ownerPromotion.role = "store_owner";
+  ownerPromotion.storeRoles["store-1"] = "store_owner";
+  assert.equal(jewelLinkSessionAccessDoesNotExpand(signed, ownerPromotion), false);
+
+  const allLocationPromotion = structuredClone(signed);
+  allLocationPromotion.locationScopes["store-1"].allLocations = true;
+  assert.equal(jewelLinkSessionAccessDoesNotExpand(signed, allLocationPromotion), false);
+
+  const addedLocation = structuredClone(signed);
+  addedLocation.locationScopes["store-1"].locationIds.push("location-3");
+  assert.equal(jewelLinkSessionAccessDoesNotExpand(signed, addedLocation), false);
+
+  const addedStore = structuredClone(signed);
+  addedStore.storeIds.push("store-2");
+  addedStore.storeRoles["store-2"] = "manager";
+  addedStore.locationScopes["store-2"] = { allLocations: false, locationIds: [] };
+  assert.equal(jewelLinkSessionAccessDoesNotExpand(signed, addedStore), false);
+
+  const localIdentityTransition = structuredClone(signed);
+  localIdentityTransition.email = "configured-admin@example.test";
+  localIdentityTransition.role = "admin";
+  assert.equal(jewelLinkSessionAccessDoesNotExpand(signed, localIdentityTransition), false);
+});
+
+test("browser session DTO excludes the upstream binding and internal subject", async () => {
+  const { browserSessionContext } = await import("../lib/server/access-control.ts");
+  const context = {
+    userId: "bounded-user",
+    name: "Bounded User",
+    email: "bounded@example.test",
+    role: "associate",
+    storeIds: [],
+    storeRoles: {},
+    locationScopes: {},
+    activeStoreId: "",
+    authSource: "jewellink_sso",
+    upstreamUserId: "jl-bounded-user",
+    guardrails: {
+      phase: "phase_1_single_store",
+      applicantScope: "store_private",
+      marketplace: false,
+      candidateReviews: false,
+    },
+  };
+  const browserContext = browserSessionContext(context);
+  assert.equal(Object.hasOwn(browserContext, "upstreamUserId"), false);
+  assert.equal(Object.hasOwn(browserContext, "upstreamAssurance"), false);
+
+  const apiMe = fs.readFileSync(new URL("../app/api/me/route.ts", import.meta.url), "utf8");
+  assert.match(apiMe, /browserSessionContext\(await getSessionContext\(\)\)/);
+});
+
+test("mutation routes reuse their already-revalidated store session", () => {
+  const routes = [
+    "app/api/applicants/[id]/notes/route.ts",
+    "app/api/applications/[id]/hire/route.ts",
+    "app/api/applications/[id]/interviews/route.ts",
+    "app/api/applications/[id]/stage/route.ts",
+    "app/api/interviews/[id]/route.ts",
+    "app/api/notes/[noteId]/route.ts",
+    "app/api/stores/[storeId]/interviews/new-candidate/route.ts",
+    "app/api/stores/[storeId]/jewelcert-invites/route.ts",
+  ];
+  for (const route of routes) {
+    const source = fs.readFileSync(new URL(`../${route}`, import.meta.url), "utf8");
+    assert.match(source, /access\.session\.userId/, route);
+    assert.doesNotMatch(source, /getSessionContext/, route);
+  }
 });
 
 test("signed SSO cookie lifetime follows the upstream assurance expiry", async () => {
@@ -188,7 +360,11 @@ test("signed SSO cookie lifetime follows the upstream assurance expiry", async (
       locationScopes: {},
       activeStoreId: "",
       authSource: "jewellink_sso",
-      upstreamAssurance: { ...validated.assurance, userId: "jl-user-1" },
+      upstreamAssurance: {
+        ...validated.assurance,
+        userId: "jl-user-1",
+        accessFingerprint: "A".repeat(43),
+      },
       exp: validated.sessionExpiresAt,
       guardrails: {
         phase: "phase_1_single_store",
@@ -204,6 +380,9 @@ test("signed SSO cookie lifetime follows the upstream assurance expiry", async (
     assert.ok(maxAge > 0 && maxAge <= JEWELLINK_SSO_MAX_AGE_SECONDS);
     const token = setCookie.match(/jewelhire_session=([^;]+)/)?.[1];
     assert.equal(auth.readSessionToken(token)?.authSource, "jewellink_sso");
+    const legacySession = structuredClone(session);
+    delete legacySession.upstreamAssurance.accessFingerprint;
+    assert.equal(auth.readSessionToken(auth.createSessionToken(legacySession)), undefined);
   } finally {
     if (previousSecret === undefined) delete process.env.AUTH_SECRET;
     else process.env.AUTH_SECRET = previousSecret;
@@ -237,6 +416,21 @@ test("all auth entry points share strict same-origin redirect validation", () =>
   assert.equal(safeSameOriginPath("/jobs%0d%0aX-Test:yes"), undefined);
   assert.equal(safeSameOriginPath("/jobs%E0%A4%A"), undefined);
   assert.equal(safeSameOriginPathOrRoot("https://evil.example"), "/");
+});
+
+test("first-time applicant SSO may return only to its exact JewelCert bundle", () => {
+  assert.equal(
+    jewelLinkSessionDestination("/bundle/jewelcert-jl-safe_1.test", "associate"),
+    "/bundle/jewelcert-jl-safe_1.test",
+  );
+  assert.equal(jewelLinkSessionDestination("/portal/invites", "associate"), "/portal/invites");
+  assert.equal(jewelLinkSessionDestination("/jobs", "associate"), "/portal");
+  assert.equal(jewelLinkSessionDestination("/bundle/.", "associate"), "/portal");
+  assert.equal(jewelLinkSessionDestination("/bundle/..", "associate"), "/portal");
+  assert.equal(jewelLinkSessionDestination("/bundle/../admin", "associate"), "/portal");
+  assert.equal(jewelLinkSessionDestination("/bundle/invite/extra", "associate"), "/portal");
+  assert.equal(jewelLinkSessionDestination("//evil.example/bundle/invite", "associate"), "/portal");
+  assert.equal(jewelLinkSessionDestination("/bundle/invite", "manager"), "/bundle/invite");
 });
 
 test("SSO provisioning rejects unrelated email collisions and only updates its stable upstream subject", () => {
@@ -360,7 +554,7 @@ test("routes enforce linked-account denial, callback ordering, cookie clearing, 
   const callback = read("app/api/auth/jewellink/callback/route.ts");
   const password = read("lib/server/password-auth.ts");
   const reset = read("app/api/auth/password/reset/route.ts");
-  const resetRequest = read("app/api/auth/password/reset-request/route.ts");
+  const resetRequest = read("lib/server/password-reset-request.ts");
   const accountClaim = read("app/api/auth/account-claim/route.ts");
   const claimLinks = read("app/api/admin/companies/[id]/claim-links/route.ts");
   const google = read("app/api/auth/google/callback/route.ts");
@@ -371,18 +565,38 @@ test("routes enforce linked-account denial, callback ordering, cookie clearing, 
   const service = read("lib/server/jewellink-sso.ts");
   const access = read("lib/server/access-control.ts");
   const auth = read("lib/server/auth.ts");
+  const introspection = read("lib/server/jewellink-session-introspection.ts");
   const actionTokens = read("lib/server/action-tokens.ts");
   const storeSignup = read("lib/server/store-signup.ts");
 
   assert.ok(callback.indexOf("stateCookie") < callback.indexOf("exchangeJewelLinkCode(code)"));
   assert.match(callback, /return clearState\(response\)/);
+  const callbackLoginError = callback.slice(
+    callback.indexOf("function loginError"),
+    callback.indexOf("function cookieValue"),
+  );
+  assert.match(callback, /SESSION_COOKIE/);
+  assert.match(callbackLoginError, /if \(clearCurrentSession\) response\.cookies\.delete\(SESSION_COOKIE\)/);
+  const callbackExchange = callback.indexOf("exchangeJewelLinkCode(code)");
+  const callbackBoundState = callback.indexOf("jewelLinkStateMatches", callbackExchange);
+  const callbackClearSessionGate = callback.indexOf("clearCurrentSessionOnFailure = true");
+  const callbackProvision = callback.indexOf("provisionJewelLinkSession(claims)");
+  assert.ok(callbackExchange < callbackBoundState);
+  assert.ok(callbackBoundState < callbackClearSessionGate);
+  assert.ok(callbackClearSessionGate < callbackProvision);
+  assert.match(callback, /loginError\(request, "jewellink_exchange", clearCurrentSessionOnFailure\)/);
+  assert.doesNotMatch(
+    callback.slice(0, callbackClearSessionGate),
+    /loginError\(request, "jewellink_state", true\)/,
+  );
   assert.match(password, /native_auth_enabled/);
   assert.match(password, /sub\.status in \('active', 'trialing'\)/);
-  assert.match(reset, /nativeAuthEnabledForUser/);
+  assert.match(reset, /completePasswordReset/);
+  assert.doesNotMatch(reset, /consumeActionToken|invalidateActionTokens|setPassword|nativeAuthEnabledForUser/);
   assert.match(resetRequest, /findActiveUserByEmail/);
-  assert.match(accountClaim, /isConfiguredAdminEmail\(claim\.email\)/);
-  assert.match(accountClaim, /findActionTokenSubject/);
-  assert.doesNotMatch(accountClaim, /consumeActionToken/);
+  assert.match(accountClaim, /completeStandaloneAccountClaim/);
+  assert.match(accountClaim, /Account converted but session hydration failed/);
+  assert.doesNotMatch(accountClaim, /findActionTokenSubject|isActionTokenValid|searchParams|consumeActionToken/);
   assert.match(claimLinks, /isConfiguredAdminEmail\(owner\.email\)/);
   assert.match(claimLinks, /withReplacingActionToken/);
   assert.match(claimLinks, /attemptBestEffortTransactionOperation/);
@@ -393,6 +607,7 @@ test("routes enforce linked-account denial, callback ordering, cookie clearing, 
   assert.match(actionTokens, /outcome\.commit \? "commit" : "rollback"/);
   assert.match(actionTokens, /settlement\.command !== expectedCommand/);
   assert.match(actionTokens, /company_id/);
+  assert.match(actionTokens, /`ac2_\$\{entropy\}`/);
   assert.match(storeSignup, /withReplacingActionToken/);
   assert.match(storeSignup, /companyId/);
   assert.match(google, /isJewelLinkSsoOnlyEmail/);
@@ -408,6 +623,12 @@ test("routes enforce linked-account denial, callback ordering, cookie clearing, 
   assert.match(firebase, /safeSameOriginPathOrRoot/);
   assert.match(service, /safeSameOriginPath\(body\.claims\.returnTo\)/);
   assert.match(access, /revalidateJewelLinkSession/);
+  assert.match(auth, /await introspectJewelLinkSession/);
+  assert.match(introspection, /\/api\/integrations\/jewelhire\/sso\/introspect/);
+  assert.match(introspection, /authorization: `Bearer \$\{secret\}`/);
+  assert.match(introspection, /cache: "no-store"/);
+  assert.match(introspection, /return false/);
+  assert.doesNotMatch(introspection, /positiveCache|Map\(/);
   assert.match(access, /revalidateNativeSession/);
   assert.match(auth, /company_status === "active"/);
   assert.match(auth, /entitlement_status === "active"/);
@@ -418,6 +639,17 @@ test("routes enforce linked-account denial, callback ordering, cookie clearing, 
   assert.doesNotMatch(service, /do update set name = excluded\.name, status = 'active'/);
   assert.match(service, /on conflict \(company_id\) do nothing/);
   assert.match(service, /jewelLinkRoleAllowedForIdentity/);
+  const provisioning = service.slice(service.indexOf("export async function provisionJewelLinkSession"));
+  const advisoryLock = provisioning.indexOf("pg_advisory_lock");
+  const demotionBarrier = provisioning.indexOf("with linked_applicant as materialized");
+  const provisioningTransaction = provisioning.indexOf('client.query("begin")');
+  const companyProvisioning = provisioning.indexOf("insert into companies");
+  assert.ok(advisoryLock >= 0 && advisoryLock < demotionBarrier);
+  assert.ok(demotionBarrier < provisioningTransaction);
+  assert.ok(provisioningTransaction < companyProvisioning);
+  assert.match(provisioning, /pg_advisory_unlock/);
+  assert.match(provisioning, /client\.release\(discardClient\)/);
+  assert.doesNotMatch(provisioning, /revocationFailure|compensating-operation/);
 
   const atomicClaim = password.slice(
     password.indexOf("export async function completeStandaloneAccountClaim"),

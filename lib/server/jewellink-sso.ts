@@ -1,11 +1,16 @@
 import { createHash } from "node:crypto";
 import type { AuthSession, StoreMembershipRole } from "@/lib/server/auth";
 import { findJewelLinkSession, isConfiguredAdminEmail } from "@/lib/server/auth";
+import {
+  ApplicantProfileOwnershipConflictError,
+  ensureApplicantProfileForUser,
+} from "@/lib/server/applicant-profile-provisioning";
 import { getPostgresPool } from "@/lib/server/postgres";
 import { safeSameOriginPath } from "@/lib/server/safe-redirect";
 import {
   jewelLinkIdentityProvisionAction,
   jewelLinkRoleAllowedForIdentity,
+  validJewelLinkAccessFingerprint,
   validJewelLinkState,
   validateJewelLinkAssurance,
 } from "@/lib/server/jewellink-sso-contract";
@@ -37,6 +42,8 @@ export type JewelLinkSsoClaims = {
   email: string;
   name: string;
   role: string;
+  authVersion: number;
+  accessFingerprint: string;
   company: { id: string; name: string } | null;
   primaryLocationId?: string | null;
   locations: Array<{ id: string; name: string }>;
@@ -85,6 +92,8 @@ function validClaims(value: unknown): value is JewelLinkSsoClaims {
     typeof claims.email === "string" && claims.email.includes("@") &&
     typeof claims.name === "string" && Boolean(claims.name) &&
     typeof claims.role === "string" &&
+    typeof claims.authVersion === "number" && Number.isSafeInteger(claims.authVersion) && claims.authVersion > 0 &&
+    validJewelLinkAccessFingerprint(claims.accessFingerprint) &&
     companyValid &&
     Array.isArray(claims.locations) && claims.locations.every((location) =>
       Boolean(location) && typeof location.id === "string" && Boolean(location.id) &&
@@ -122,6 +131,10 @@ export async function exchangeJewelLinkCode(code: string) {
   }
 }
 
+function isApplicantRole(role: string) {
+  return role === "STUDENT" || role === "CONSULTANT";
+}
+
 function membershipForRole(role: string): StoreMembershipRole | undefined {
   if (role === "MANAGER") return "manager";
   if (role === "DIRECTOR") {
@@ -135,16 +148,65 @@ export async function provisionJewelLinkSession(claims: JewelLinkSsoClaims): Pro
   const assurance = validateJewelLinkAssurance(claims);
   if (!assurance.ok) throw new JewelLinkAssuranceError();
   const membershipRole = membershipForRole(claims.role);
+  const applicantRole = isApplicantRole(claims.role);
+  const email = claims.email.trim().toLowerCase();
+  const isPlatformAdmin = isConfiguredAdminEmail(email);
+  if (!jewelLinkRoleAllowedForIdentity({ role: claims.role, isPlatformAdmin })) {
+    throw new JewelLinkAccessRevokedError();
+  }
   const client = await getPostgresPool().connect();
+  const advisoryLockKey = `jewelhire:jewellink-sso:${claims.userId}`;
+  let advisoryLockHeld = false;
+  let transactionStarted = false;
+  let discardClient = false;
+  let sessionIdentity: { localUserId: string; upstreamUserId: string } | undefined;
   try {
+    // Serialize all role observations for one upstream subject across the
+    // durable demotion barrier and the subsequent provisioning transaction.
+    // This is a session-level lock because a transaction-level lock would be
+    // released by the barrier's autocommit boundary. The finally block either
+    // unlocks it explicitly or destroys the pooled connection so it cannot leak.
+    try {
+      await client.query("select pg_advisory_lock(hashtextextended($1, 0))", [advisoryLockKey]);
+      advisoryLockHeld = true;
+    } catch (error) {
+      discardClient = true;
+      throw error;
+    }
+
+    if (applicantRole) {
+      // Role demotion is a fail-closed authorization boundary, not part of the
+      // profile/company unit of work. Commit it before any riskier provisioning
+      // so a later rollback can never restore manager or owner authority. This
+      // single autocommit statement also resolves the stable linked identity.
+      await client.query(
+        `
+          with linked_applicant as materialized (
+            select id
+            from users
+            where jewellink_user_id = $1
+            limit 1
+          ), revoked_memberships as (
+            update store_users membership
+            set status = 'inactive', updated_at = now()
+            from linked_applicant
+            where membership.user_id = linked_applicant.id
+              and membership.source = 'jewellink'
+              and membership.status <> 'inactive'
+            returning membership.id
+          )
+          select linked_applicant.id,
+                 (select count(*) from revoked_memberships) as revoked_membership_count
+          from linked_applicant
+        `,
+        [claims.userId],
+      );
+    }
+
     await client.query("begin");
+    transactionStarted = true;
     let companyId: string | null = null;
     let storeId: string | null = null;
-    const email = claims.email.trim().toLowerCase();
-    const isPlatformAdmin = isConfiguredAdminEmail(email);
-    if (!jewelLinkRoleAllowedForIdentity({ role: claims.role, isPlatformAdmin })) {
-      throw new JewelLinkAccessRevokedError();
-    }
 
     if (claims.company) {
       const desiredCompanyId = stableId("company", claims.company.id);
@@ -286,6 +348,14 @@ export async function provisionJewelLinkSession(claims: JewelLinkSsoClaims): Pro
         [localUserId, companyId, email, claims.name, claims.userId],
       );
     }
+    if (applicantRole) {
+      await ensureApplicantProfileForUser(client, {
+        userId: localUserId,
+        email,
+        name: claims.name,
+        profileId: stableId("profile", claims.userId),
+      });
+    }
     await client.query(
       "update store_users set status = 'inactive', updated_at = now() where user_id = $1 and source = 'jewellink'",
       [localUserId],
@@ -322,23 +392,57 @@ export async function provisionJewelLinkSession(claims: JewelLinkSsoClaims): Pro
       }
     }
     await client.query("commit");
+    transactionStarted = false;
 
     // JewelLink roles never grant platform administration by themselves. This
     // dedicated resolver deliberately accepts the SSO-only identity while the
     // native Google/password resolver rejects it.
-    return findJewelLinkSession({
-      localUserId,
-      upstreamUserId: claims.userId,
-      assurance: assurance.assurance,
-      expiresAt: assurance.sessionExpiresAt,
-    });
+    sessionIdentity = { localUserId, upstreamUserId: claims.userId };
   } catch (error) {
-    await client.query("rollback");
-    if (error instanceof JewelLinkIdentityConflictError || (error && typeof error === "object" && "code" in error && error.code === "23505")) {
-      throw new JewelLinkIdentityConflictError();
+    const identityConflict = error instanceof JewelLinkIdentityConflictError
+      || error instanceof ApplicantProfileOwnershipConflictError
+      || (error && typeof error === "object" && "code" in error && error.code === "23505");
+    let rollbackFailure: unknown;
+    if (transactionStarted) {
+      try {
+        await client.query("rollback");
+        transactionStarted = false;
+      } catch (rollbackError) {
+        // A connection with an uncertain transaction state must never return to
+        // the pool, especially while it may still own a session advisory lock.
+        rollbackFailure = rollbackError;
+        discardClient = true;
+      }
+    }
+    if (identityConflict) {
+      const conflictError = new JewelLinkIdentityConflictError();
+      if (rollbackFailure !== undefined) conflictError.cause = rollbackFailure;
+      throw conflictError;
+    }
+    if (rollbackFailure !== undefined && error instanceof Error && error.cause === undefined) {
+      error.cause = rollbackFailure;
     }
     throw error;
   } finally {
-    client.release();
+    if (advisoryLockHeld && !discardClient) {
+      try {
+        const unlocked = await client.query<{ unlocked: boolean }>(
+          "select pg_advisory_unlock(hashtextextended($1, 0)) as unlocked",
+          [advisoryLockKey],
+        );
+        if (unlocked.rows[0]?.unlocked !== true) discardClient = true;
+      } catch {
+        discardClient = true;
+      }
+    }
+    client.release(discardClient);
   }
+
+  if (!sessionIdentity) return undefined;
+  return findJewelLinkSession({
+    ...sessionIdentity,
+    accessFingerprint: claims.accessFingerprint,
+    assurance: assurance.assurance,
+    expiresAt: assurance.sessionExpiresAt,
+  });
 }

@@ -101,7 +101,7 @@ integration settings:
 gcloud run services update jewelhire \
   --project=jewelhire-prod-20260626 \
   --region=us-central1 \
-  --update-env-vars=JEWELLINK_URL=https://ai.jewellink.com,JEWELHIRE_JEWELLINK_DIRECTOR_ROLE=store_owner,JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS=0 \
+  --update-env-vars=JEWELLINK_URL=https://ai.jewellink.com,JEWELHIRE_JEWELLINK_DIRECTOR_ROLE=store_owner,JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS=0,JEWELHIRE_TEAM_INVITES_ENABLED=0 \
   --update-secrets=JEWELLINK_SSO_SHARED_SECRET=jewelhire-jewellink-sso-shared-secret:latest,JEWELLINK_INTEGRATION_SHARED_SECRET=jewelhire-jewellink-integration-shared-secret:latest \
   --no-traffic
 ```
@@ -109,6 +109,8 @@ gcloud run services update jewelhire \
 This creates a configuration revision without sending users to it. The manual
 JewelHire workflow inherits the settings, builds the reviewed candidate, and
 moves traffic only after migrations and public-route smoke checks pass.
+The workflow refuses the Diamond Exchange pilot unless
+`JEWELHIRE_TEAM_INVITES_ENABLED` is present as the literal value `0`.
 
 JewelLink's reviewed `deploy.sh` mounts its matching secrets and sets
 `JEWELHIRE_URL=https://app.jewelhire.com`. It refuses a dirty or out-of-date

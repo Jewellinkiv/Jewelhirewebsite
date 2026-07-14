@@ -13,6 +13,7 @@ type NotificationTemplate =
   | "training_assignment"
   | "jewelcert_invite"
   | "interview_scheduled"
+  | "applicant_signup"
   | "password_reset"
   | "store_owner_claim";
 
@@ -31,13 +32,19 @@ type SendNotificationInput = {
   metadata?: Record<string, string | number | boolean | null | undefined>;
 };
 
-type NotificationResult = {
+export type NotificationResult = {
   status: "disabled" | "dry_run" | "sent" | "skipped" | "failed";
   provider: "postmark";
+  delivery: "accepted" | "definite_failure" | "ambiguous";
   reason?: string;
 };
 
 const POSTMARK_API_URL = "https://api.postmarkapp.com/email";
+const POSTMARK_TIMEOUT_MAX_MS = 10_000;
+const POSTMARK_TIMEOUT_MIN_MS = 100;
+const POSTMARK_DEFINITE_REJECTION_STATUSES = new Set([
+  400, 401, 403, 404, 405, 406, 410, 413, 415, 422,
+]);
 
 const APPLICANT_PREFERENCE_BY_TEMPLATE: Partial<
   Record<NotificationTemplate, ApplicantNotificationCategory>
@@ -68,6 +75,20 @@ function postmarkFromEmail() {
 
 function postmarkMessageStream() {
   return process.env.POSTMARK_MESSAGE_STREAM?.trim() || "outbound";
+}
+
+function postmarkTimeoutMs() {
+  const configured = Number(process.env.POSTMARK_TIMEOUT_MS);
+  if (!Number.isFinite(configured) || configured <= 0) return POSTMARK_TIMEOUT_MAX_MS;
+  return Math.min(POSTMARK_TIMEOUT_MAX_MS, Math.max(POSTMARK_TIMEOUT_MIN_MS, Math.floor(configured)));
+}
+
+export function classifyPostmarkHttpFailure(status: number): NotificationResult["delivery"] {
+  // Only stable request/auth/validation failures prove that Postmark rejected
+  // the message. Timeouts, conflicts, throttling, all server failures, and any
+  // unknown non-2xx response remain ambiguous so a possibly delivered signup
+  // link is never deleted.
+  return POSTMARK_DEFINITE_REJECTION_STATUSES.has(status) ? "definite_failure" : "ambiguous";
 }
 
 function appUrl() {
@@ -115,7 +136,7 @@ export function notificationRuntimeStatus() {
 export async function sendNotification(input: SendNotificationInput): Promise<NotificationResult> {
   const toEmail = normalizeEmail(input.to.email);
   if (!toEmail || !toEmail.includes("@")) {
-    return { status: "skipped", provider: "postmark", reason: "missing_recipient" };
+    return { status: "skipped", provider: "postmark", delivery: "definite_failure", reason: "missing_recipient" };
   }
 
   const preferenceCategory = APPLICANT_PREFERENCE_BY_TEMPLATE[input.template];
@@ -123,20 +144,20 @@ export async function sendNotification(input: SendNotificationInput): Promise<No
     preferenceCategory &&
     !(await applicantAllowsNotification({ email: toEmail, category: preferenceCategory }))
   ) {
-    return { status: "skipped", provider: "postmark", reason: "recipient_opted_out" };
+    return { status: "skipped", provider: "postmark", delivery: "definite_failure", reason: "recipient_opted_out" };
   }
 
   const runtime = notificationRuntimeStatus();
   if (!runtime.enabled) {
-    return { status: "disabled", provider: "postmark", reason: "EMAIL_NOTIFICATIONS_ENABLED is not true" };
+    return { status: "disabled", provider: "postmark", delivery: "definite_failure", reason: "EMAIL_NOTIFICATIONS_ENABLED is not true" };
   }
   if (runtime.dryRun) {
-    return { status: "dry_run", provider: "postmark" };
+    return { status: "dry_run", provider: "postmark", delivery: "definite_failure" };
   }
 
   const token = postmarkServerToken();
   if (!token) {
-    return { status: "failed", provider: "postmark", reason: "postmark_not_configured" };
+    return { status: "failed", provider: "postmark", delivery: "definite_failure", reason: "postmark_not_configured" };
   }
 
   // A notification is always a post-commit side-effect: callers create the invite /
@@ -147,6 +168,7 @@ export async function sendNotification(input: SendNotificationInput): Promise<No
   // already-committed write, telling the client the action failed (and on retry the
   // idempotency guards would suppress the email). Mirrors the non-ok HTTP branch below
   // and the hire route's explicit .catch(), centralized so every caller is covered.
+  const signal = AbortSignal.timeout(postmarkTimeoutMs());
   let response: Response;
   try {
     response = await fetch(POSTMARK_API_URL, {
@@ -166,15 +188,26 @@ export async function sendNotification(input: SendNotificationInput): Promise<No
         Tag: input.tag || input.template,
         Metadata: scrubMetadata(input.metadata),
       }),
+      signal,
     });
   } catch {
-    return { status: "failed", provider: "postmark", reason: "postmark_network_error" };
+    return {
+      status: "failed",
+      provider: "postmark",
+      delivery: "ambiguous",
+      reason: signal.aborted ? "postmark_timeout" : "postmark_network_error",
+    };
   }
 
   if (!response.ok) {
-    return { status: "failed", provider: "postmark", reason: `postmark_${response.status}` };
+    return {
+      status: "failed",
+      provider: "postmark",
+      delivery: classifyPostmarkHttpFailure(response.status),
+      reason: `postmark_${response.status}`,
+    };
   }
-  return { status: "sent", provider: "postmark" };
+  return { status: "sent", provider: "postmark", delivery: "accepted" };
 }
 
 export async function notifyJewelCertInviteCreated(input: {
@@ -189,7 +222,13 @@ export async function notifyJewelCertInviteCreated(input: {
   const countLabel = `${itemCount} item${itemCount === 1 ? "" : "s"}`;
   // Deep link to the quick-claim page: new recipients set a password and start
   // immediately; existing accounts are bounced to sign in from there.
-  const link = `${appUrl()}/jewelcert/claim/${input.inviteId}?t=${signInviteClaim(input.inviteId)}`;
+  // Keep the account-creation bearer in the URL fragment. Fragments are not
+  // included in the HTTP request, access logs, or Referer headers; the claim
+  // page captures it in memory and immediately removes it from browser history.
+  const recipientEmail = normalizeEmail(input.toEmail);
+  const link = recipientEmail
+    ? `${appUrl()}/jewelcert/claim/${input.inviteId}#t=${encodeURIComponent(signInviteClaim(input.inviteId, recipientEmail))}`
+    : `${appUrl()}/login`;
   const name = input.recipientName?.trim() || "there";
   return sendNotification({
     template: "jewelcert_invite",
@@ -370,6 +409,41 @@ export async function notifyTeamUserInvited(input: {
   });
 }
 
+// Applicant signup is an authentication/security message, so it intentionally
+// is not mapped through applicant notification preferences. Existing and
+// managed identities receive a neutral sign-in message so the public response
+// and provider call do not reveal whether an account already exists.
+export async function notifyApplicantSignupRequested(input: {
+  toEmail: string;
+  token?: string;
+}) {
+  const verificationUrl = input.token
+    ? `${appUrl()}/verify-email#token=${encodeURIComponent(input.token)}`
+    : "";
+  const loginUrl = `${appUrl()}/login`;
+  const resetUrl = `${appUrl()}/forgot-password`;
+  return sendNotification({
+    template: "applicant_signup",
+    to: { email: input.toEmail },
+    subject: input.token ? "Finish creating your JewelHire account" : "A JewelHire signup was requested",
+    textBody: input.token
+      ? [
+          "Hi there,",
+          "Use the secure link below to finish creating your JewelHire applicant account. You will choose your name and password after opening it. The link expires in 60 minutes and can only be used once.",
+          verificationUrl,
+          "If you did not request this, you can safely ignore this email. No account or password has been created.",
+        ].join("\n\n")
+      : [
+          "Hi there,",
+          "Someone requested an applicant account using this email address. If this was you, an account or managed sign-in may already exist.",
+          `Sign in: ${loginUrl}`,
+          `Reset a native password: ${resetUrl}`,
+          "JewelLink-managed users should use Continue with JewelLink from the sign-in page. If you did not request this, you can safely ignore this email.",
+        ].join("\n\n"),
+    tag: "applicant-signup",
+  });
+}
+
 export async function notifyPasswordReset(input: { toEmail?: string | null; name?: string | null; resetUrl: string }) {
   const name = input.name?.trim() || "there";
   return sendNotification({
@@ -396,7 +470,7 @@ export async function notifyStoreOwnerClaim(input: {
 }) {
   const name = input.name?.trim() || "there";
   const companyName = input.companyName?.trim() || "your store";
-  const claimUrl = `${appUrl()}/claim-account?token=${encodeURIComponent(input.token)}`;
+  const claimUrl = `${appUrl()}/claim-account#token=${encodeURIComponent(input.token)}`;
   const accessRecovery = input.accessRecovery === true;
   return sendNotification({
     template: "store_owner_claim",

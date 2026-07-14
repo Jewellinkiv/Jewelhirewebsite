@@ -1,10 +1,54 @@
 import { NextResponse } from "next/server";
-import { findActionTokenSubject, isActionTokenValid } from "@/lib/server/action-tokens";
 import { completeStandaloneAccountClaim, isStrongPassword } from "@/lib/server/password-auth";
-import { findSessionForGoogleUser, isConfiguredAdminEmail, setSessionCookie } from "@/lib/server/auth";
+import { findSessionForVerifiedNativeCredential, setSessionCookie } from "@/lib/server/auth";
 import { enforceRateLimit } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
+
+const MAX_ACCOUNT_CLAIM_BODY_BYTES = 2_048;
+
+async function readBoundedJson(request: Request): Promise<Record<string, unknown>> {
+  const contentLength = request.headers.get("content-length");
+  if (
+    contentLength
+    && /^\d+$/.test(contentLength)
+    && Number(contentLength) > MAX_ACCOUNT_CLAIM_BODY_BYTES
+  ) return {};
+  if (!request.body) return {};
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const part = await reader.read();
+      if (part.done) break;
+      total += part.value.byteLength;
+      if (total > MAX_ACCOUNT_CLAIM_BODY_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        return {};
+      }
+      chunks.push(part.value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    const parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
+}
 
 function nextForRole(role?: string) {
   if (role === "associate") return "/portal";
@@ -12,21 +56,11 @@ function nextForRole(role?: string) {
   return "/";
 }
 
-// GET: lightweight preview to tell the claim page whether the token is still
-// valid, WITHOUT consuming it. POST performs the one-shot consume + set password.
-export async function GET(request: Request) {
-  const limited = await enforceRateLimit(request, "account-claim-preview", { limit: 100, windowSeconds: 900 });
-  if (limited) return limited;
-  const token = new URL(request.url).searchParams.get("token") || "";
-  const valid = await isActionTokenValid({ purpose: "account_claim", token });
-  return NextResponse.json({ valid });
-}
-
 export async function POST(request: Request) {
   const limited = await enforceRateLimit(request, "account-claim", { limit: 12, windowSeconds: 900 });
   if (limited) return limited;
 
-  const body = await request.json().catch(() => ({}));
+  const body = await readBoundedJson(request);
   const token = typeof body.token === "string" ? body.token : "";
   const password = typeof body.password === "string" ? body.password : "";
 
@@ -34,26 +68,6 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: { code: "weak_password", message: "Use at least 12 characters, including a letter and a number." } },
       { status: 400 },
-    );
-  }
-
-  const claim = await findActionTokenSubject({ purpose: "account_claim", token });
-  if (!claim) {
-    return NextResponse.json(
-      { error: { code: "invalid_token", message: "This link is invalid or has expired. Request a new one." } },
-      { status: 400 },
-    );
-  }
-
-  if (isConfiguredAdminEmail(claim.email) || (claim.currentEmail && isConfiguredAdminEmail(claim.currentEmail))) {
-    return NextResponse.json(
-      {
-        error: {
-          code: "jewellink_required",
-          message: "Platform administrators must continue with JewelLink and complete MFA to sign in.",
-        },
-      },
-      { status: 403 },
     );
   }
 
@@ -86,10 +100,25 @@ export async function POST(request: Request) {
       { status: 403 },
     );
   }
-  const session = await findSessionForGoogleUser({ email: converted.email });
-  // If the account isn't active (findSessionForGoogleUser returns nothing), don't
-  // claim a logged-in landing — send them to sign in.
-  const response = NextResponse.json({ ok: true, next: session ? nextForRole(session.role) : "/login" });
-  if (session) setSessionCookie(response, session);
-  return response;
+  try {
+    // Conversion already committed. Session hydration is best-effort and must
+    // never make a consumed claim look safe to retry after a transient failure.
+    const session = await findSessionForVerifiedNativeCredential({
+      email: converted.email,
+      userId: converted.userId,
+      nativeAuthEpoch: converted.nativeAuthEpoch,
+    });
+    const signedIn = session?.userId === converted.userId;
+    const response = NextResponse.json({
+      ok: true,
+      next: signedIn && session ? nextForRole(session.role) : "/login",
+    });
+    if (signedIn && session) setSessionCookie(response, session);
+    return response;
+  } catch (error) {
+    console.error("[account-claim] Account converted but session hydration failed", {
+      errorType: error instanceof Error ? error.name : "unknown",
+    });
+    return NextResponse.json({ ok: true, next: "/login" });
+  }
 }

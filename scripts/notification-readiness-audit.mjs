@@ -17,6 +17,14 @@ const ROOTS = ["app", "lib"];
 const EXCLUDE = new Set(["node_modules", ".next", ".git", "docs/qa-runs"]);
 const EXPECTED_TRIGGERS = [
   {
+    id: "applicant_signup_verification",
+    label: "Applicant requests verified account setup",
+    recipients: "applicant or existing account owner",
+    markers: ["applicant-signup", "requestApplicantEmailVerification"],
+    wiredMarkers: ["notifyApplicantSignupRequested"],
+    requiredForLaunch: true,
+  },
+  {
     id: "public_application_submitted",
     label: "Public application submitted",
     recipients: "candidate confirmation, store hiring manager",
@@ -156,6 +164,8 @@ function triggerStatus(sources, trigger) {
 function main() {
   const sources = readSource();
   const fullText = sources.map((source) => source.text).join("\n");
+  const deployWorkflowPath = path.resolve(process.cwd(), ".github/workflows/deploy.yml");
+  const deployWorkflow = fs.existsSync(deployWorkflowPath) ? fs.readFileSync(deployWorkflowPath, "utf8") : "";
   const adapterEvidence = SEND_ADAPTER_MARKERS.flatMap((marker) =>
     findOccurrences(sources, (line) => line.includes(marker)).map((hit) => ({ marker, ...hit })),
   );
@@ -167,6 +177,15 @@ function main() {
     fullText.includes("applicantAllowsNotification") &&
     fullText.includes("recipient_opted_out") &&
     fullText.includes("APPLICANT_PREFERENCE_BY_TEMPLATE");
+  const hardProviderTimeout =
+    fullText.includes("AbortSignal.timeout(postmarkTimeoutMs())") &&
+    fullText.includes("POSTMARK_TIMEOUT_MAX_MS") &&
+    fullText.includes("postmark_timeout");
+  const candidateSignupProbe =
+    deployWorkflow.includes("JEWELHIRE_RELEASE_PROBE_EMAIL") &&
+    deployWorkflow.includes("Probe applicant signup provider on no-traffic candidate") &&
+    deployWorkflow.indexOf("Probe applicant signup provider on no-traffic candidate") <
+      deployWorkflow.indexOf("Move production traffic to candidate");
   const blockers = [];
   const warnings = [];
 
@@ -175,6 +194,12 @@ function main() {
   }
   if (!preferenceEnforcement) {
     blockers.push("Applicant notification preferences are not enforced by the central send adapter.");
+  }
+  if (!hardProviderTimeout) {
+    blockers.push("The Postmark adapter does not enforce a hard request timeout with an explicit ambiguous outcome.");
+  }
+  if (!candidateSignupProbe) {
+    blockers.push("The production workflow does not require a no-traffic applicant-signup provider probe before moving traffic.");
   }
   for (const trigger of triggers) {
     if (!trigger.sourcePresent) warnings.push(`No source marker found for expected notification trigger: ${trigger.label}.`);
@@ -195,6 +220,8 @@ function main() {
     liveSendSafety: "No emails are sent by this audit.",
     hasSendAdapter,
     preferenceEnforcement,
+    hardProviderTimeout,
+    candidateSignupProbe,
     adapterEvidence,
     promiseEvidence,
     triggers,
@@ -215,6 +242,8 @@ function main() {
       "",
       `Send adapter found: ${hasSendAdapter ? "yes" : "no"}`,
       `Applicant preferences enforced: ${preferenceEnforcement ? "yes" : "no"}`,
+      `Hard Postmark timeout: ${hardProviderTimeout ? "yes" : "no"}`,
+      `No-traffic signup provider probe: ${candidateSignupProbe ? "yes" : "no"}`,
       `Blockers: ${blockers.length}`,
       `Warnings: ${warnings.length}`,
       "",

@@ -12,9 +12,11 @@ import {
   entitledStandaloneStoreMemberships,
   nativeAuthAllowed,
   standaloneCompanyAccessAllowed,
+  validJewelLinkAccessFingerprint,
   validateJewelLinkAssurance,
   type JewelLinkUpstreamAssurance,
 } from "@/lib/server/jewellink-sso-contract";
+import { introspectJewelLinkSession } from "@/lib/server/jewellink-session-introspection";
 
 export const SESSION_COOKIE = "jewelhire_session";
 export const OAUTH_STATE_COOKIE = "jewelhire_oauth_state";
@@ -43,7 +45,11 @@ export type AuthSession = {
   locationScopes: Record<string, StoreLocationScope>;
   activeStoreId: string;
   authSource: "native" | "jewellink_sso";
-  upstreamAssurance?: JewelLinkUpstreamAssurance & { userId: string };
+  // Present only on native sessions. Credential replacement increments the
+  // durable users.native_auth_epoch value so older signed cookies fail on the
+  // next request even when their cryptographic signature and expiry are valid.
+  nativeAuthEpoch?: number;
+  upstreamAssurance?: JewelLinkUpstreamAssurance & { userId: string; accessFingerprint: string };
   exp: number;
   guardrails: {
     phase: "phase_1_single_store";
@@ -131,11 +137,22 @@ export function readSessionToken(token?: string | null): AuthSession | undefined
   if (session.authSource !== "native" && session.authSource !== "jewellink_sso") return undefined;
   if (!session.exp || session.exp * 1000 < Date.now()) return undefined;
   if (session.authSource === "jewellink_sso") {
-    if (!session.upstreamAssurance?.userId) return undefined;
+    if (session.nativeAuthEpoch !== undefined) return undefined;
+    if (
+      !session.upstreamAssurance?.userId
+      || !validJewelLinkAccessFingerprint(session.upstreamAssurance.accessFingerprint)
+    ) return undefined;
     const assurance = validateJewelLinkAssurance(session.upstreamAssurance);
     if (!assurance.ok || session.exp > assurance.sessionExpiresAt) return undefined;
-  } else if (session.upstreamAssurance) {
-    return undefined;
+  } else {
+    // Requiring the epoch also invalidates every native cookie minted before
+    // migration 0021 without changing JewelLink SSO cookie semantics.
+    if (
+      typeof session.nativeAuthEpoch !== "number"
+      || !Number.isSafeInteger(session.nativeAuthEpoch)
+      || session.nativeAuthEpoch < 0
+    ) return undefined;
+    if (session.upstreamAssurance) return undefined;
   }
   return session;
 }
@@ -179,6 +196,7 @@ type NativeSessionInput = {
   name?: string | null;
   expiresAt: number;
   expectedUserId?: string;
+  expectedNativeAuthEpoch?: number;
 };
 
 async function findNativeSession(input: NativeSessionInput): Promise<AuthSession | undefined> {
@@ -197,6 +215,7 @@ async function findNativeSession(input: NativeSessionInput): Promise<AuthSession
     all_locations: boolean | null;
     location_ids: string[] | null;
     native_auth_enabled: boolean;
+    native_auth_epoch: number;
     storeCompanyId: string | null;
     storeCompanyStatus: string | null;
     storeEntitlementSource: string | null;
@@ -215,6 +234,7 @@ async function findNativeSession(input: NativeSessionInput): Promise<AuthSession
         su.role as store_role,
         su.all_locations,
         u.native_auth_enabled,
+        u.native_auth_epoch,
         c.id as "storeCompanyId",
         c.status as "storeCompanyStatus",
         cae.source as "storeEntitlementSource",
@@ -235,7 +255,7 @@ async function findNativeSession(input: NativeSessionInput): Promise<AuthSession
       left join store_user_location_scopes suls on suls.store_user_id = su.id
       where u.email_normalized = $1 and u.status = 'active'
       group by
-        u.id, u.email, u.name, u.native_auth_enabled,
+        u.id, u.email, u.name, u.native_auth_enabled, u.native_auth_epoch,
         s.id, su.store_id, su.role, su.all_locations, su.created_at,
         c.id, c.status,
         cae.source, cae.status, cae.expires_at,
@@ -248,7 +268,13 @@ async function findNativeSession(input: NativeSessionInput): Promise<AuthSession
   if (!result.rows.length) return undefined;
 
   const first = result.rows[0];
-  if (input.expectedUserId && first?.id !== input.expectedUserId) return undefined;
+  if (!first) return undefined;
+  if (input.expectedUserId && first.id !== input.expectedUserId) return undefined;
+  if (!Number.isSafeInteger(first.native_auth_epoch) || first.native_auth_epoch < 0) return undefined;
+  if (
+    input.expectedNativeAuthEpoch !== undefined
+    && first.native_auth_epoch !== input.expectedNativeAuthEpoch
+  ) return undefined;
   if (first && !nativeAuthAllowed({ nativeAuthEnabled: first.native_auth_enabled, isPlatformAdmin: isConfiguredAdmin })) {
     return undefined;
   }
@@ -280,15 +306,16 @@ async function findNativeSession(input: NativeSessionInput): Promise<AuthSession
   });
   return {
     version: 3,
-    userId: first!.id,
-    name: first?.name || input.name || email,
-    email: first!.email,
+    userId: first.id,
+    name: first.name || input.name || email,
+    email: first.email,
     role: access.role,
     storeIds,
     storeRoles: access.storeRoles,
     locationScopes: access.locationScopes,
     activeStoreId: storeIds[0] || "",
     authSource: "native",
+    nativeAuthEpoch: first.native_auth_epoch,
     exp: input.expiresAt,
     guardrails: guardrails(),
   };
@@ -298,6 +325,25 @@ export async function findSessionForGoogleUser(input: { email: string; name?: st
   return findNativeSession({
     ...input,
     expiresAt: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS,
+  });
+}
+
+// Password login binds the second authorization lookup to the exact epoch that
+// accompanied the credential it verified. If a reset commits while scrypt is
+// running, the old password cannot mint a session carrying the newer epoch.
+export async function findSessionForVerifiedNativeCredential(input: {
+  email: string;
+  name?: string | null;
+  userId: string;
+  nativeAuthEpoch: number;
+}): Promise<AuthSession | undefined> {
+  if (!Number.isSafeInteger(input.nativeAuthEpoch) || input.nativeAuthEpoch < 0) return undefined;
+  return findNativeSession({
+    email: input.email,
+    name: input.name,
+    expiresAt: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS,
+    expectedUserId: input.userId,
+    expectedNativeAuthEpoch: input.nativeAuthEpoch,
   });
 }
 
@@ -317,6 +363,11 @@ export async function isJewelLinkSsoOnlyEmail(emailInput: string) {
 
 export async function revalidateNativeSession(session: AuthSession) {
   if (session.authSource !== "native") return undefined;
+  if (
+    typeof session.nativeAuthEpoch !== "number"
+    || !Number.isSafeInteger(session.nativeAuthEpoch)
+    || session.nativeAuthEpoch < 0
+  ) return undefined;
   const configuredAdmin = isConfiguredAdminEmail(session.email);
   if (configuredAdmin || session.role === "admin") return undefined;
 
@@ -328,6 +379,7 @@ export async function revalidateNativeSession(session: AuthSession) {
     name: session.name,
     expiresAt: session.exp,
     expectedUserId: session.userId,
+    expectedNativeAuthEpoch: session.nativeAuthEpoch,
   });
   return refreshed;
 }
@@ -377,13 +429,19 @@ async function nativeIdentityAccessAllowed(userId: string, email: string) {
 type JewelLinkSessionInput = {
   localUserId: string;
   upstreamUserId: string;
+  accessFingerprint: string;
   assurance: JewelLinkUpstreamAssurance;
   expiresAt: number;
 };
 
 export async function findJewelLinkSession(input: JewelLinkSessionInput): Promise<AuthSession | undefined> {
   const assurance = validateJewelLinkAssurance(input.assurance);
-  if (!assurance.ok || input.expiresAt > assurance.sessionExpiresAt || input.expiresAt * 1000 <= Date.now()) return undefined;
+  if (
+    !assurance.ok
+    || !validJewelLinkAccessFingerprint(input.accessFingerprint)
+    || input.expiresAt > assurance.sessionExpiresAt
+    || input.expiresAt * 1000 <= Date.now()
+  ) return undefined;
   const pool = getPostgresPool();
   const identityResult = await pool.query<{
     id: string;
@@ -457,13 +515,18 @@ export async function findJewelLinkSession(input: JewelLinkSessionInput): Promis
       from users u
       left join store_users su
         on su.user_id = u.id and su.status = 'active' and su.source = 'jewellink'
-      left join stores s on s.id = su.store_id and s.status = 'active'
-      left join store_user_location_scopes suls on suls.store_user_id = su.id
+      left join stores s
+        on s.id = su.store_id
+       and s.status = 'active'
+       and s.company_id = $2
+      left join store_user_location_scopes suls
+        on suls.store_user_id = su.id
+       and suls.source = 'jewellink'
       where u.id = $1
       group by s.id, su.role, su.all_locations, su.created_at
       order by su.created_at asc
     `,
-    [identity.id],
+    [identity.id, identity.company_id],
   );
 
   const storeIds = isConfiguredAdmin
@@ -493,21 +556,94 @@ export async function findJewelLinkSession(input: JewelLinkSessionInput): Promis
     locationScopes: access.locationScopes,
     activeStoreId: storeIds[0] || "",
     authSource: "jewellink_sso",
-    upstreamAssurance: { ...input.assurance, userId: input.upstreamUserId },
+    upstreamAssurance: {
+      ...input.assurance,
+      userId: input.upstreamUserId,
+      accessFingerprint: input.accessFingerprint,
+    },
     exp: input.expiresAt,
     guardrails: guardrails(),
   };
 }
 
+const SESSION_ROLE_RANK: Record<AuthRole, number> = {
+  associate: 0,
+  manager: 1,
+  store_owner: 2,
+  admin: 3,
+};
+
+const STORE_ROLE_RANK: Record<StoreMembershipRole, number> = {
+  manager: 0,
+  store_owner: 1,
+};
+
+function stringSetIsSubset(candidate: readonly string[], ceiling: readonly string[]) {
+  const allowed = new Set(ceiling);
+  return candidate.every((value) => allowed.has(value));
+}
+
+/**
+ * A current local projection may narrow a signed JewelLink session, but it may
+ * never add authority. The upstream fingerprint proves that JewelLink still
+ * approves the original role/company/location snapshot; this comparison keeps
+ * mutable JewelHire rows from expanding that snapshot between SSO logins.
+ */
+export function jewelLinkSessionAccessDoesNotExpand(
+  signed: AuthSession,
+  current: AuthSession,
+) {
+  if (signed.authSource !== "jewellink_sso" || current.authSource !== "jewellink_sso") return false;
+  if (signed.userId !== current.userId) return false;
+  if (signed.email.trim().toLowerCase() !== current.email.trim().toLowerCase()) return false;
+  if (!signed.upstreamAssurance || !current.upstreamAssurance) return false;
+  if (signed.upstreamAssurance.userId !== current.upstreamAssurance.userId) return false;
+  if (signed.upstreamAssurance.upstreamSessionId !== current.upstreamAssurance.upstreamSessionId) return false;
+  if (signed.upstreamAssurance.accessFingerprint !== current.upstreamAssurance.accessFingerprint) return false;
+  if (SESSION_ROLE_RANK[current.role] > SESSION_ROLE_RANK[signed.role]) return false;
+  if (!stringSetIsSubset(current.storeIds, signed.storeIds)) return false;
+
+  for (const storeId of current.storeIds) {
+    const currentScope = current.locationScopes[storeId];
+    const signedScope = signed.locationScopes[storeId];
+    if (!currentScope || !signedScope) return false;
+    if (!signedScope.allLocations) {
+      if (currentScope.allLocations) return false;
+      if (!stringSetIsSubset(currentScope.locationIds, signedScope.locationIds)) return false;
+    }
+
+    if (current.role !== "admin") {
+      const currentStoreRole = current.storeRoles[storeId];
+      const signedStoreRole = signed.role === "admin"
+        ? "store_owner"
+        : signed.storeRoles[storeId];
+      if (!currentStoreRole || !signedStoreRole) return false;
+      if (STORE_ROLE_RANK[currentStoreRole] > STORE_ROLE_RANK[signedStoreRole]) return false;
+    }
+  }
+
+  return !current.activeStoreId || current.storeIds.includes(current.activeStoreId);
+}
+
 export async function revalidateJewelLinkSession(session: AuthSession) {
   if (session.authSource !== "jewellink_sso" || !session.upstreamAssurance) return undefined;
+  const assurance = validateJewelLinkAssurance(session.upstreamAssurance);
+  if (!assurance.ok) return undefined;
+  const upstreamActive = await introspectJewelLinkSession({
+    userId: session.upstreamAssurance.userId,
+    upstreamSessionId: session.upstreamAssurance.upstreamSessionId,
+    accessFingerprint: session.upstreamAssurance.accessFingerprint,
+  });
+  if (!upstreamActive) return undefined;
   const refreshed = await findJewelLinkSession({
     localUserId: session.userId,
     upstreamUserId: session.upstreamAssurance.userId,
+    accessFingerprint: session.upstreamAssurance.accessFingerprint,
     assurance: session.upstreamAssurance,
     expiresAt: session.exp,
   });
   if (!refreshed) return undefined;
+  if (!jewelLinkSessionAccessDoesNotExpand(session, refreshed)) return undefined;
   if ((session.role === "store_owner" || session.role === "manager") && refreshed.storeIds.length === 0) return undefined;
   return refreshed;
 }

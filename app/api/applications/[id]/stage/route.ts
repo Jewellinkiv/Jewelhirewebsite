@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ApplicationStage } from "@/lib/applicant-lifecycle";
-import { getSessionContext, requireLocationScopedStoreAccess } from "@/lib/server/access-control";
+import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { requireLocationInScope } from "@/lib/server/location-scope";
 import {
@@ -44,7 +44,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
       storeId,
       toStage,
       reason,
-      actorUserId: (await getSessionContext()).userId,
+      actorUserId: access.session.userId,
     });
     if (!detail) return NextResponse.json({ error: "Application not found" }, { status: 404 });
     return NextResponse.json(detail);

@@ -58,7 +58,7 @@ export const GET = withApiErrorHandling(async function GET(
 
   const invites =
     getStorageRuntime() === "postgres"
-      ? await listPostgresApplicantInvites(email, null)
+      ? await listPostgresApplicantInvites(email, null, session)
       : getApplicantStore().listApplicantInvites(email);
   const invite = invites.find((i) => i.id === params.id) as
     | { id: string; kind: string; status: string; assessmentPackageId?: string; job?: { title?: string }; store?: { name?: string } }

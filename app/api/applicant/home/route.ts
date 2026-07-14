@@ -6,9 +6,9 @@ import { getStorageRuntime } from "@/lib/server/storage-runtime";
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 
 export const GET = withApiErrorHandling(async function GET() {
-  const { email } = await requireApplicantSelf("applicant.home");
+  const { session, email } = await requireApplicantSelf("applicant.home");
   if (getStorageRuntime() === "postgres") {
-    return NextResponse.json(await getPostgresApplicantHome(email));
+    return NextResponse.json(await getPostgresApplicantHome(email, session));
   }
   return NextResponse.json(getApplicantStore().getApplicantHome(email));
 });

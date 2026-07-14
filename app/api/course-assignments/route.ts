@@ -64,7 +64,8 @@ export const POST = withApiErrorHandling(async function POST(request: Request) {
   if (recipientIds.length === 0) return NextResponse.json({ error: "recipientIds are required" }, { status: 400 });
 
   if (getStorageRuntime() === "postgres") {
-    await requireStoreAccess(storeId, "course_assignments.create");
+    const session = await getSessionContext();
+    await requireStoreAccess(storeId, "course_assignments.create", session);
     const result = await createPostgresCourseAssignments({
       storeId,
       courseSlug,
@@ -72,7 +73,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request) {
       packageName: body?.packageName,
       dueAt: body?.dueAt,
       source: body?.source,
-      actorUserId: (await getSessionContext()).userId,
+      actorUserId: session.userId,
     });
     if (result.error) return NextResponse.json(result, { status: 404 });
     const notifications = await notifyAssignmentsCreated(result.assignments);

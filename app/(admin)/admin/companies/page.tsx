@@ -13,6 +13,8 @@ export default function CompaniesPage() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  const [noticeIsError, setNoticeIsError] = useState(false);
+  const [teamInvitesEnabled, setTeamInvitesEnabled] = useState(false);
 
   const filtered = list.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()) || c.owner.toLowerCase().includes(q.toLowerCase()));
 
@@ -20,11 +22,17 @@ export default function CompaniesPage() {
     let cancelled = false;
     fetch("/api/admin/companies")
       .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data: { items: AdminCompany[] }) => {
-        if (!cancelled) setList(data.items);
+      .then((data: { items: AdminCompany[]; capabilities?: { teamInvitesEnabled?: boolean } }) => {
+        if (!cancelled) {
+          setList(data.items);
+          setTeamInvitesEnabled(data.capabilities?.teamInvitesEnabled === true);
+        }
       })
       .catch(() => {
-        if (!cancelled) setList(COMPANIES);
+        if (!cancelled) {
+          setList(COMPANIES);
+          setTeamInvitesEnabled(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -32,18 +40,26 @@ export default function CompaniesPage() {
   }, []);
 
   const addCompany = async (name: string, owner: string, plan: PlanTier) => {
+    if (!teamInvitesEnabled) {
+      setNotice("Company creation is paused while JewelHire completes secure owner invitations.");
+      setNoticeIsError(true);
+      return;
+    }
     const response = await fetch("/api/admin/companies", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, owner, plan }),
     });
     if (!response.ok) {
-      setNotice("Company could not be created locally.");
+      const body = await response.json().catch(() => null);
+      setNotice(body?.error?.message || "The company could not be created.");
+      setNoticeIsError(true);
       return;
     }
     const data = await response.json() as { company: AdminCompany };
     setList((l) => [data.company, ...l.filter((company) => company.id !== data.company.id)]);
-    setNotice(`${data.company.name} created on the ${data.company.plan} plan. Owner invite sent.`);
+    setNotice(`${data.company.name} created on the ${data.company.plan} plan.`);
+    setNoticeIsError(false);
     setOpen(false);
   };
 
@@ -54,11 +70,17 @@ export default function CompaniesPage() {
           <h1 className="text-[21px] font-semibold text-head m-0">Companies</h1>
           <p className="mt-1 mb-0 text-muted text-[13px]">{list.length} companies on the platform.</p>
         </div>
-        <button onClick={() => setOpen(true)} className="btn-grad inline-flex items-center gap-1.5 px-4 py-2.5 text-[13px]"><IconPlus size={16} /> New company</button>
+        <button disabled={!teamInvitesEnabled} onClick={() => setOpen(true)} className="btn-grad inline-flex items-center gap-1.5 px-4 py-2.5 text-[13px] disabled:cursor-not-allowed disabled:opacity-50"><IconPlus size={16} /> {teamInvitesEnabled ? "New company" : "Creation paused"}</button>
       </div>
 
+      {!teamInvitesEnabled && (
+        <div className="mb-4 rounded-md border border-[#cfe0fb] bg-[#eef4ff] px-3.5 py-2.5 text-[12.5px] text-body">
+          <span className="font-medium text-head">Pilot safety control:</span> company creation is paused because secure owner invitation acceptance is not enabled yet. Existing companies remain available.
+        </div>
+      )}
+
       {notice && (
-        <div className="mb-4 flex items-center gap-2 bg-[#e1f5ee] border border-[#cdeadd] text-[#0f6e56] rounded-md px-3.5 py-2.5 text-[13px]">
+        <div className={`mb-4 flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[13px] ${noticeIsError ? "bg-[#fff4e2] border border-[#f1ddb6] text-[#7a5610]" : "bg-[#e1f5ee] border border-[#cdeadd] text-[#0f6e56]"}`}>
           <IconCheck size={15} /> {notice}<button onClick={() => setNotice("")} className="ml-auto"><IconX size={15} /></button>
         </div>
       )}

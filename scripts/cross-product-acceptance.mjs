@@ -102,6 +102,14 @@ function hasEnvName(repo, name) {
 }
 
 function contractChecks() {
+  const jewelHireIntrospectionPath = path.join(jewelHireRepo, "lib/server/jewellink-session-introspection.ts");
+  const jewelLinkIntrospectionPath = path.join(jewelLinkRepo, "src/app/api/integrations/jewelhire/sso/introspect/route.ts");
+  const jewelHireIntrospection = fs.existsSync(jewelHireIntrospectionPath)
+    ? fs.readFileSync(jewelHireIntrospectionPath, "utf8")
+    : "";
+  const jewelLinkIntrospection = fs.existsSync(jewelLinkIntrospectionPath)
+    ? fs.readFileSync(jewelLinkIntrospectionPath, "utf8")
+    : "";
   const checks = [
     ["JewelHire declares the JewelLink SSO secret", hasEnvName(jewelHireRepo, "JEWELLINK_SSO_SHARED_SECRET")],
     ["JewelLink declares the JewelHire SSO secret", hasEnvName(jewelLinkRepo, "JEWELHIRE_SSO_SHARED_SECRET")],
@@ -118,6 +126,8 @@ function contractChecks() {
     ["JewelLink auth-session policy migration is present", fs.existsSync(path.join(jewelLinkRepo, "prisma/migrations/20260713130000_add_auth_session_policy/migration.sql"))],
     ["JewelLink company auth-invalidation migration is present", fs.existsSync(path.join(jewelLinkRepo, "prisma/migrations/20260714100000_invalidate_company_auth_sessions/migration.sql"))],
     ["JewelLink tenant-reassignment mailbox invalidation migration is present", fs.existsSync(path.join(jewelLinkRepo, "prisma/migrations/20260714110000_deactivate_email_integrations_on_company_change/migration.sql"))],
+    ["JewelHire continuously calls the JewelLink SSO introspection contract", jewelHireIntrospection.includes("/api/integrations/jewelhire/sso/introspect") && jewelHireIntrospection.includes('cache: "no-store"')],
+    ["JewelLink exposes bearer-authenticated current-session introspection", jewelLinkIntrospection.includes("JEWELHIRE_SSO_SHARED_SECRET") && jewelLinkIntrospection.includes("timingSafeEqual") && jewelLinkIntrospection.includes("jewelHireAccessFingerprintMatches")],
   ];
   return checks.map(([name, pass]) => ({ name, pass }));
 }
@@ -151,6 +161,11 @@ async function endpointChecks() {
   if (!jewelLinkBase) return [];
   const probes = [
     ["SSO exchange rejects a missing bearer secret", "/api/integrations/jewelhire/sso/exchange", { code: "synthetic-never-valid" }],
+    ["SSO introspection rejects a missing bearer secret", "/api/integrations/jewelhire/sso/introspect", {
+      userId: "synthetic-never-valid",
+      upstreamSessionId: "synthetic-never-valid",
+      accessFingerprint: "A".repeat(43),
+    }],
     ["Hire provisioning rejects a missing bearer secret", "/api/integrations/jewelhire/hires", {}],
     ["JewelCert result ingestion rejects a missing bearer secret", "/api/integrations/jewelhire/jewelcert/results", {}],
   ];

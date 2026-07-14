@@ -1,7 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
+import { safeSameOriginPath } from "@/lib/server/safe-redirect";
 
 export const JEWELLINK_STATE_PATTERN = /^[A-Za-z0-9._~-]{1,128}$/;
 export const JEWELLINK_SSO_MAX_AGE_SECONDS = 8 * 60 * 60;
+const JEWELLINK_ACCESS_FINGERPRINT_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 const CLOCK_SKEW_MS = 60_000;
 const ISO_INSTANT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/;
@@ -25,6 +27,10 @@ function instant(value: unknown) {
 
 export function validJewelLinkState(value: unknown): value is string {
   return typeof value === "string" && JEWELLINK_STATE_PATTERN.test(value);
+}
+
+export function validJewelLinkAccessFingerprint(value: unknown): value is string {
+  return typeof value === "string" && JEWELLINK_ACCESS_FINGERPRINT_PATTERN.test(value);
 }
 
 function sameState(left: string, right: string) {
@@ -110,6 +116,45 @@ export function jewelLinkRoleAllowedForIdentity(input: { role: string; isPlatfor
   // allowed to fall through as an applicant.
   return JEWELLINK_ELIGIBLE_ROLES.has(input.role)
     && (input.role !== "SUPER_ADMIN" || input.isPlatformAdmin);
+}
+
+const APPLICANT_BUNDLE_PATH = /^\/bundle\/([A-Za-z0-9._~-]{1,256})$/;
+
+function exactApplicantBundlePath(destination: string) {
+  const id = APPLICANT_BUNDLE_PATH.exec(destination)?.[1];
+  return Boolean(id && id !== "." && id !== "..");
+}
+
+function roleHome(role: string) {
+  if (role === "admin") return "/admin";
+  if (role === "associate") return "/portal";
+  return "/";
+}
+
+function inPathNamespace(destination: string, root: string) {
+  return destination === root
+    || destination.startsWith(`${root}/`)
+    || destination.startsWith(`${root}?`);
+}
+
+// Keep upstream returnTo least-privileged by local role. Applicant SSO may
+// return directly to one exact JewelCert bundle because external invitations
+// intentionally require first-time JewelLink provisioning before assessment.
+export function jewelLinkSessionDestination(returnTo: unknown, role: string) {
+  const destination = safeSameOriginPath(returnTo);
+  if (!destination) return roleHome(role);
+  if (role === "associate") {
+    return inPathNamespace(destination, "/portal") || exactApplicantBundlePath(destination)
+      ? destination
+      : "/portal";
+  }
+  if (role === "admin") return inPathNamespace(destination, "/admin") ? destination : "/admin";
+  if (role === "store_owner" || role === "manager") {
+    return inPathNamespace(destination, "/portal") || inPathNamespace(destination, "/admin")
+      ? "/"
+      : destination;
+  }
+  return "/";
 }
 
 export function jewelLinkIdentityProvisionAction(input: {

@@ -76,6 +76,7 @@ function staticAdapterAudit() {
     "const runtime = notificationRuntimeStatus()",
   ]));
   record("adapter sends through Postmark API only from central helper", source.includes("const POSTMARK_API_URL = \"https://api.postmarkapp.com/email\"") && source.includes("X-Postmark-Server-Token"));
+  record("adapter hard-times out ambiguous provider requests", source.includes("POSTMARK_TIMEOUT_MAX_MS") && source.includes("AbortSignal.timeout(postmarkTimeoutMs())") && source.includes('reason: signal.aborted ? "postmark_timeout"'));
   record("adapter includes message stream and metadata controls", source.includes("MessageStream: postmarkMessageStream()") && source.includes("Metadata: scrubMetadata"));
 
   const docs = read("docs/notification-readiness.md");

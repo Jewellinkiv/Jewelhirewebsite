@@ -92,6 +92,10 @@ The runner:
 - Lets `verify` accept pending additive migrations, while `verify:clean` also requires zero pending.
 - Applies pending files in filename order.
 - Wraps each migration in a transaction.
+- Sets a transaction-local 5-second `lock_timeout` and 2-minute
+  `statement_timeout` before each migration. A blocked or runaway statement
+  rolls back that migration and stops the release instead of queuing behind
+  live traffic indefinitely.
 - Logs a pre-apply ledger verification, then verifies integrity and zero pending migrations after
   apply.
 - Refuses to apply migrations unless `APPLY_DATABASE_MIGRATIONS=1` is set.
@@ -151,9 +155,32 @@ The readiness check:
 
 - Connects with the same env-only database URL rules.
 - Prints or returns only redacted connection metadata.
-- Verifies the expected Phase 1 core table list from `db/phase1-core-tables.json`.
+- Verifies the expected 43-table Phase 1 manifest from
+  `db/phase1-core-tables.json`, including `pending_applicant_signups`.
 - Reads row counts for existing core tables.
-- Reports applied migration records from `schema_migrations` when present.
+- Reports applied migration records from `schema_migrations` and fails closed
+  unless `0020_verified_applicant_signups`, `0021_native_auth_epoch`,
+  `0022_password_reset_delivery_state`, and
+  `0023_jewelcert_claim_token_version` and
+  `0024_jewelcert_claim_token_version_fence` are present with their expected
+  filenames. Migration `0021` adds the durable
+  per-user native-session epoch used to revoke signed cookies after credential
+  replacement; it does not change JewelLink SSO session assurance. Readiness
+  also verifies the actual column is a non-null integer with default zero and a
+  validated nonnegative constraint, so a ledger row alone cannot mask schema
+  drift. Migration `0022` adds the pending/active/rejected/superseded reset
+  delivery state and separates password-reset delivery candidates from the
+  one-outstanding account-claim constraint. Readiness verifies the non-null
+  column/default/check constraint plus both required partial indexes, so the
+  after-response reset flow cannot silently run against an incomplete schema.
+  Migration `0023` additively creates the claim-token-version column with a
+  version-1 default so the prior production revision remains a safe rollback
+  target during candidate and public-route smoke. Migration `0024` runs only
+  after the v2-writing revision owns traffic; it refuses active legacy
+  JewelCert rows and installs the version-2-only active-invite constraint.
+  Readiness verifies both the column and constraint. The production workflow
+  runs this no-write readiness check from the same immutable candidate image
+  immediately after the post-promotion contract migration succeeds.
 - Reports applied seed records from `seed_runs` when present.
 - Performs no writes.
 

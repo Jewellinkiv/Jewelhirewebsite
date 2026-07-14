@@ -73,6 +73,12 @@ No secret payload or database credential was read during this snapshot.
   compatible code and schema are deployed. Pilot mode may contain exactly one
   internal, staff-controlled company ID. No customer or demo fixture is
   implicitly approved.
+- **Team onboarding:** Diamond Exchange is the named pilot company. Keep the
+  server-only `JEWELHIRE_TEAM_INVITES_ENABLED=0`; secure tokenized team-invite
+  acceptance is deferred, so company creation, team invitations/resends,
+  invited-user activation/role changes, owner demotion, and ownership transfer
+  remain unavailable. Existing-user read/list/remove and secure retained-owner
+  access links remain available.
 - **Dark observation:** Hold compatible integration-off revisions for at least
   60 staffed minutes after existing-product smoke passes.
 - **Pilot observation:** Hold the one-company pilot for two full staffed
@@ -121,7 +127,7 @@ nonsecret account aliases if email addresses are sensitive.
 
 | Pilot evidence | Approved value |
 | --- | --- |
-| Internal company name | **UNSELECTED — BLOCKER** |
+| Internal company name | Diamond Exchange |
 | JewelLink company ID | **UNSELECTED — BLOCKER** |
 | Pilot location ID(s) | **UNSELECTED — BLOCKER** |
 | JewelLink Director → JewelHire `store_owner` test alias | **UNSELECTED — BLOCKER** |

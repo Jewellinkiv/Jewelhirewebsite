@@ -814,7 +814,7 @@ Latest backend validation:
   build pass, and core API smoke checks still return 200 after restarting the dev server.
 - Postgres readiness validation passes:
   `npm run db:readiness` safely exits without a configured `DATABASE_URL`, credential string scan
-  is clean, `db/phase1-core-tables.json` contains the expected 42 Phase 1 tables, `tsc` and
+  is clean, `db/phase1-core-tables.json` contains the expected 43 Phase 1 tables, `tsc` and
   production build pass, and after restarting the dev server, `/api/admin/database/readiness`,
   `/api/admin/database/health`, and `/api/me` all return 200 with the database routes reporting
   `status: "missing_env"` and no secret data.

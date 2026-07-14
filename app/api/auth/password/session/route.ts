@@ -8,6 +8,11 @@ import { safeSameOriginPathOrRoot } from "@/lib/server/safe-redirect";
 
 export const runtime = "nodejs";
 
+const MAX_LOGIN_BODY_BYTES = 16_384;
+const MAX_LOGIN_EMAIL_LENGTH = 254;
+const MAX_LOGIN_PASSWORD_LENGTH = 1_024;
+const MAX_LOGIN_NEXT_LENGTH = 2_048;
+
 function destinationForSession(next: string, session: AuthSession) {
   const safe = safeSameOriginPathOrRoot(next);
   if (safe !== "/") return safe;
@@ -20,13 +25,62 @@ function appBaseUrl(request: Request) {
   return (process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin).replace(/\/$/, "");
 }
 
-async function readBody(request: Request) {
-  const contentType = request.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    return (await request.json().catch(() => null)) || {};
+async function readBoundedText(request: Request) {
+  const contentLength = request.headers.get("content-length");
+  if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > MAX_LOGIN_BODY_BYTES) {
+    return "";
   }
-  const form = await request.formData().catch(() => null);
-  return Object.fromEntries(form?.entries() || []);
+  if (!request.body) return "";
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const part = await reader.read();
+      if (part.done) break;
+      total += part.value.byteLength;
+      if (total > MAX_LOGIN_BODY_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        return "";
+      }
+      chunks.push(part.value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return "";
+  }
+}
+
+async function readBody(request: Request): Promise<Record<string, unknown>> {
+  const contentType = request.headers.get("content-type") || "";
+  const text = await readBoundedText(request);
+  if (!text) return {};
+  if (contentType.includes("application/json")) {
+    try {
+      const parsed = JSON.parse(text);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed as Record<string, unknown>
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    return Object.fromEntries(new URLSearchParams(text));
+  }
+  return {};
 }
 
 function redirectToLogin(request: Request, next: string, error: string) {
@@ -37,17 +91,24 @@ function redirectToLogin(request: Request, next: string, error: string) {
 }
 
 export async function POST(request: Request) {
-  const body = await readBody(request);
-  const email = typeof body.email === "string" ? body.email : "";
-  const password = typeof body.password === "string" ? body.password : "";
-  const next = typeof body.next === "string" ? body.next : "/";
-
   // Throttle password attempts per IP to blunt brute forcing. On limit, bounce
-  // back to the login form with a generic error rather than a raw 429.
+  // back to the login form with a generic error rather than a raw 429. This
+  // check deliberately happens before reading the attacker-controlled body.
   const throttle = await rateLimit(`login:${clientIp(request)}`, 20, 900);
   if (!throttle.ok) {
-    return redirectToLogin(request, next, "too_many");
+    return redirectToLogin(request, "/", "too_many");
   }
+
+  const body = await readBody(request);
+  const email = typeof body.email === "string" && body.email.length <= MAX_LOGIN_EMAIL_LENGTH
+    ? body.email
+    : "";
+  const password = typeof body.password === "string" && body.password.length <= MAX_LOGIN_PASSWORD_LENGTH
+    ? body.password
+    : "";
+  const next = typeof body.next === "string" && body.next.length <= MAX_LOGIN_NEXT_LENGTH
+    ? body.next
+    : "/";
 
   const result = await loginWithPassword({ email, password });
   if (!result.ok) {

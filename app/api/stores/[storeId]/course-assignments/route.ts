@@ -56,7 +56,8 @@ export const GET = withApiErrorHandling(async function GET(request: Request, pro
 
 export const POST = withApiErrorHandling(async function POST(request: Request, props: { params: Promise<{ storeId: string }> }) {
   const params = await props.params;
-  const storeId = await requireStoreAccess(params.storeId, "course_assignments.create");
+  const session = await getSessionContext();
+  const storeId = await requireStoreAccess(params.storeId, "course_assignments.create", session);
   const body = await request.json().catch(() => null);
   const recipientIds = Array.isArray(body?.recipientIds) ? body.recipientIds.filter(Boolean) : [];
   const courseSlug = body?.courseSlug || body?.courseId;
@@ -72,7 +73,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
       packageName: body?.packageName,
       dueAt: body?.dueAt,
       source: body?.source,
-      actorUserId: (await getSessionContext()).userId,
+      actorUserId: session.userId,
     });
     if (result.error) return NextResponse.json(result, { status: 404 });
     const notifications = await notifyAssignmentsCreated(result.assignments);
