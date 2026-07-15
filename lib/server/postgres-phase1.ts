@@ -1721,7 +1721,7 @@ function mapPublicPageConfig(row: PublicPageConfigRow, testimonials: PublicPageC
     jobLayout: row.job_layout === "list" ? "list" : "cards",
     headline: row.headline,
     about: row.about || "",
-    hours: (Array.isArray(row.hours) && row.hours.length ? row.hours : DEFAULT_HOURS).filter(
+    hours: (Array.isArray(row.hours) ? row.hours : DEFAULT_HOURS).filter(
       (hour): hour is PublicPageConfig["hours"][number] =>
         typeof hour === "object" && hour !== null && "day" in hour && "hours" in hour,
     ),
@@ -2951,14 +2951,14 @@ async function ensurePostgresPublicPage(client: PoolClient, storeId: string) {
         $5::jsonb,
         'cards',
         'Build a career in fine jewelry.',
-        $6,
-        $7::jsonb,
-        $8::jsonb,
-        $9::jsonb,
-        true,
+        '',
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"rating":0,"count":0}'::jsonb,
+        false,
         'draft',
-        $10,
-        $10
+        $6,
+        $6
       )
     `,
     [
@@ -2967,10 +2967,6 @@ async function ensurePostgresPublicPage(client: PoolClient, storeId: string) {
       store.slug || `store-${slugify(storeId)}`,
       store.name,
       JSON.stringify({ primary: "#123FB9", accent: "#2F7DFF", bg: "#f7f9ff", text: "#08122B", fontId: "inter" }),
-      STORE.about,
-      JSON.stringify(STORE.benefits),
-      JSON.stringify(DEFAULT_HOURS),
-      JSON.stringify({ rating: STORE.rating, count: STORE.reviewCount }),
       timestamp,
     ],
   );
@@ -3001,7 +2997,32 @@ async function listPostgresPublicPageAssets(client: PoolClient, pageId: string) 
   return result.rows.map(mapPublicPageAsset);
 }
 
-async function listPostgresPublicPageTestimonialsForPage(client: PoolClient, pageId: string) {
+function isLegacyDefaultTestimonial(testimonial: PublicPageConfig["testimonials"][number]) {
+  return DEFAULT_TESTIMONIALS.some((legacy) =>
+    testimonial.name === legacy.name
+    && testimonial.rating === legacy.rating
+    && testimonial.text === legacy.text
+  );
+}
+
+function isSeededDemoPublicPage(row: PublicPageConfigRow) {
+  return row.store_id === "store-sissys-little-rock" || row.page_id === "public-page-sissys-careers";
+}
+
+function hasLegacyDemoReviewSummary(row: PublicPageConfigRow) {
+  return hasLegacyDemoPageSeed(row)
+    && Number(row.review_summary?.rating ?? 0) === STORE.rating
+    && Number(row.review_summary?.count ?? 0) === STORE.reviewCount;
+}
+
+function hasLegacyDemoPageSeed(row: PublicPageConfigRow) {
+  return !isSeededDemoPublicPage(row)
+    && row.about === STORE.about
+    && JSON.stringify(asStringArray(row.benefits)) === JSON.stringify(STORE.benefits)
+    && JSON.stringify(row.hours || []) === JSON.stringify(DEFAULT_HOURS);
+}
+
+async function listPostgresPublicPageTestimonialsForPage(client: PoolClient, pageId: string, keepLegacyDefaults = false) {
   const result = await client.query<PublicPageTestimonialRow>(
     `
       select id, name, rating, text, source, status, created_at::text, updated_at::text
@@ -3011,13 +3032,8 @@ async function listPostgresPublicPageTestimonialsForPage(client: PoolClient, pag
     `,
     [pageId],
   );
-  if (result.rows.length > 0) return result.rows.map(mapPublicPageTestimonial);
-  return DEFAULT_TESTIMONIALS.map((testimonial, index) => ({
-    id: `testimonial-${slugify(testimonial.name || String(index + 1))}`,
-    ...testimonial,
-    source: testimonial.source || "manual",
-    status: testimonial.status || "published",
-  }));
+  const testimonials = result.rows.map(mapPublicPageTestimonial);
+  return keepLegacyDefaults ? testimonials : testimonials.filter((testimonial) => !isLegacyDefaultTestimonial(testimonial));
 }
 
 async function listPostgresPublicPageReviewsForStore(client: PoolClient, storeId: string, includeHidden = false) {
@@ -3081,37 +3097,57 @@ async function listPostgresPublicPageJobsForStore(client: PoolClient, storeId: s
 
 async function buildPostgresStorePublicPage(client: PoolClient, row: PublicPageConfigRow, includeHiddenReviews = true) {
   const assets = await listPostgresPublicPageAssets(client, row.page_id);
-  const testimonials = await listPostgresPublicPageTestimonialsForPage(client, row.page_id);
+  const testimonials = await listPostgresPublicPageTestimonialsForPage(client, row.page_id, isSeededDemoPublicPage(row));
   const reviews = await listPostgresPublicPageReviewsForStore(client, row.store_id, includeHiddenReviews);
   const previews = await listPostgresPublicPagePreviewsForStore(client, row.store_id);
   const jobs = await listPostgresPublicPageJobsForStore(client, row.store_id);
-  const config = mapPublicPageConfig(row, testimonials);
+  const nonDemoStore = !isSeededDemoPublicPage(row);
+  const inheritedDemoPage = hasLegacyDemoPageSeed(row);
+  const inheritedDemoReviews = hasLegacyDemoReviewSummary(row);
+  const safeRow: PublicPageConfigRow = {
+    ...row,
+    about: nonDemoStore && row.about === STORE.about ? "" : row.about,
+    benefits: inheritedDemoPage
+      ? []
+      : row.benefits,
+    hours: inheritedDemoPage
+      ? []
+      : row.hours,
+    review_summary: inheritedDemoReviews ? { rating: 0, count: 0 } : row.review_summary,
+    show_reviews: inheritedDemoReviews && testimonials.length === 0 && reviews.length === 0 ? false : row.show_reviews,
+  };
+  const benefits = asStringArray(safeRow.benefits);
+  const rating = Number(safeRow.review_summary?.rating ?? 0);
+  const reviewCount = Number(safeRow.review_summary?.count ?? reviews.filter((review) => review.status === "published").length);
+  const config = mapPublicPageConfig(safeRow, testimonials);
   const logoAsset = assets.find((asset) => asset.id === config.logoAssetId || asset.usageContext === "logo") || null;
   return {
     page: {
-      id: row.page_id,
-      storeId: row.store_id,
-      slug: row.store_slug,
-      headline: row.headline,
-      about: row.about || "",
-      benefits: asStringArray(row.benefits),
+      id: safeRow.page_id,
+      storeId: safeRow.store_id,
+      slug: safeRow.store_slug,
+      headline: safeRow.headline,
+      about: safeRow.about || "",
+      benefits,
       reviewSummary: {
-        rating: Number(row.review_summary?.rating ?? 0),
-        count: Number(row.review_summary?.count ?? 0),
+        rating,
+        count: reviewCount,
       },
-      status: row.status,
-      publishedAt: optional(row.published_at),
-      updatedAt: row.updated_at,
+      status: safeRow.status,
+      publishedAt: optional(safeRow.published_at),
+      updatedAt: safeRow.updated_at,
     },
     store: {
-      ...STORE,
-      name: row.store_name,
-      location: row.location_label || STORE.location,
-      about: row.about || STORE.about,
-      benefits: asStringArray(row.benefits).length ? asStringArray(row.benefits) : STORE.benefits,
-      rating: Number(row.review_summary?.rating ?? STORE.rating),
-      reviewCount: Number(row.review_summary?.count ?? reviews.filter((review) => review.status === "published").length),
-      careersUrl: row.store_slug || STORE.careersUrl,
+      name: safeRow.store_name,
+      tagline: "",
+      location: safeRow.location_label || "",
+      about: safeRow.about || "",
+      benefits,
+      rating,
+      reviewCount,
+      founded: 0,
+      locations: 0,
+      careersUrl: safeRow.store_slug,
     },
     jobs,
     config,
@@ -3190,6 +3226,8 @@ export async function savePostgresStorePublicPage(input: { storeId: string; conf
           hours = $9::jsonb,
           show_reviews = $10,
           status = $11,
+          benefits = case when $13 then '[]'::jsonb else benefits end,
+          review_summary = case when $14 then '{"rating":0,"count":0}'::jsonb else review_summary end,
           published_at = case when $11 = 'published' then coalesce(published_at, $12) else published_at end,
           updated_at = $12
         where id = $1
@@ -3207,6 +3245,8 @@ export async function savePostgresStorePublicPage(input: { storeId: string; conf
         input.config.showReviews,
         input.config.status,
         timestamp,
+        hasLegacyDemoPageSeed(page),
+        hasLegacyDemoReviewSummary(page),
       ],
     );
     await replacePostgresPublicPageTestimonials(client, {
@@ -3313,7 +3353,7 @@ export async function listPostgresPublicPageTestimonials(storeId: string) {
   try {
     const page = await ensurePostgresPublicPage(client, storeId);
     if (!page) return [];
-    return listPostgresPublicPageTestimonialsForPage(client, page.page_id);
+    return listPostgresPublicPageTestimonialsForPage(client, page.page_id, isSeededDemoPublicPage(page));
   } finally {
     client.release();
   }

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/common";
 import { PublicCareersView, type CareersJobView, type CareersStoreView } from "@/components/PublicCareersView";
 import {
-  TEMPLATES, FONTS, DEFAULT_HOURS, DEFAULT_TESTIMONIALS,
+  TEMPLATES, FONTS,
   PublicPageConfig, JobLayout, Testimonial,
 } from "@/lib/public-templates";
 import { StorePublicPageRecord } from "@/lib/applicant-lifecycle";
@@ -60,18 +60,20 @@ export default function PublicPageBuilder() {
     jobLayout: T0.jobLayout,
     headline: "Build a career in fine jewelry.",
     about: "",
-    hours: DEFAULT_HOURS.map((h) => ({ ...h })),
-    showReviews: true,
-    testimonials: DEFAULT_TESTIMONIALS.map((t) => ({ ...t })),
+    hours: [],
+    showReviews: false,
+    testimonials: [],
     status: "draft",
   });
   const [notice, setNotice] = useState("");
+  const [loaded, setLoaded] = useState(false);
   const [publicSlug, setPublicSlug] = useState("");
   const [viewData, setViewData] = useState<Pick<PublicPageResponse, "page" | "store" | "jobs">>({ jobs: [] });
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     fetch(`/api/stores/${STORE_ID}/public-page`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: PublicPageResponse) => {
@@ -79,8 +81,11 @@ export default function PublicPageBuilder() {
         setCfg(data.config);
         setPublicSlug(data.page?.slug || data.store?.careersUrl || "");
         setViewData({ page: data.page, store: data.store, jobs: data.jobs || [] });
+        setLoaded(true);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setNotice("Public page could not be loaded.");
+      });
     return () => {
       cancelled = true;
     };
@@ -105,6 +110,10 @@ export default function PublicPageBuilder() {
   };
 
   const saveConfig = async (nextConfig = cfg, showNotice = true) => {
+    if (!loaded) {
+      setNotice("Wait for the public page to load before saving.");
+      return undefined;
+    }
     setBusy(true);
     const response = await fetch(`/api/stores/${STORE_ID}/public-page`, {
       method: "PUT",
@@ -202,8 +211,8 @@ export default function PublicPageBuilder() {
         subtitle="Pick a template, brand it, and publish. Applicants only see and apply to your store."
         action={
           <div className="flex flex-wrap gap-2">
-            <button onClick={openPreview} disabled={busy} className="btn-outline inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] disabled:opacity-60">Preview</button>
-            <button onClick={copyLink} disabled={busy || cfg.status !== "published"} className="btn-outline inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] disabled:cursor-not-allowed disabled:opacity-50"><IconLink size={16} /> Copy link</button>
+            <button onClick={openPreview} disabled={busy || !loaded} className="btn-outline inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] disabled:opacity-60">Preview</button>
+            <button onClick={copyLink} disabled={busy || !loaded || cfg.status !== "published"} className="btn-outline inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] disabled:cursor-not-allowed disabled:opacity-50"><IconLink size={16} /> Copy link</button>
           </div>
         }
       />
@@ -320,10 +329,10 @@ export default function PublicPageBuilder() {
           <div className="pt-1 border-t border-line">
             <div className={label + " mt-3"}>Status</div>
             <div className="flex gap-2 items-center">
-              <select className={input + " flex-1"} value={cfg.status} onChange={(e) => publishStatus(e.target.value as PublicPageConfig["status"])}>
+              <select disabled={busy || !loaded} className={input + " flex-1 disabled:cursor-not-allowed disabled:opacity-60"} value={cfg.status} onChange={(e) => publishStatus(e.target.value as PublicPageConfig["status"])}>
                 <option value="draft">Draft</option><option value="published">Published</option><option value="paused">Paused</option>
               </select>
-              <button onClick={() => saveConfig()} disabled={busy} className="btn-grad px-4 py-2 text-[13px] disabled:opacity-60">{busy ? "Saving…" : "Save"}</button>
+              <button onClick={() => saveConfig()} disabled={busy || !loaded} className="btn-grad px-4 py-2 text-[13px] disabled:opacity-60">{busy ? "Saving…" : "Save"}</button>
             </div>
           </div>
         </div>
