@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import pg from "pg";
+import { readStandaloneBillingSchemaReadiness } from "../lib/server/standalone-billing-schema-readiness.mjs";
 
 const { Pool } = pg;
 const rootDir = process.cwd();
@@ -12,6 +13,7 @@ const requiredMigrationIds = [
   "0022_password_reset_delivery_state",
   "0023_jewelcert_claim_token_version",
   "0024_jewelcert_claim_token_version_fence",
+  "0025_standalone_billing_recovery",
 ];
 
 function loadEnvFile(filename) {
@@ -249,6 +251,14 @@ async function main() {
       && jewelCertVersionConstraint.includes(">= 2");
     console.log(`JewelCert claim token version fence: ${jewelCertVersionReady ? "ready" : "incomplete"}`);
 
+    const standaloneBillingSchema = await readStandaloneBillingSchemaReadiness(
+      (sql, values) => client.query(sql, values),
+    );
+    console.log(`standalone billing schema: ${standaloneBillingSchema.ready ? "ready" : "incomplete"}`);
+    for (const failedCheck of standaloneBillingSchema.failed) {
+      console.log(`  missing billing invariant: ${failedCheck}`);
+    }
+
     const migrations = await appliedRows(client, "schema_migrations");
     console.log(`schema_migrations: ${migrations.tableExists ? `${migrations.applied.length} applied` : "missing"}`);
     for (const row of migrations.applied) console.log(`  - ${row.id} (${row.filename})`);
@@ -271,6 +281,7 @@ async function main() {
       || !nativeEpochReady
       || !deliveryStateReady
       || !jewelCertVersionReady
+      || !standaloneBillingSchema.ready
       || missingRequiredMigrations.length
     ) process.exitCode = 2;
   } finally {

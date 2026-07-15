@@ -180,8 +180,10 @@ and proves:
 
 - JewelLink Director → JewelHire store owner.
 - JewelLink Manager → location-scoped JewelHire manager.
-- JewelLink Student/Consultant → applicant portal.
-- No JewelLink role automatically grants JewelHire platform admin.
+- JewelLink Student → applicant portal; Consultant → denied.
+- ADMIN/SUPER_ADMIN → JewelHire platform admin only with an independent
+  JewelHire email allowlist; upstream company association does not create a
+  tenant membership and no role automatically grants platform access.
 - SSO code expiry, single use, replay rejection, and wrong-secret rejection.
 - Company/location/user provisioning is idempotent.
 - Hire handoff creates or reactivates the correct JewelLink user once.

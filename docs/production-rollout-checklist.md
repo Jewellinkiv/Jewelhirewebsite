@@ -1,6 +1,6 @@
 # JewelHire production rollout checklist
 
-Updated: 2026-07-14
+Updated: 2026-07-15
 
 ## Current release-candidate status
 
@@ -26,8 +26,8 @@ Updated: 2026-07-14
   fails closed on a branded retained-data recovery screen.
 - [x] Public careers, application, résumé, preview-token, SEO, consent, and aggregate-analytics audits pass.
 - [x] Billing, notification wiring, Firebase, legal-source, and invalid-input audits pass. The config-exposure audit passes secret/public-data checks and intentionally holds on explicit live-email acknowledgement.
-- [x] Fresh disposable migration-validation databases have migrations `0012`
-  through `0024` applied.
+- [ ] Fresh disposable migration-validation databases have migrations `0012`
+  through `0025` applied.
 - [x] Production role-readiness audit confirms active users, manager mappings,
   applicants, and at least one active store owner per active store are valid.
 - [x] Temporary applications, résumé files, and synthetic analytics used during QA were removed.
@@ -85,10 +85,21 @@ in `production-launch-control-2026-07-13.md`.
   version-1 JewelCert invite is still `sent` or `started`, then installs a
   validated constraint requiring claim-token version 2 for every active
   invite. Once `0024` commits, do not restore a pre-v2 application revision.
+  Migration `0025` is the additive retained-company billing bridge. Production
+  already has the `0024` contract fence. The workflow requires that exact
+  applied ledger row before it will apply `0025`; it refuses to cross the 0024
+  contract boundary. Apply 0025 from the immutable candidate image while the
+  prior revision still owns all traffic. It adds the opaque Checkout Session
+  correlation/lifecycle tables and pending-signup billing columns; it does not
+  delete tenant data and remains compatible with the prior revision.
   Use `npm run db:migrate:verify` before apply; the guarded apply command then
   performs its own pre-apply verification and a
   checksum-aware, zero-pending post-apply verification. The production job sets
-  `REQUIRE_EXISTING_MIGRATION_LEDGER=1` and must stop if the ledger is absent.
+  `REQUIRE_EXISTING_MIGRATION_LEDGER=1` and
+  `REQUIRE_APPLIED_MIGRATION_ID=0024_jewelcert_claim_token_version_fence`; it
+  stops if the ledger is absent, changed, or behind the permanent fence. Exact
+  readiness then verifies every billing column, default, constraint, and valid
+  partial/unique index before traffic can move.
   Each migration also has a transaction-local 5-second lock timeout and
   2-minute statement timeout. Either timeout is a release stop, never a reason
   to bypass the guard.
@@ -182,19 +193,18 @@ in `production-launch-control-2026-07-13.md`.
   hardened production revision. Confirm each new message contains
   `/claim-account#token=ac2_...` and brief support on the expected invalid-link
   screen for any pre-cutover email.
-- [ ] Invalidate and resend every outstanding JewelCert invite whose status is
-  `sent` or `started` before traffic moves. The hardened bearer is a v2 HMAC
+- [x] Production migration `0024` is applied and enforces claim-token version 2
+  for every JewelCert invite whose status is `sent` or `started`. During the
+  original fence cutover, any active legacy invite had to leave those states
+  before the constraint could commit. The hardened bearer is a v2 HMAC
   over both invite ID and normalized recipient; the previous inviteId-only
   bearer is deliberately rejected. Safe compatibility is impossible because
   the database does not retain recipient history, so accepting an old bearer
-  after reassignment could authorize the wrong email. Export the affected
-  invite IDs/recipients for reconciliation, mark the old rows cancelled, then
-  set the workflow's `legacy_jewelcert_invites_cleared` confirmation, and let
-  migration `0024` independently fail if even one active legacy row remains.
-  Once the hardened revision owns traffic, create replacement invites through
-  the store workflow or have JewelLink retry with a new idempotency key. Confirm
-  every replacement email uses `/jewelcert/claim/<id>#t=...`, and prove each old
-  `?t=` link fails before enabling traffic. Do not bulk-reactivate the old rows
+  after reassignment could authorize the wrong email. New workflow runs require
+  the exact applied 0024 ledger row and checksum rather than a manual cutover
+  confirmation. Confirm replacement emails use
+  `/jewelcert/claim/<id>#t=...`, and prove each old `?t=` link fails before
+  enabling traffic. Do not bulk-reactivate the old rows
   or translate the inviteId-only HMAC.
 - [ ] Exercise one controlled dry-run application confirmation and one manager
   notification and verify the `dry_run`/non-delivery result. Verify provider
@@ -204,6 +214,23 @@ in `production-launch-control-2026-07-13.md`.
   suite, and the required no-traffic workflow probe supplies the controlled
   real provider acceptance check before public use.
 - [ ] Exercise one Stripe test-mode checkout and signed webhook reconciliation against the release candidate. The code/readiness audit is green, but no checkout mutation was performed in this QA pass.
+- [x] Create exact recurring USD Stripe Prices for `$149/month` and
+  `$1,299/year`, configure their ids as
+  `STRIPE_STORE_OWNER_MONTHLY_PRICE_ID` and
+  `STRIPE_STORE_OWNER_ANNUAL_PRICE_ID`, and retain `STRIPE_SECRET_KEY` plus
+  `STRIPE_WEBHOOK_SECRET` as secret-backed settings. A read-only 2026-07-15
+  provider audit confirmed both exact live Prices and one enabled exact webhook
+  endpoint.
+- [ ] Add `invoice.paid` to the exact production webhook. The 2026-07-15
+  read-only provider audit found it was the only required billing lifecycle
+  event missing. Confirm one recent delivery is accepted by the app's signature
+  verifier before checking the production workflow confirmation.
+- [ ] Deactivate legacy Payment Link `plink_1Tngh8Jcq3gleedT9vWeCQZ2` only at
+  controlled cutover. The 2026-07-15 GET-only audit found zero open sessions,
+  zero completed-unsettled sessions, and zero current subscriptions, but the
+  link remains active. The workflow refuses promotion until it is inactive and
+  those counts remain zero. Do not accept its unbound direct company/store
+  references in the hardened webhook.
 
 ## Deployment order
 
@@ -223,13 +250,15 @@ in `production-launch-control-2026-07-13.md`.
    the live-email workflow input; a dry-run revision cannot pass verified
    applicant signup.
 6. Run the manual JewelHire production workflow. It creates a no-traffic
-   candidate, applies the rollback-compatible migrations through `0023` from
-   the exact candidate image, smokes public routes, sends the single controlled
-   signup-provider probe, and only then moves traffic. The workflow verifies
-   public production routes while rollback to the recorded pre-v2 revision is
-   still safe; after that succeeds it applies the `0024` contract fence and
-   runs the full no-write database-readiness check. Once `0024` commits, only a
-   v2-writing revision is a valid rollback target.
+   candidate. Before any database change, its GET-only Stripe job requires the
+   exact live Prices, complete webhook event set, deactivated legacy link, and
+   zero unresolved legacy sessions/subscriptions. The workflow then proves the
+   `0024` contract fence is already applied and unchanged, applies additive
+   `0025` from that exact image, and runs exact database invariants before
+   traffic. It then smokes public routes, sends the single controlled
+   signup-provider probe, and only then moves
+   traffic. Because 0025 is additive, the recorded current revision remains a
+   valid traffic rollback target.
 7. Create a second JewelLink no-traffic candidate with `pilot` mode and one
    approved company ID. Run the full SSO and role smoke against its tagged URL
    before explicitly promoting it.

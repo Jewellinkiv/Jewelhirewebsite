@@ -77,13 +77,14 @@ copy. Never store database dumps in either Git repository or `docs/qa-runs`.
   old-company mailbox integrations into a fail-closed, inactive state on user
   tenant reassignment; do not reactivate one unless it has been reconnected
   inside the current company.
-- Apply JewelHire migrations `0012` through `0023` from its exact no-traffic
-  candidate image before promotion. Migration `0023` is an additive expand
-  step that remains compatible with the recorded pre-v2 rollback revision.
-- After the hardened revision owns traffic and its public production smoke
-  passes, apply JewelHire migration `0024` from the same immutable candidate
-  image and run full readiness. Migration `0024` is the contract fence; after
-  it commits, never restore a pre-v2 revision.
+- Production already has JewelHire migration `0024`, the permanent JewelCert v2
+  contract fence. The production job must prove its exact ledger row/checksum
+  and refuse to cross that boundary if it is missing.
+- Apply additive migration `0025` from the exact no-traffic candidate image
+  while the current v2-aware revision still owns all traffic, then run exact
+  database readiness before promotion. It adds only the retained-company
+  checkout/lifecycle bridge and pending-signup billing columns; it deletes no
+  tenant data and the recorded current revision remains a valid rollback target.
 - Every JewelHire migration transaction uses a 5-second lock wait and a
   2-minute statement limit. A timeout is a stop condition: do not move traffic
   or bypass the limit; investigate the blocker and rerun the guarded job only
@@ -121,6 +122,10 @@ copy. Never store database dumps in either Git repository or `docs/qa-runs`.
   precondition failure is a stop condition, not a reason to bypass or edit the
   migration; keep the hardened revision serving traffic, reconcile and cancel
   the legacy row, and rerun the guarded contract step.
+- JewelHire migration `0025` is additive. Until it commits, the hardened
+  signup and paid-recovery surfaces return a branded unavailable response while
+  unrelated application surfaces remain available. Do not send monthly or
+  annual checkout until final readiness verifies its table and ledger row.
 
 ## Traffic rollback
 

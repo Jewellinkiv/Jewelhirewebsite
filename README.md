@@ -34,6 +34,8 @@ npm run build
 npm audit --audit-level=moderate
 npm run qa:notifications
 npm run qa:billing
+npm run test:standalone-billing
+npm run test:standalone-billing-postgres
 npm run qa:public-careers
 npm run qa:jewellink-sso
 npm run qa:browser
@@ -68,5 +70,5 @@ posture. Never deploy application code that depends on an unapplied migration ou
 - Production must use PostgreSQL, real auth, a strong secret, and no session override.
 - Secrets belong in Secret Manager or `.env.local`, never source control.
 - Keep Postmark disabled/dry-run until live-send approval and preference enforcement are verified.
-- Stripe webhook events are signature-verified and billing notifications are deduplicated by event id.
+- Stripe webhook events are signature-verified and billing notifications are deduplicated by event id. Standalone access is activated only by a paid, exact-price Checkout Session bound to an opaque server-side request.
 - Public applications and signup require acceptance of the versioned Privacy Policy and Terms.

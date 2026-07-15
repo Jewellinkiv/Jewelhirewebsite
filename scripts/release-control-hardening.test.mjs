@@ -142,15 +142,15 @@ test("Cloud Run jobs preserve the buildpack runtime environment", () => {
   assert.doesNotMatch(workflow, /--command npm/);
   assert.match(
     workflow,
-    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:migrate:apply,--,--through=0023_jewelcert_claim_token_version/,
-  );
-  assert.match(
-    workflow,
-    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:migrate:apply \\/,
+    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:migrate:apply,--,--through=0025_standalone_billing_recovery/,
   );
   assert.match(
     workflow,
     /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:readiness \\/,
+  );
+  assert.match(
+    workflow,
+    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,stripe:readiness:production \\/,
   );
   assert.doesNotMatch(workflow, /--args run,/);
 });
@@ -159,6 +159,7 @@ test("JewelCert v2 cutover is operator-confirmed, database-enforced, and written
   const workflow = fs.readFileSync(".github/workflows/deploy.yml", "utf8");
   const expandMigration = fs.readFileSync("db/migrations/0023_jewelcert_claim_token_version.sql", "utf8");
   const contractMigration = fs.readFileSync("db/migrations/0024_jewelcert_claim_token_version_fence.sql", "utf8");
+  const billingMigration = fs.readFileSync("db/migrations/0025_standalone_billing_recovery.sql", "utf8");
   const migrationRunner = fs.readFileSync("scripts/run-migrations.mjs", "utf8");
   const internalIssuer = fs.readFileSync("lib/server/postgres-phase1.ts", "utf8");
   const jewelLinkIssuer = fs.readFileSync("app/api/integrations/jewellink/jewelcert/invites/route.ts", "utf8");
@@ -166,28 +167,34 @@ test("JewelCert v2 cutover is operator-confirmed, database-enforced, and written
   const commandReadiness = fs.readFileSync("scripts/check-database-readiness.mjs", "utf8");
   const cutoverPostgresTest = fs.readFileSync("scripts/jewelcert-cutover-postgres.test.mjs", "utf8");
 
-  assert.match(workflow, /legacy_jewelcert_invites_cleared:/);
-  assert.match(workflow, /if \[\[ "\$LEGACY_JEWELCERT_INVITES_CLEARED" != "true" \]\]/);
+  assert.doesNotMatch(workflow, /legacy_jewelcert_invites_cleared:/);
   assert.match(workflow, /--args npm,run,db:readiness/);
-  const expandApply = workflow.indexOf("--through=0023_jewelcert_claim_token_version");
+  const stripeReadiness = workflow.indexOf("Verify live Stripe offers webhook and legacy drain before database changes");
+  const additiveApply = workflow.indexOf("--through=0025_standalone_billing_recovery");
+  const finalReadiness = workflow.indexOf("Verify exact production database invariants before traffic");
   const promotion = workflow.indexOf("Move production traffic to candidate");
   const rollbackCompatibleSmoke = workflow.indexOf("Verify public production routes");
-  const contractApply = workflow.indexOf("jewelhire-migrate-contract");
-  const finalReadiness = workflow.indexOf("jewelhire-readiness", contractApply);
-  assert.ok(expandApply >= 0 && expandApply < promotion);
+  assert.ok(stripeReadiness >= 0 && stripeReadiness < additiveApply);
+  assert.ok(additiveApply < finalReadiness);
+  assert.ok(finalReadiness < promotion);
   assert.ok(promotion < rollbackCompatibleSmoke);
-  assert.ok(rollbackCompatibleSmoke < contractApply);
-  assert.ok(contractApply < finalReadiness);
-  assert.match(workflow, /After this contract migration, do not restore a pre-v2 revision/);
+  assert.doesNotMatch(workflow, /jewelhire-migrate-contract|Apply post-promotion/);
+  assert.match(workflow, /REQUIRE_APPLIED_MIGRATION_ID=0024_jewelcert_claim_token_version_fence/);
   assert.match(workflow, /JEWELHIRE_REQUIRE_AUTH=1 and AUTH_MODE=google/);
   assert.match(workflow, /JEWELHIRE_STORAGE=postgres and JEWELHIRE_ENABLE_SESSION_OVERRIDE=0/);
   assert.match(workflow, /npm run test:jewelcert-cutover-postgres/);
+  assert.match(workflow, /npm run test:standalone-billing/);
+  assert.match(workflow, /npm run test:standalone-billing-postgres/);
+  assert.match(workflow, /STRIPE_STORE_OWNER_MONTHLY_PRICE_ID STRIPE_STORE_OWNER_ANNUAL_PRICE_ID/);
+  assert.match(workflow, /STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET; do/);
+  assert.match(workflow, /must be backed by Secret Manager/);
   assert.match(expandMigration, /claim_token_version smallint not null default 1/);
   assert.doesNotMatch(expandMigration, /jewelcert_invites_active_claim_token_version_check/);
   assert.match(contractMigration, /status in \('sent', 'started'\)/);
   assert.match(contractMigration, /raise exception 'Cancel every active legacy JewelCert invite before applying 0024'/);
   assert.match(contractMigration, /jewelcert_invites_active_claim_token_version_check/);
   assert.match(contractMigration, /status not in \('sent', 'started'\) or claim_token_version >= 2/);
+  assert.match(billingMigration, /create table if not exists standalone_checkout_requests/);
   assert.match(migrationRunner, /--through=<migration-id>/);
   assert.match(cutoverPostgresTest, /--through=0023_jewelcert_claim_token_version/);
   assert.match(cutoverPostgresTest, /legacy-after-fence/);
@@ -196,29 +203,35 @@ test("JewelCert v2 cutover is operator-confirmed, database-enforced, and written
   for (const readinessSource of [serverReadiness, commandReadiness]) {
     assert.match(readinessSource, /0023_jewelcert_claim_token_version/);
     assert.match(readinessSource, /0024_jewelcert_claim_token_version_fence/);
+    assert.match(readinessSource, /0025_standalone_billing_recovery/);
     assert.match(readinessSource, /jewelcert_invites_active_claim_token_version_check/);
     assert.match(readinessSource, /column_name = 'claim_token_version'/);
   }
 });
 
-test("billing audit keeps optional warnings nonblocking while required failures block", async (context) => {
+test("billing audit requires both Price ids, paid recovery binding, and provider secrets", async (context) => {
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "jewelhire-billing-warning-"));
   context.after(() => fs.rmSync(fixture, { recursive: true, force: true }));
 
   const webhookDir = path.join(fixture, "app/api/stripe/webhook");
   const checkoutDir = path.join(fixture, "app/api/stores/[storeId]/billing/checkout");
+  const recoveryDir = path.join(fixture, "app/api/admin/companies/[id]/standalone-access");
   const serverDir = path.join(fixture, "lib/server");
   fs.mkdirSync(webhookDir, { recursive: true });
   fs.mkdirSync(checkoutDir, { recursive: true });
+  fs.mkdirSync(recoveryDir, { recursive: true });
   fs.mkdirSync(serverDir, { recursive: true });
   fs.writeFileSync(path.join(fixture, "package.json"), JSON.stringify({ private: true }));
   fs.writeFileSync(path.join(webhookDir, "route.ts"), "export const verifyStripeWebhookSignature = true;\n");
   fs.writeFileSync(path.join(checkoutDir, "route.ts"), "export const POST = true;\n");
+  fs.writeFileSync(path.join(recoveryDir, "route.ts"), "export const POST = true;\n");
   fs.writeFileSync(
     path.join(serverDir, "billing.ts"),
     [
       "const STRIPE_SECRET_KEY = true;",
       "const STRIPE_WEBHOOK_SECRET = true;",
+      "const STRIPE_STORE_OWNER_MONTHLY_PRICE_ID = true;",
+      "const STRIPE_STORE_OWNER_ANNUAL_PRICE_ID = true;",
       "const coupon = true;",
       "function verifyStripeWebhookSignature() {}",
       "async function handleStripeBillingEvent() { await recordStripeBillingAudit(); }",
@@ -226,6 +239,8 @@ test("billing audit keeps optional warnings nonblocking while required failures 
       "const admin_audit_entries = 'stripe-event-';",
       "const duplicate_stripe_event = true;",
       "const insert = 'on conflict (id) do nothing\\nreturning id';",
+      "const recovery = 'standalone_checkout_requests provider_checkout_session_id';",
+      "const paid = 'stripeCheckoutMatchesStoreOwnerOffer company_access_entitlements';",
     ].join("\n"),
   );
 
@@ -250,14 +265,13 @@ test("billing audit keeps optional warnings nonblocking while required failures 
   );
 
   assert.equal(result.code, 0, `${result.stdout}\n${result.stderr}`);
-  assert.match(result.stdout, /WARN stripe payment link env is referenced/);
-  assert.match(result.stdout, /Failures: 0; blockers: 0; warnings: 1/);
+  assert.match(result.stdout, /PASS monthly \$149 Stripe Price env is referenced/);
+  assert.match(result.stdout, /PASS annual \$1,299 Stripe Price env is referenced/);
+  assert.match(result.stdout, /PASS retained-company recovery remains payment-gated/);
+  assert.match(result.stdout, /Failures: 0; blockers: 0; warnings: 0/);
   const report = JSON.parse(fs.readFileSync(path.join(artifactDir, "billing-readiness-report.json"), "utf8"));
-  const paymentLinkCheck = report.checks.find((check) => check.name === "stripe payment link env is referenced");
-  assert.deepEqual(
-    { pass: paymentLinkCheck?.pass, severity: paymentLinkCheck?.severity },
-    { pass: false, severity: "warning" },
-  );
+  const recoveryCheck = report.checks.find((check) => check.name === "retained-company recovery remains payment-gated");
+  assert.deepEqual({ pass: recoveryCheck?.pass, severity: recoveryCheck?.severity }, { pass: true, severity: "blocking" });
 
   const billingSourcePath = path.join(serverDir, "billing.ts");
   fs.writeFileSync(
@@ -276,7 +290,7 @@ test("billing audit keeps optional warnings nonblocking while required failures 
 
   assert.equal(requiredFailure.code, 1, `${requiredFailure.stdout}\n${requiredFailure.stderr}`);
   assert.match(requiredFailure.stdout, /FAIL stripe secret env is referenced by readiness\/security surface/);
-  assert.match(requiredFailure.stdout, /Failures: 1; blockers: 0; warnings: 1/);
+  assert.match(requiredFailure.stdout, /Failures: 1; blockers: 0; warnings: 0/);
   const failureReport = JSON.parse(
     fs.readFileSync(path.join(requiredFailureArtifactDir, "billing-readiness-report.json"), "utf8"),
   );

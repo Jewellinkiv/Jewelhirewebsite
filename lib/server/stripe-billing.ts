@@ -1,7 +1,16 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { notifyBillingChanged } from "@/lib/server/notifications";
 import { getPostgresPool } from "@/lib/server/postgres";
+import {
+  reconcilePaidStandaloneCheckout,
+  reconcileStandaloneSubscriptionStatus,
+} from "@/lib/server/standalone-access";
 import { provisionStoreFromPendingSignup } from "@/lib/server/store-signup";
+import {
+  storeOwnerBillingOffer,
+  stripeCheckoutMatchesStoreOwnerOffer,
+  type StoreOwnerBillingInterval,
+} from "@/lib/server/store-owner-billing";
 
 export type StripeWebhookVerification =
   | { ok: true; event: StripeWebhookEvent }
@@ -21,6 +30,10 @@ type StripeObject = Record<string, unknown> & {
   object?: string;
   metadata?: Record<string, string | undefined>;
   status?: string;
+  mode?: string;
+  payment_status?: string;
+  currency?: string;
+  amount_subtotal?: number;
   subscription?: string;
   customer?: string;
   customer_email?: string;
@@ -42,12 +55,6 @@ type CheckoutPayloadInput = {
   paymentLink?: string | null;
   promotionCodeId?: string | null;
   metadata?: Record<string, string>;
-};
-
-type StoreOwnerBillingLinkInput = {
-  storeId: string;
-  companyId: string;
-  promotionCode?: string | null;
 };
 
 type BillingContact = {
@@ -106,7 +113,12 @@ export function verifyStripeWebhookSignature(rawBody: string, signatureHeader?: 
     return { ok: false, status: 400, code: "invalid_stripe_signature", message: "Stripe signature verification failed." };
   }
 
-  const event = JSON.parse(rawBody) as StripeWebhookEvent;
+  let event: StripeWebhookEvent;
+  try {
+    event = JSON.parse(rawBody) as StripeWebhookEvent;
+  } catch {
+    return { ok: false, status: 400, code: "invalid_stripe_event", message: "Stripe event body is invalid JSON." };
+  }
   if (!event?.id || !event?.type) {
     return { ok: false, status: 400, code: "invalid_stripe_event", message: "Stripe event id and type are required." };
   }
@@ -129,6 +141,10 @@ export async function handleStripeBillingEvent(event: StripeWebhookEvent) {
   const supported = supportedStripeBillingEventTypes().has(event.type);
   const object = (event.data?.object || {}) as StripeObject;
   const result = supported ? await reconcileStripeBillingObject(event, object) : { reconciled: false, reason: "unsupported_event_type" };
+  const jewelHireReference = clientReferenceIdFor(object) || metadataString(object, "jewelhireReferenceId");
+  const retryable = supported
+    && !result.reconciled
+    && (jewelHireReference.startsWith("scr-") || jewelHireReference.startsWith("psu-"));
   const firstDelivery = await recordStripeBillingAudit(event, object, result);
   const notification = firstDelivery
     ? await notifyStripeBillingChange(event, object, result)
@@ -137,6 +153,7 @@ export async function handleStripeBillingEvent(event: StripeWebhookEvent) {
     handled: supported,
     eventId: event.id,
     type: event.type,
+    retryable,
     firstDelivery,
     notification,
     ...result,
@@ -165,13 +182,6 @@ function clientReferenceIdFor(object: StripeObject) {
   return typeof object.client_reference_id === "string" ? object.client_reference_id.trim() : "";
 }
 
-function planIdFor(object: StripeObject) {
-  const explicit = metadataString(object, "planId", "plan_id");
-  if (explicit) return explicit.startsWith("plan-") ? explicit : `plan-${explicit}`;
-  const tier = metadataString(object, "planTier", "plan_tier", "tier").toLowerCase();
-  return ["starter", "growth", "pro"].includes(tier) ? `plan-${tier}` : "";
-}
-
 function subscriptionIdFor(object: StripeObject) {
   const value = typeof object.subscription === "string" ? object.subscription : "";
   return object.object === "subscription" ? object.id || "" : value;
@@ -186,7 +196,10 @@ function subscriptionStatusFor(value?: string) {
   if (value === "trialing") return "trialing";
   if (value === "past_due" || value === "unpaid") return "past_due";
   if (value === "canceled" || value === "cancelled" || value === "incomplete_expired") return "cancelled";
-  return "active";
+  // Stripe can add or deliver states that this application does not model
+  // (for example incomplete or paused). Never turn an unknown state into
+  // access; a later explicit active/trialing event can safely restore it.
+  return "past_due";
 }
 
 function invoiceStatusFor(eventType: string, value?: string) {
@@ -282,15 +295,6 @@ async function companyIdByProviderSubscriptionId(providerSubscriptionId: string)
   return result.rows[0]?.company_id || "";
 }
 
-async function companyIdByStoreId(storeId: string) {
-  if (!storeId) return "";
-  const result = await getPostgresPool().query<{ company_id: string }>(
-    "select company_id from stores where id = $1 limit 1",
-    [storeId],
-  );
-  return result.rows[0]?.company_id || "";
-}
-
 async function subscriptionRowIdByProviderSubscriptionId(providerSubscriptionId: string) {
   if (!providerSubscriptionId) return "";
   const result = await getPostgresPool().query<{ id: string }>(
@@ -315,73 +319,67 @@ async function reconcileStripeBillingObject(event: StripeWebhookEvent, object = 
 
 async function reconcileStripeSubscriptionEvent(event: StripeWebhookEvent, object: StripeObject) {
   const providerSubscriptionId = object.id || "";
-  const companyId = companyIdFor(object) || await companyIdByProviderSubscriptionId(providerSubscriptionId);
-  if (!companyId || !providerSubscriptionId) return { reconciled: false, reason: "missing_company_or_subscription" };
-
-  const planId = planIdFor(object);
+  if (!providerSubscriptionId) return { reconciled: false, reason: "missing_subscription" };
   const status = subscriptionStatusFor(object.status);
   const currentPeriodStart = timestampFromUnix(object.current_period_start);
   const currentPeriodEnd = timestampFromUnix(object.current_period_end);
-  const client = await getPostgresPool().connect();
-  try {
-    await client.query("begin");
-    const updated = await client.query<{ id: string }>(
-      `
-        update subscriptions
-        set status = $2,
-            current_period_start = coalesce($3::timestamptz, current_period_start),
-            current_period_end = coalesce($4::timestamptz, current_period_end),
-            provider = 'stripe',
-            provider_subscription_id = $5,
-            updated_at = now()
-        where company_id = $1
-        returning id
-      `,
-      [companyId, status, currentPeriodStart, currentPeriodEnd, providerSubscriptionId],
-    );
-    if (!updated.rows[0] && planId) {
-      await client.query(
-        `
-          insert into subscriptions (
-            id, company_id, plan_id, status, current_period_start, current_period_end,
-            provider, provider_subscription_id, created_at, updated_at
-          )
-          values ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, 'stripe', $7, now(), now())
-          on conflict (id) do update set
-            status = excluded.status,
-            current_period_start = coalesce(excluded.current_period_start, subscriptions.current_period_start),
-            current_period_end = coalesce(excluded.current_period_end, subscriptions.current_period_end),
-            provider = 'stripe',
-            provider_subscription_id = excluded.provider_subscription_id,
-            updated_at = now()
-        `,
-        [`sub-${providerSubscriptionId}`, companyId, planId, status, currentPeriodStart, currentPeriodEnd, providerSubscriptionId],
-      );
-    }
-    await client.query("commit");
-    return { reconciled: true, target: "subscription", companyId, providerSubscriptionId };
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  const checkoutReferenceId = metadataString(object, "jewelhireReferenceId");
+  return reconcileStandaloneSubscriptionStatus({
+    providerSubscriptionId,
+    status,
+    currentPeriodStart,
+    currentPeriodEnd,
+    providerCustomerId: typeof object.customer === "string" ? object.customer : null,
+    checkoutReferenceId,
+    providerEventId: event.id,
+    providerEventCreatedAt: timestampFromUnix(event.created) || new Date().toISOString(),
+  });
 }
 
-async function reconcileStripeCheckoutSession(event: StripeWebhookEvent, object: StripeObject) {
+async function reconcileStripeCheckoutSession(_event: StripeWebhookEvent, object: StripeObject) {
   const clientReferenceId = clientReferenceIdFor(object);
+  const providerSubscriptionId = subscriptionIdFor(object);
+  const checkoutSessionId = object.id || "";
+  if (!clientReferenceId || !providerSubscriptionId || !checkoutSessionId) {
+    return { reconciled: false, reason: "missing_checkout_reference" };
+  }
 
   // Store-owner self-signup: the checkout was started from the signup form with a
   // pending-signup id as client_reference_id. Provision the store now that payment
   // is confirmed (idempotent across Stripe retries).
   if (clientReferenceId.startsWith("psu-")) {
+    const pending = await getPostgresPool().query<{
+      billing_interval: StoreOwnerBillingInterval;
+      provider_checkout_session_id: string | null;
+    }>(
+      "select billing_interval, provider_checkout_session_id from pending_store_signups where id = $1 limit 1",
+      [clientReferenceId],
+    );
+    const pendingRow = pending.rows[0];
+    if (!pendingRow || pendingRow.provider_checkout_session_id !== checkoutSessionId) {
+      return { reconciled: false, reason: "pending_signup_checkout_mismatch" };
+    }
+    const offer = storeOwnerBillingOffer(pendingRow.billing_interval);
+    if (!stripeCheckoutMatchesStoreOwnerOffer({
+      interval: offer.interval,
+      mode: object.mode,
+      status: object.status,
+      paymentStatus: object.payment_status,
+      currency: object.currency,
+      amountSubtotal: object.amount_subtotal,
+    })) {
+      return { reconciled: false, reason: "pending_signup_offer_mismatch" };
+    }
     const customerEmail =
       (typeof object.customer_email === "string" ? object.customer_email : "") ||
       ((object.customer_details as { email?: string } | undefined)?.email ?? "") ||
       null;
     const result = await provisionStoreFromPendingSignup({
       pendingId: clientReferenceId,
-      stripeReference: subscriptionIdFor(object) || object.id || null,
+      stripeReference: providerSubscriptionId,
+      checkoutSessionId,
+      billingInterval: offer.interval,
+      amountCents: offer.amountCents,
       customerEmail,
     });
     return result.provisioned
@@ -389,50 +387,21 @@ async function reconcileStripeCheckoutSession(event: StripeWebhookEvent, object:
       : { reconciled: false, reason: result.reason };
   }
 
-  const companyId = companyIdFor(object) || await companyIdByStoreId(clientReferenceId);
-  const providerSubscriptionId = subscriptionIdFor(object);
-  if (!companyId || !providerSubscriptionId) return { reconciled: false, reason: "missing_company_or_subscription" };
-  const status = "active";
-  const planId = planIdFor(object);
-  const client = await getPostgresPool().connect();
-  try {
-    await client.query("begin");
-    const updated = await client.query<{ id: string }>(
-      `
-        update subscriptions
-        set status = $2,
-            provider = 'stripe',
-            provider_subscription_id = $3,
-            updated_at = now()
-        where company_id = $1
-        returning id
-      `,
-      [companyId, status, providerSubscriptionId],
-    );
-    if (!updated.rows[0] && planId) {
-      await client.query(
-        `
-          insert into subscriptions (
-            id, company_id, plan_id, status, provider, provider_subscription_id, created_at, updated_at
-          )
-          values ($1, $2, $3, $4, 'stripe', $5, now(), now())
-          on conflict (id) do update set
-            status = excluded.status,
-            provider = 'stripe',
-            provider_subscription_id = excluded.provider_subscription_id,
-            updated_at = now()
-        `,
-        [`sub-${providerSubscriptionId}`, companyId, planId, status, providerSubscriptionId],
-      );
-    }
-    await client.query("commit");
-    return { reconciled: true, target: "checkout_session", companyId, providerSubscriptionId };
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
+  if (clientReferenceId.startsWith("scr-")) {
+    return reconcilePaidStandaloneCheckout({
+      referenceId: clientReferenceId,
+      checkoutSessionId,
+      providerSubscriptionId,
+      providerCustomerId: typeof object.customer === "string" ? object.customer : null,
+      mode: object.mode,
+      status: object.status,
+      paymentStatus: object.payment_status,
+      currency: object.currency,
+      amountSubtotal: object.amount_subtotal,
+    });
   }
+
+  return { reconciled: false, reason: "unsupported_checkout_reference" };
 }
 
 async function reconcileStripeInvoiceEvent(event: StripeWebhookEvent, object: StripeObject) {
@@ -485,70 +454,6 @@ async function recordStripeBillingAudit(event: StripeWebhookEvent, object: Strip
     ],
   );
   return Boolean(inserted.rows[0]);
-}
-
-function stripeStoreOwnerPaymentLink() {
-  return process.env.STRIPE_STORE_OWNER_PAYMENT_LINK?.trim() || "";
-}
-
-function stripeAllowPromotionCodes() {
-  return process.env.STRIPE_ALLOW_PROMOTION_CODES !== "0";
-}
-
-function safeStripeClientReferenceId(value: string) {
-  return /^[A-Za-z0-9_-]{1,200}$/.test(value) ? value : "";
-}
-
-function safeStripePromotionCode(value?: string | null) {
-  const code = value?.trim() || "";
-  if (!code) return "";
-  return /^[A-Za-z0-9_-]{1,80}$/.test(code) ? code : "";
-}
-
-export function getStoreOwnerBillingCheckoutReadiness() {
-  const paymentLink = stripeStoreOwnerPaymentLink();
-  const allowPromotionCodes = stripeAllowPromotionCodes();
-  return {
-    configured: Boolean(paymentLink),
-    mode: paymentLink ? "payment_link" : "not_configured",
-    allowPromotionCodes,
-    missing: paymentLink ? [] : ["STRIPE_STORE_OWNER_PAYMENT_LINK"],
-  };
-}
-
-export function createStoreOwnerBillingLink(input: StoreOwnerBillingLinkInput) {
-  const paymentLink = stripeStoreOwnerPaymentLink();
-  if (!paymentLink) return "";
-
-  const url = new URL(paymentLink);
-  const clientReferenceId = safeStripeClientReferenceId(input.companyId) || safeStripeClientReferenceId(input.storeId);
-  if (clientReferenceId) url.searchParams.set("client_reference_id", clientReferenceId);
-  url.searchParams.set("jewelhire_store_id", input.storeId);
-
-  const promotionCode = safeStripePromotionCode(input.promotionCode);
-  if (promotionCode && stripeAllowPromotionCodes()) {
-    url.searchParams.set("prefilled_promo_code", promotionCode);
-  }
-
-  return url.toString();
-}
-
-// Build the Stripe payment-link URL for a store-owner self-signup, threading the
-// pending-signup id through client_reference_id so the webhook can provision.
-export function createStoreSignupCheckoutLink(input: { pendingId: string; promotionCode?: string | null }) {
-  const paymentLink = stripeStoreOwnerPaymentLink();
-  if (!paymentLink) return "";
-  const clientReferenceId = safeStripeClientReferenceId(input.pendingId);
-  if (!clientReferenceId) return "";
-
-  const url = new URL(paymentLink);
-  url.searchParams.set("client_reference_id", clientReferenceId);
-
-  const promotionCode = safeStripePromotionCode(input.promotionCode);
-  if (promotionCode && stripeAllowPromotionCodes()) {
-    url.searchParams.set("prefilled_promo_code", promotionCode);
-  }
-  return url.toString();
 }
 
 export function createStripeCheckoutSessionPayload(input: CheckoutPayloadInput) {

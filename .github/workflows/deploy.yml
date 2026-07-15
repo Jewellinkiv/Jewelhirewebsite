@@ -27,8 +27,8 @@ on:
         required: true
         default: false
         type: boolean
-      legacy_jewelcert_invites_cleared:
-        description: Confirm every sent/started legacy JewelCert invite is cancelled before the post-promotion 0024 fence
+      stripe_webhook_delivery_confirmed:
+        description: Confirm a recent production Stripe event passed signature verification at the exact JewelHire webhook endpoint
         required: true
         default: false
         type: boolean
@@ -69,6 +69,7 @@ jobs:
 
       - run: npm ci
       - run: npm run test:release-controls
+      - run: npm run test:deploy-migration-safety
       - run: npm run test:team-invite-gate
       - run: npm run test:applicant-signup-hardening
       - run: npm run test:applicant-signup-postgres
@@ -81,6 +82,9 @@ jobs:
       - run: npm run test:password-reset-browser
       - run: npm run test:account-claim-hardening
       - run: npm run test:account-claim-browser
+      - run: npm run test:standalone-billing
+      - run: npm run test:standalone-billing-postgres
+      - run: npm run test:standalone-billing-schema-postgres
       - run: npm run test:request-security
       - run: npm run test:hybrid-location-access
       - run: npm run test:hybrid-location-access-postgres
@@ -121,15 +125,15 @@ jobs:
         env:
           DATABASE_BACKUP_CONFIRMED: ${{ inputs.database_backup_confirmed }}
           ACKNOWLEDGE_LIVE_EMAIL: ${{ inputs.acknowledge_live_email }}
-          LEGACY_JEWELCERT_INVITES_CLEARED: ${{ inputs.legacy_jewelcert_invites_cleared }}
+          STRIPE_WEBHOOK_DELIVERY_CONFIRMED: ${{ inputs.stripe_webhook_delivery_confirmed }}
         run: |
           set -euo pipefail
           if [[ "$DATABASE_BACKUP_CONFIRMED" != "true" ]]; then
             echo "A current production database backup must be confirmed before deployment."
             exit 1
           fi
-          if [[ "$LEGACY_JEWELCERT_INVITES_CLEARED" != "true" ]]; then
-            echo "Every sent/started legacy JewelCert invite must be cancelled before the post-promotion 0024 fence."
+          if [[ "$STRIPE_WEBHOOK_DELIVERY_CONFIRMED" != "true" ]]; then
+            echo "Confirm a recent production Stripe event passed signature verification at https://app.jewelhire.com/api/stripe/webhook."
             exit 1
           fi
 
@@ -138,9 +142,27 @@ jobs:
             --region us-central1 \
             --format=json > /tmp/jewelhire-service.json
 
-          for name in DATABASE_URL AUTH_SECRET JEWELLINK_URL JEWELLINK_SSO_SHARED_SECRET JEWELLINK_INTEGRATION_SHARED_SECRET JEWELHIRE_JEWELLINK_DIRECTOR_ROLE JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS JEWELHIRE_TEAM_INVITES_ENABLED JEWELHIRE_TRUSTED_PROXY_HOPS JEWELHIRE_REQUIRE_AUTH AUTH_MODE JEWELHIRE_STORAGE JEWELHIRE_ENABLE_SESSION_OVERRIDE EMAIL_NOTIFICATIONS_ENABLED POSTMARK_DRY_RUN POSTMARK_SERVER_TOKEN POSTMARK_FROM_EMAIL POSTMARK_MESSAGE_STREAM; do
+          for name in DATABASE_URL AUTH_SECRET JEWELLINK_URL JEWELLINK_SSO_SHARED_SECRET JEWELLINK_INTEGRATION_SHARED_SECRET JEWELHIRE_TEAM_INVITES_ENABLED JEWELHIRE_TRUSTED_PROXY_HOPS JEWELHIRE_REQUIRE_AUTH AUTH_MODE JEWELHIRE_STORAGE JEWELHIRE_ENABLE_SESSION_OVERRIDE EMAIL_NOTIFICATIONS_ENABLED POSTMARK_DRY_RUN POSTMARK_SERVER_TOKEN POSTMARK_FROM_EMAIL POSTMARK_MESSAGE_STREAM STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET STRIPE_STORE_OWNER_MONTHLY_PRICE_ID STRIPE_STORE_OWNER_ANNUAL_PRICE_ID STRIPE_STORE_OWNER_PAYMENT_LINK; do
             if ! jq -e --arg name "$name" '.spec.template.spec.containers[0].env[] | select(.name == $name)' /tmp/jewelhire-service.json >/dev/null; then
               echo "Missing required Cloud Run environment setting: $name"
+              exit 1
+            fi
+          done
+
+          MONTHLY_PRICE_ID=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "STRIPE_STORE_OWNER_MONTHLY_PRICE_ID") | .value // ""' /tmp/jewelhire-service.json)
+          ANNUAL_PRICE_ID=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "STRIPE_STORE_OWNER_ANNUAL_PRICE_ID") | .value // ""' /tmp/jewelhire-service.json)
+          if [[ "$MONTHLY_PRICE_ID" != price_* || "$ANNUAL_PRICE_ID" != price_* || "$MONTHLY_PRICE_ID" == "$ANNUAL_PRICE_ID" ]]; then
+            echo "Configure distinct recurring Stripe Price ids for the exact monthly and annual JewelHire offers."
+            exit 1
+          fi
+          LEGACY_PAYMENT_LINK=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "STRIPE_STORE_OWNER_PAYMENT_LINK") | .value // ""' /tmp/jewelhire-service.json)
+          if [[ "$LEGACY_PAYMENT_LINK" != https://* && "$LEGACY_PAYMENT_LINK" != plink_* ]]; then
+            echo "STRIPE_STORE_OWNER_PAYMENT_LINK must identify the legacy link so the read-only drain gate can verify it."
+            exit 1
+          fi
+          for name in STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET; do
+            if ! jq -e --arg name "$name" '.spec.template.spec.containers[0].env[] | select(.name == $name) | (.valueSource.secretKeyRef.secret // .valueFrom.secretKeyRef.name // "") | length > 0' /tmp/jewelhire-service.json >/dev/null; then
+              echo "${name} must be backed by Secret Manager, not a plaintext Cloud Run value."
               exit 1
             fi
           done
@@ -148,17 +170,6 @@ jobs:
           JEWELLINK_URL=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELLINK_URL") | .value // ""' /tmp/jewelhire-service.json)
           if [[ "$JEWELLINK_URL" != https://* ]]; then
             echo "JEWELLINK_URL must use HTTPS in production."
-            exit 1
-          fi
-
-          DIRECTOR_ROLE=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELHIRE_JEWELLINK_DIRECTOR_ROLE") | .value // ""' /tmp/jewelhire-service.json)
-          MANAGER_ALL_LOCATIONS=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS") | .value // ""' /tmp/jewelhire-service.json)
-          if [[ "$DIRECTOR_ROLE" != "store_owner" ]]; then
-            echo "Directors must map to store_owner for this launch."
-            exit 1
-          fi
-          if [[ "$MANAGER_ALL_LOCATIONS" != "0" ]]; then
-            echo "Managers must remain location-scoped for this launch."
             exit 1
           fi
 
@@ -238,7 +249,41 @@ jobs:
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
           echo "previous_revision=$PREVIOUS_REVISION" >> "$GITHUB_OUTPUT"
 
-      - name: Apply rollback-compatible expand migrations through 0023
+      - name: Verify live Stripe offers webhook and legacy drain before database changes
+        env:
+          IMAGE: ${{ steps.candidate.outputs.image }}
+        run: |
+          set -euo pipefail
+          SERVICE_JSON=$(gcloud run services describe jewelhire --project jewelhire-prod-20260626 --region us-central1 --format=json)
+          RUNTIME_SERVICE_ACCOUNT=$(jq -r '.spec.template.spec.serviceAccountName // .spec.template.spec.serviceAccount' <<<"$SERVICE_JSON")
+          STRIPE_SECRET=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "STRIPE_SECRET_KEY") | (.valueSource.secretKeyRef.secret // .valueFrom.secretKeyRef.name)' <<<"$SERVICE_JSON")
+          STRIPE_SECRET_VERSION=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "STRIPE_SECRET_KEY") | (.valueSource.secretKeyRef.version // .valueFrom.secretKeyRef.key // "latest")' <<<"$SERVICE_JSON")
+          WEBHOOK_SECRET=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "STRIPE_WEBHOOK_SECRET") | (.valueSource.secretKeyRef.secret // .valueFrom.secretKeyRef.name)' <<<"$SERVICE_JSON")
+          WEBHOOK_SECRET_VERSION=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "STRIPE_WEBHOOK_SECRET") | (.valueSource.secretKeyRef.version // .valueFrom.secretKeyRef.key // "latest")' <<<"$SERVICE_JSON")
+          MONTHLY_PRICE_ID=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "STRIPE_STORE_OWNER_MONTHLY_PRICE_ID") | .value // ""' <<<"$SERVICE_JSON")
+          ANNUAL_PRICE_ID=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "STRIPE_STORE_OWNER_ANNUAL_PRICE_ID") | .value // ""' <<<"$SERVICE_JSON")
+          LEGACY_PAYMENT_LINK=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "STRIPE_STORE_OWNER_PAYMENT_LINK") | .value // ""' <<<"$SERVICE_JSON")
+          test -n "$RUNTIME_SERVICE_ACCOUNT" && test -n "$STRIPE_SECRET" && test -n "$WEBHOOK_SECRET"
+          test -n "$MONTHLY_PRICE_ID" && test -n "$ANNUAL_PRICE_ID" && test -n "$LEGACY_PAYMENT_LINK"
+
+          gcloud run jobs deploy jewelhire-stripe-readiness \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --image "$IMAGE" \
+            --service-account "$RUNTIME_SERVICE_ACCOUNT" \
+            --set-secrets "STRIPE_SECRET_KEY=${STRIPE_SECRET}:${STRIPE_SECRET_VERSION},STRIPE_WEBHOOK_SECRET=${WEBHOOK_SECRET}:${WEBHOOK_SECRET_VERSION}" \
+            --set-env-vars "STRIPE_STORE_OWNER_MONTHLY_PRICE_ID=${MONTHLY_PRICE_ID},STRIPE_STORE_OWNER_ANNUAL_PRICE_ID=${ANNUAL_PRICE_ID},STRIPE_STORE_OWNER_PAYMENT_LINK=${LEGACY_PAYMENT_LINK},STRIPE_WEBHOOK_ENDPOINT_URL=https://app.jewelhire.com/api/stripe/webhook" \
+            --command /cnb/lifecycle/launcher \
+            --args npm,run,stripe:readiness:production \
+            --max-retries 0 \
+            --task-timeout 10m \
+            --quiet
+          gcloud run jobs execute jewelhire-stripe-readiness \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --wait
+
+      - name: Apply additive billing migration through 0025 before traffic
         env:
           IMAGE: ${{ steps.candidate.outputs.image }}
         run: |
@@ -255,13 +300,41 @@ jobs:
             --image "$IMAGE" \
             --service-account "$RUNTIME_SERVICE_ACCOUNT" \
             --set-secrets "DATABASE_URL=${DATABASE_SECRET}:${DATABASE_SECRET_VERSION}" \
-            --set-env-vars "APPLY_DATABASE_MIGRATIONS=1,REQUIRE_EXISTING_MIGRATION_LEDGER=1,POSTGRES_POOL_MAX=1" \
+            --set-env-vars "APPLY_DATABASE_MIGRATIONS=1,REQUIRE_EXISTING_MIGRATION_LEDGER=1,REQUIRE_APPLIED_MIGRATION_ID=0024_jewelcert_claim_token_version_fence,POSTGRES_POOL_MAX=1" \
             --command /cnb/lifecycle/launcher \
-            --args npm,run,db:migrate:apply,--,--through=0023_jewelcert_claim_token_version \
+            --args npm,run,db:migrate:apply,--,--through=0025_standalone_billing_recovery \
             --max-retries 0 \
             --task-timeout 15m \
             --quiet
           gcloud run jobs execute jewelhire-migrate-expand \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --wait
+
+      - name: Verify exact production database invariants before traffic
+        env:
+          IMAGE: ${{ steps.candidate.outputs.image }}
+        run: |
+          set -euo pipefail
+          SERVICE_JSON=$(gcloud run services describe jewelhire --project jewelhire-prod-20260626 --region us-central1 --format=json)
+          RUNTIME_SERVICE_ACCOUNT=$(jq -r '.spec.template.spec.serviceAccountName // .spec.template.spec.serviceAccount' <<<"$SERVICE_JSON")
+          DATABASE_SECRET=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "DATABASE_URL") | (.valueSource.secretKeyRef.secret // .valueFrom.secretKeyRef.name)' <<<"$SERVICE_JSON")
+          DATABASE_SECRET_VERSION=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "DATABASE_URL") | (.valueSource.secretKeyRef.version // .valueFrom.secretKeyRef.key // "latest")' <<<"$SERVICE_JSON")
+          test -n "$RUNTIME_SERVICE_ACCOUNT" && test -n "$DATABASE_SECRET"
+
+          gcloud run jobs deploy jewelhire-readiness \
+            --project jewelhire-prod-20260626 \
+            --region us-central1 \
+            --image "$IMAGE" \
+            --service-account "$RUNTIME_SERVICE_ACCOUNT" \
+            --set-secrets "DATABASE_URL=${DATABASE_SECRET}:${DATABASE_SECRET_VERSION}" \
+            --set-env-vars "POSTGRES_POOL_MAX=1" \
+            --command /cnb/lifecycle/launcher \
+            --args npm,run,db:readiness \
+            --max-retries 0 \
+            --task-timeout 15m \
+            --quiet
+          gcloud run jobs execute jewelhire-readiness \
             --project jewelhire-prod-20260626 \
             --region us-central1 \
             --wait
@@ -337,49 +410,3 @@ jobs:
               --quiet
             exit 1
           fi
-
-      - name: Apply post-promotion 0024 fence and final readiness
-        env:
-          IMAGE: ${{ steps.candidate.outputs.image }}
-        run: |
-          set -euo pipefail
-          echo "The v2-writing revision owns traffic. After this contract migration, do not restore a pre-v2 revision."
-          SERVICE_JSON=$(gcloud run services describe jewelhire --project jewelhire-prod-20260626 --region us-central1 --format=json)
-          RUNTIME_SERVICE_ACCOUNT=$(jq -r '.spec.template.spec.serviceAccountName // .spec.template.spec.serviceAccount' <<<"$SERVICE_JSON")
-          DATABASE_SECRET=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "DATABASE_URL") | (.valueSource.secretKeyRef.secret // .valueFrom.secretKeyRef.name)' <<<"$SERVICE_JSON")
-          DATABASE_SECRET_VERSION=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "DATABASE_URL") | (.valueSource.secretKeyRef.version // .valueFrom.secretKeyRef.key // "latest")' <<<"$SERVICE_JSON")
-          test -n "$RUNTIME_SERVICE_ACCOUNT" && test -n "$DATABASE_SECRET"
-
-          gcloud run jobs deploy jewelhire-migrate-contract \
-            --project jewelhire-prod-20260626 \
-            --region us-central1 \
-            --image "$IMAGE" \
-            --service-account "$RUNTIME_SERVICE_ACCOUNT" \
-            --set-secrets "DATABASE_URL=${DATABASE_SECRET}:${DATABASE_SECRET_VERSION}" \
-            --set-env-vars "APPLY_DATABASE_MIGRATIONS=1,REQUIRE_EXISTING_MIGRATION_LEDGER=1,POSTGRES_POOL_MAX=1" \
-            --command /cnb/lifecycle/launcher \
-            --args npm,run,db:migrate:apply \
-            --max-retries 0 \
-            --task-timeout 15m \
-            --quiet
-          gcloud run jobs execute jewelhire-migrate-contract \
-            --project jewelhire-prod-20260626 \
-            --region us-central1 \
-            --wait
-
-          gcloud run jobs deploy jewelhire-readiness \
-            --project jewelhire-prod-20260626 \
-            --region us-central1 \
-            --image "$IMAGE" \
-            --service-account "$RUNTIME_SERVICE_ACCOUNT" \
-            --set-secrets "DATABASE_URL=${DATABASE_SECRET}:${DATABASE_SECRET_VERSION}" \
-            --set-env-vars "POSTGRES_POOL_MAX=1" \
-            --command /cnb/lifecycle/launcher \
-            --args npm,run,db:readiness \
-            --max-retries 0 \
-            --task-timeout 15m \
-            --quiet
-          gcloud run jobs execute jewelhire-readiness \
-            --project jewelhire-prod-20260626 \
-            --region us-central1 \
-            --wait

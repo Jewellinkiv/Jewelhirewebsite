@@ -93,13 +93,14 @@ Role result:
 
 | JewelLink role | JewelHire result |
 | --- | --- |
-| `DIRECTOR` | Organization `store_owner` by default |
-| `MANAGER` | `manager`, limited to assigned locations by default |
+| `DIRECTOR` | Organization `store_owner`; all company locations |
+| `MANAGER` | `manager`; primary plus explicit location grants |
 | `STUDENT` | Applicant/personal portal; no store membership |
-| `CONSULTANT` | Applicant/personal portal; no store membership |
-| Any SSO role | Never grants JewelHire platform admin |
+| `CONSULTANT` | No JewelHire access |
+| `ADMIN`, `SUPER_ADMIN` | Platform admin when independently allowlisted in JewelHire; upstream company is not a tenant grant |
 
-JewelHire platform admin remains an explicit JewelHire-side claim. A cancelled
+JewelHire platform admin remains a conjunctive upstream-role and explicit
+JewelHire-side allowlist claim. A cancelled
 JewelLink entitlement revokes included access while retaining tenant data;
 recovery uses the single-use claim link from the JewelHire super-admin company
 dashboard.
@@ -159,7 +160,7 @@ incoming merge may change header dimensions, menu behavior, or breakpoints.
 - [ ] Run `npm ci`, type checks, build, tests, and dependency audit.
 - [ ] Run `npm run audit:jewelhire-sso` in JewelLink.
 - [ ] Run `npm run qa:cross-product` in JewelHire.
-- [ ] Exercise Director, Manager, Student, Consultant, and admin isolation with synthetic users.
+- [ ] Exercise Director, Manager, Student, denied Consultant, company-bound admin elevation, and allowlisted non-admin denial with synthetic users.
 - [ ] Prove code expiry, single use, replay rejection, and wrong-secret rejection.
 - [ ] Prove hire create/reactivate/replay/conflicting-payload behavior.
 - [ ] Prove JewelCert invite/result replay and location-scoped aggregation.

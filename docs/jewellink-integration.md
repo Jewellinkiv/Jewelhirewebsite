@@ -29,8 +29,9 @@ External JewelLink employee invites remain SSO-only. The invite email carries
 a recipient-bound claim bearer in the URL fragment, but that bearer never
 creates a native password identity when the invite has a JewelLink external
 user or a trusted `jewellink_employee` application origin. A first-time Student
-or Consultant is sent through JewelLink MFA, provisioned as an applicant, and
-returned to the exact `/bundle/<inviteId>` path. Recipient reassignment takes a
+is sent through JewelLink MFA, provisioned as an applicant, and returned to the
+exact `/bundle/<inviteId>` path. Consultants are ineligible for JewelHire.
+Recipient reassignment takes a
 shared invite-scoped transaction lock and invalidates the old recipient's HMAC.
 The native-claim path uses that same invite lock before its email and row locks,
 so an idempotent resend cannot deadlock against profile adoption.
@@ -61,22 +62,24 @@ value `0` so an accidental service setting cannot enable the unfinished flow.
 
 | JewelLink role | JewelHire access | Location policy | Billing/settings |
 | --- | --- | --- | --- |
-| STUDENT, CONSULTANT | Applicant/associate portal | Self only | None |
+| STUDENT | Applicant/associate portal | Self only | None |
 | MANAGER | Manager | Primary + `UserLocationAccess` grants | No owner billing/settings |
-| DIRECTOR | Store owner by default; configurable to manager | All company locations | Owner only when mapped to owner |
-| ADMIN | Store owner | All company locations | Owner access |
-| SUPER_ADMIN | No automatic platform-admin grant | Company-neutral identity only | JewelHire allowlist only |
+| DIRECTOR | Store owner | All company locations | Owner billing/settings |
+| ADMIN, SUPER_ADMIN | Platform admin | All JewelHire stores; no tenant membership | Requires JewelHire admin allowlist |
+| CONSULTANT | No access | None | None |
 
-Every other role value, including legacy `TEACHER` and differently-cased or
-whitespace-padded variants, is rejected before JewelHire provisioning begins.
-`SUPER_ADMIN` is accepted only when the normalized email is independently
-present in JewelHire's platform-admin allowlist **and** the signed JewelLink
-claim has `company: null`. A company-scoped `SUPER_ADMIN` is rejected before
-JewelHire opens a database connection or provisions tenant data.
+Every other role value, including `CONSULTANT`, legacy `TEACHER`, and
+differently-cased or whitespace-padded variants, is rejected before JewelHire
+provisioning begins. `ADMIN` and `SUPER_ADMIN` are accepted only when the
+normalized email is independently present in JewelHire's platform-admin
+allowlist. Their signed JewelLink company association is retained in the
+authorization fingerprint for revocation, but it never creates a JewelHire
+tenant membership; the local platform-admin identity is company-neutral.
 
-Set `JEWELHIRE_JEWELLINK_DIRECTOR_ROLE=manager` when Directors should not have
-owner/billing access. Managers remain selected-location scoped unless
-`JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS=1` is explicitly configured.
+The Director and Manager mappings are fixed security policy, not environment
+switches. Directors always receive store-owner/company scope. Managers receive
+only their primary location plus active `UserLocationAccess` grants carried in
+the signed authorization snapshot.
 
 ## Entitlement policy
 
@@ -87,6 +90,17 @@ Stripe remains the entitlement source for organizations without JewelLink:
 - $149 monthly
 - $1,299 yearly
 - one subscription per organization
+
+The super-admin company screen implements the cancellation recovery sequence:
+select the retained owner, verify current JewelLink company access through the
+dedicated integration-secret endpoint, and only then email a one-time Stripe
+Checkout Session for one of
+the two organization prices, wait for the signature-verified paid webhook, then
+send the separate single-use native account claim. Checkout requests are opaque,
+expire after 23 hours, and do not unlock claims. The webhook must match the
+server-created session id and exact selected offer before it atomically replaces
+the included entitlement with an active Stripe entitlement. See
+`docs/billing-readiness.md` for Stripe setup and release verification.
 
 Future special JewelLink pricing should update the organization entitlement;
 it should not change authentication or individual user roles.
@@ -161,14 +175,21 @@ reissued during the production cutover.
    inactive state when a user is reassigned to another tenant; the user must
    reconnect the mailbox inside the current company before it can be used
    again.
-4. Deploy JewelHire through its manual production workflow. It applies the
-   rollback-compatible migrations `0012` through `0023` from the immutable
-   no-traffic candidate image before traffic moves. After the hardened revision
-   owns traffic and its public production smoke passes, the workflow applies
-   the `0024` JewelCert v2 contract fence and runs full readiness. Readiness
-   must verify the native-session epoch, password-reset delivery-state, and v2
-   claim-token invariants. After `0024` commits, only a v2-writing revision is a
-   valid rollback target. Independently, a rollback target after durable epoch
+4. Deploy JewelHire through its manual production workflow. Production already
+   has the `0024` JewelCert v2 contract fence; the migration job requires that
+   exact ledger row and checksum and refuses to cross the boundary if it is not
+   already applied. Before any database change, a GET-only Stripe provider job
+   requires both exact live Prices, the complete webhook event set, a
+   deactivated/drained legacy Payment Link, and zero current legacy
+   subscriptions. From the immutable no-traffic candidate image the workflow
+   then applies additive `0025_standalone_billing_recovery` while the current
+   revision still owns traffic. Before promotion, readiness verifies the native-
+   session epoch, password-reset delivery state, v2 claim-token invariants, and
+   every retained-company billing column/constraint/index. Do not send a
+   standalone checkout before these gates pass.
+   Because `0025` is additive, the current v2-aware revision remains a valid
+   traffic rollback target.
+   Independently, a rollback target after durable epoch
    revocation has been exercised must be epoch-aware; pre-0021 code is unsafe.
 5. Test one user for each role and verify replaying an exchanged code fails.
 6. Verify a Manager cannot read another location or access billing/settings.
@@ -188,9 +209,16 @@ JewelHire:
 - `JEWELLINK_URL=https://ai.jewellink.com`
 - `JEWELLINK_SSO_SHARED_SECRET=...`
 - `JEWELLINK_INTEGRATION_SHARED_SECRET=...`
-- `JEWELHIRE_JEWELLINK_DIRECTOR_ROLE=store_owner`
-- `JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS=0`
+- `JEWELHIRE_ADMIN_EMAILS=<all intended active JewelLink ADMIN/SUPER_ADMIN emails, and no other roles>`
 - `JEWELHIRE_TEAM_INVITES_ENABLED=0` (required for the Diamond Exchange pilot)
+
+Before coordinated cutover, replace the production admin allowlist rather than
+appending to it. The audit must show every intended active JewelLink `ADMIN` and
+`SUPER_ADMIN` is present, no non-admin role is present, and no entry is stale.
+The 2026-07-15 production snapshot has ten active upstream admin-role accounts;
+the existing single allowlist entry belongs to a `DIRECTOR`, so it must be
+removed before this policy is enabled. Do not publish the email values in logs
+or release evidence.
 
 ## Next integration slices
 

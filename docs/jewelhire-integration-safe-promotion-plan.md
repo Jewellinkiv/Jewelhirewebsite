@@ -163,8 +163,10 @@ unchanged.
 4. Execute the complete stateful role matrix:
    - Director becomes JewelHire store owner;
    - Manager becomes location-scoped manager with no billing/settings/admin;
-   - Student and Consultant become applicants;
-   - no JewelLink role becomes JewelHire platform admin.
+   - Student becomes an applicant; Consultant is denied JewelHire access;
+   - ADMIN/SUPER_ADMIN becomes JewelHire platform admin only when the email is
+     independently allowlisted in JewelHire; any upstream company association
+     is not projected as a JewelHire tenant membership.
 5. Prove one-time SSO expiry/replay rejection, idempotent provisioning, hire
    retry, JewelCert invite/result retry, cancellation retention/claim recovery,
    tenant isolation, public application, résumé privacy, analytics, and no

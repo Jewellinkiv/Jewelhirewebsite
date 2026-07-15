@@ -18,6 +18,7 @@ const requireZeroPending = commandArguments.includes("--require-zero-pending");
 const throughArguments = commandArguments.filter((argument) => argument.startsWith("--through="));
 if (throughArguments.length > 1) throw new Error("Specify at most one --through=<migration-id> boundary.");
 const throughMigrationId = throughArguments[0]?.slice("--through=".length).trim() || undefined;
+const requiredAppliedMigrationId = (process.env.REQUIRE_APPLIED_MIGRATION_ID || "").trim() || undefined;
 const migrationLockTimeout = "5s";
 const migrationStatementTimeout = "2min";
 
@@ -74,7 +75,9 @@ Safety:
   remain pending for an explicit contract-phase apply.
   Each migration fails fast after a 5-second lock wait and has a 2-minute
   statement timeout; a timeout rolls back the migration and stops the release.
-  Set REQUIRE_EXISTING_MIGRATION_LEDGER=1 for production release jobs.`);
+  Set REQUIRE_EXISTING_MIGRATION_LEDGER=1 for production release jobs.
+  Set REQUIRE_APPLIED_MIGRATION_ID=<migration-id> when a release may additively
+  extend, but must never cross, an already-committed contract boundary.`);
 }
 
 async function ensureMigrationTable(client) {
@@ -157,6 +160,17 @@ async function apply(client) {
   assertValid(preApply, "Pre-apply migration ledger verification failed; no migrations were applied.");
 
   const repositoryFiles = loadMigrationFiles(migrationsDir);
+  if (requiredAppliedMigrationId) {
+    const requiredFile = repositoryFiles.find((file) => file.id === requiredAppliedMigrationId);
+    if (!requiredFile) {
+      throw new Error(`Required applied migration ${requiredAppliedMigrationId} does not exist in db/migrations.`);
+    }
+    if (preApply.pending.some((file) => file.id === requiredAppliedMigrationId)) {
+      throw new Error(
+        `Required migration ${requiredAppliedMigrationId} is not already applied; refusing to cross a contract boundary in this release job.`,
+      );
+    }
+  }
   const selectedPrefix = migrationFilesThrough(repositoryFiles, throughMigrationId);
   const selectedIds = new Set(selectedPrefix.map((file) => file.id));
   const selectedPending = preApply.pending.filter((file) => selectedIds.has(file.id));

@@ -133,7 +133,9 @@ nonsecret account aliases if email addresses are sensitive.
 | JewelLink Director → JewelHire `store_owner` test alias | **UNSELECTED — BLOCKER** |
 | Location-scoped Manager account alias | **UNSELECTED — BLOCKER** |
 | JewelLink Student → JewelHire applicant test alias | **UNSELECTED — BLOCKER** |
-| JewelLink Consultant → JewelHire applicant test alias | **UNSELECTED — BLOCKER** |
+| JewelLink Consultant denied JewelHire test alias | **UNSELECTED — BLOCKER** |
+| Company-bound allowlisted JewelLink ADMIN → JewelHire platform-admin test alias | **UNSELECTED — BLOCKER** |
+| Allowlisted JewelLink DIRECTOR → denied (no allowlist elevation) test alias | **UNSELECTED — BLOCKER** |
 | Non-admin alias attempting a JewelHire platform-admin route (expected `403`) | **UNSELECTED — BLOCKER** |
 | Non-pilot-company negative-control account | **UNSELECTED — BLOCKER** |
 | Paused/inactive-company negative-control account | **UNSELECTED — BLOCKER** |
@@ -148,11 +150,21 @@ code, unexpected email, duplicate user/hire/invitation/result, public résumé
 access, migration error, sustained 5xx response, or regression in existing
 JewelLink authentication, CRM, UP, POS, settings, or public forms.
 
-The scripted Director→`store_owner`, Manager, Student→applicant,
-Consultant→applicant, non-admin→platform-admin-route `403`, non-pilot, and
-inactive-company cases must all pass. No JewelLink role becomes JewelHire
-platform admin. Any planned case that does not pass is a go/no-go failure
-rather than an accepted pilot warning.
+The scripted Director→`store_owner`, Manager location scope,
+Student→applicant, Consultant denial, non-admin→platform-admin-route `403`,
+company-bound allowlisted ADMIN/SUPER_ADMIN, allowlisted Director denial,
+non-pilot, and inactive-company cases must all pass. No JewelLink role
+automatically becomes JewelHire platform admin. Any planned case that does not
+pass is a go/no-go failure rather than an
+accepted pilot warning.
+
+The production `JEWELHIRE_ADMIN_EMAILS` secret is a cutover blocker. Replace its
+current value with the complete intended set of active JewelLink `ADMIN` and
+`SUPER_ADMIN` identities, remove every non-admin entry, then prove zero missing,
+zero extra, and zero stale identities without printing addresses. The
+2026-07-15 audit found ten active upstream admin-role accounts and one current
+allowlist entry belonging to a `DIRECTOR`; the present secret is therefore not
+safe for promotion.
 
 ## Go/no-go evidence
 

@@ -84,7 +84,7 @@ const EXPECTED_TRIGGERS = [
     id: "billing_or_subscription_changed",
     label: "Stripe checkout, subscription, or billing state changed",
     recipients: "store owner, billing contact",
-    markers: ["STRIPE_STORE_OWNER_PAYMENT_LINK", "checkout", "billing"],
+    markers: ["STRIPE_STORE_OWNER_MONTHLY_PRICE_ID", "STRIPE_STORE_OWNER_ANNUAL_PRICE_ID", "checkout", "billing"],
     wiredMarkers: ["notifyBillingChanged"],
     requiredForLaunch: false,
   },

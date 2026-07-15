@@ -99,30 +99,30 @@ export function nativeAuthAllowed(input: { nativeAuthEnabled: boolean; isPlatfor
   return input.nativeAuthEnabled && !input.isPlatformAdmin;
 }
 
-const JEWELLINK_ELIGIBLE_ROLES = new Set([
-  "SUPER_ADMIN",
-  "ADMIN",
-  "DIRECTOR",
-  "MANAGER",
-  "CONSULTANT",
-  "STUDENT",
-]);
+const JEWELLINK_PLATFORM_ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"]);
+const JEWELLINK_COMPANY_ROLES = new Set(["DIRECTOR", "MANAGER"]);
+
+export function isJewelLinkPlatformAdminRole(role: string) {
+  return JEWELLINK_PLATFORM_ADMIN_ROLES.has(role);
+}
 
 export function jewelLinkRoleAllowedForIdentity(input: {
   role: string;
   isPlatformAdmin: boolean;
   company: { id: string; name: string } | null;
 }) {
-  // Accept only the exact, versioned upstream role contract. SUPER_ADMIN is an
-  // authentication eligibility marker, not a local authorization grant, and is
-  // accepted only for an independently configured, company-neutral JewelHire
-  // platform-admin email. No unknown, legacy, differently-cased, or
-  // whitespace-padded role is allowed to fall through as an applicant.
-  return JEWELLINK_ELIGIBLE_ROLES.has(input.role)
-    && (
-      input.role !== "SUPER_ADMIN"
-      || (input.isPlatformAdmin && input.company === null)
-    );
+  // Accept only the exact upstream role contract. ADMIN and SUPER_ADMIN are
+  // platform roles, never store-owner aliases, and require JewelHire's
+  // independent server-side administrator allowlist. Their upstream company
+  // association is authentication context only and is not projected as a
+  // JewelHire tenant membership.
+  // Company operators require a company, STUDENT is the sole applicant role,
+  // and CONSULTANT (plus every unknown/legacy/case-variant role) is denied.
+  if (isJewelLinkPlatformAdminRole(input.role)) {
+    return input.isPlatformAdmin;
+  }
+  if (JEWELLINK_COMPANY_ROLES.has(input.role)) return input.company !== null;
+  return input.role === "STUDENT";
 }
 
 const APPLICANT_BUNDLE_PATH = /^\/bundle\/([A-Za-z0-9._~-]{1,256})$/;
