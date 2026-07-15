@@ -529,7 +529,7 @@ export async function notifyStandaloneCheckout(input: {
       `Hi ${name},`,
       `${companyName}'s existing JewelHire data is safely retained. To continue without a JewelLink membership, complete the secure Stripe checkout for ${price} per ${cadence}. One subscription covers the organization.`,
       input.checkoutUrl,
-      "This checkout session expires in 24 hours. After Stripe confirms payment, a JewelHire administrator can send your separate single-use account claim link. Payment alone does not set or reveal a password.",
+      "This checkout session expires in 23 hours. After Stripe confirms payment, a JewelHire administrator can send your separate single-use account claim link. Payment alone does not set or reveal a password.",
       "If you did not request standalone access, do not use this link and contact JewelHire support.",
     ].join("\n\n"),
     tag: "standalone-checkout",

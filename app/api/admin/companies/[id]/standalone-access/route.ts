@@ -266,7 +266,7 @@ export const POST = withApiErrorHandling(async function POST(
     ok: true,
     recipient: { id: owner.id, name: owner.name, email: owner.email },
     offer,
-    checkoutExpiresInHours: 24,
+    checkoutExpiresInHours: 23,
     notification,
     jewelLinkAccess,
     access: await getCompanyStandaloneAccessState(params.id),

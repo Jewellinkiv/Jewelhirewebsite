@@ -219,6 +219,8 @@ test("retained-company recovery is payment-gated, idempotent, audited, and data-
   assert.match(signup, /createPendingStoreSignupCheckout/);
   assert.match(webhook, /Never turn an unknown state into[\s\S]*return "past_due"/);
   assert.match(adminRoute, /notifyStandaloneCheckout/);
+  assert.match(adminRoute, /checkoutExpiresInHours:\s*23/);
+  assert.doesNotMatch(adminRoute, /checkoutExpiresInHours:\s*24/);
   assert.match(adminRoute, /reconcileCurrentJewelLinkCompanyAccess/);
   assert.match(adminRoute, /export const PATCH/);
   assert.match(adminRoute, /No access or billing state was changed/);

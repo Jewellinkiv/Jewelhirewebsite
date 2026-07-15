@@ -97,7 +97,7 @@ dedicated integration-secret endpoint, and only then email a one-time Stripe
 Checkout Session for one of
 the two organization prices, wait for the signature-verified paid webhook, then
 send the separate single-use native account claim. Checkout requests are opaque,
-expire after 24 hours, and do not unlock claims. The webhook must match the
+expire after 23 hours, and do not unlock claims. The webhook must match the
 server-created session id and exact selected offer before it atomically replaces
 the included entitlement with an active Stripe entitlement. See
 `docs/billing-readiness.md` for Stripe setup and release verification.
