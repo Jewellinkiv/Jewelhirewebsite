@@ -189,6 +189,7 @@ test("retained-company recovery is payment-gated, idempotent, audited, and data-
   const webhookRoute = read("app/api/stripe/webhook/route.ts");
   const signup = read("lib/server/store-signup.ts");
   const adminRoute = read("app/api/admin/companies/[id]/standalone-access/route.ts");
+  const adminPage = read("app/(admin)/admin/companies/[id]/page.tsx");
   const claimRoute = read("app/api/admin/companies/[id]/claim-links/route.ts");
   const claimCompletion = read("lib/server/password-auth.ts");
 
@@ -219,6 +220,8 @@ test("retained-company recovery is payment-gated, idempotent, audited, and data-
   assert.match(webhook, /Never turn an unknown state into[\s\S]*return "past_due"/);
   assert.match(adminRoute, /notifyStandaloneCheckout/);
   assert.match(adminRoute, /reconcileCurrentJewelLinkCompanyAccess/);
+  assert.match(adminRoute, /export const PATCH/);
+  assert.match(adminRoute, /No access or billing state was changed/);
   assert.match(adminRoute, /jewellink_access_unverified/);
   assert.ok(
     adminRoute.indexOf("reconcileCurrentJewelLinkCompanyAccess")
@@ -231,6 +234,13 @@ test("retained-company recovery is payment-gated, idempotent, audited, and data-
   assert.match(jewelLinkAccess, /where company_id = \$1[\s\S]*source = 'jewellink_included'/);
   assert.match(jewelLinkAccess, /entitlement\.source <> 'jewellink_included'/);
   assert.doesNotMatch(jewelLinkAccess, /delete from (companies|stores|users|applications)/i);
+  assert.match(adminPage, /Verify JewelLink membership/);
+  assert.match(adminPage, /method: "PATCH"/);
+  assert.ok(
+    adminPage.indexOf("Verify JewelLink membership")
+      < adminPage.indexOf("!standaloneAccess?.claimAllowed && !standaloneAccess?.jewellinkAccessActive"),
+    "membership verification must remain visible while stale included access hides checkout",
+  );
   assert.match(adminRoute, /Sent standalone checkout/);
   assert.match(claimRoute, /standalone_entitlement_required/);
   assert.match(claimCompletion, /return \{ ok: false, reason: "standalone_entitlement_required" \}/);

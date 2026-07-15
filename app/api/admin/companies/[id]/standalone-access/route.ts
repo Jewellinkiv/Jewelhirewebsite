@@ -43,6 +43,38 @@ export const GET = withApiErrorHandling(async function GET(
   });
 });
 
+export const PATCH = withApiErrorHandling(async function PATCH(
+  _request: Request,
+  props: { params: Promise<{ id: string }> },
+) {
+  const params = await props.params;
+  const admin = await requireAdminAccess("admin.company_billing.send_checkout");
+  const jewelLinkAccess = await reconcileCurrentJewelLinkCompanyAccess({
+    companyId: params.id,
+    actorUserId: admin.userId,
+    actorEmail: admin.email,
+  });
+  if (!jewelLinkAccess.ok) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "jewellink_access_unverified",
+          message: "Current JewelLink membership could not be verified. No access or billing state was changed.",
+        },
+      },
+      { status: 503 },
+    );
+  }
+  const access = await getCompanyStandaloneAccessState(params.id);
+  if (!access.companyExists) {
+    return NextResponse.json(
+      { error: { code: "company_not_found", message: "Company not found." } },
+      { status: 404 },
+    );
+  }
+  return NextResponse.json({ ok: true, jewelLinkAccess, access });
+});
+
 export const POST = withApiErrorHandling(async function POST(
   request: Request,
   props: { params: Promise<{ id: string }> },

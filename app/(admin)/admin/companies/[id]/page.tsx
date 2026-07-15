@@ -49,6 +49,7 @@ export default function CompanyDetail() {
   const [billingOffers, setBillingOffers] = useState<BillingOffer[]>([]);
   const [billingTargetId, setBillingTargetId] = useState("");
   const [checkoutSending, setCheckoutSending] = useState<"month" | "year" | "">("");
+  const [membershipVerifying, setMembershipVerifying] = useState(false);
 
   const refreshStandaloneAccess = useCallback(async () => {
     const response = await fetch(`/api/admin/companies/${companyId}/standalone-access`, { cache: "no-store" });
@@ -159,6 +160,27 @@ export default function CompanyDetail() {
     const recipient = users.find((user) => user.id === billingTargetId);
     setNotice(`${billingInterval === "year" ? "Annual" : "Monthly"} checkout sent to ${recipient?.name || "the store owner"}. Refresh after Stripe confirms payment.`);
   };
+  const verifyJewelLinkMembership = async () => {
+    setMembershipVerifying(true);
+    const response = await fetch(`/api/admin/companies/${company.id}/standalone-access`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+    });
+    const body = await response.json().catch(() => null);
+    setMembershipVerifying(false);
+    if (!response.ok) {
+      setNotice(body?.error?.message || "JewelLink membership could not be verified.");
+      return;
+    }
+    setStandaloneAccess(body.access);
+    if (body?.jewelLinkAccess?.linked !== true) {
+      setNotice("This company is not linked to a JewelLink workspace. Standalone billing state was not changed.");
+    } else if (body.jewelLinkAccess.active === true) {
+      setNotice("Active JewelLink membership confirmed. JewelHire access remains included at no charge.");
+    } else {
+      setNotice("JewelLink membership is no longer active. Retained data is safe and standalone checkout is now available.");
+    }
+  };
   const billingTargets = users.filter((user) => user.role === "Admin" && user.status === "Active");
 
   return (
@@ -213,9 +235,19 @@ export default function CompanyDetail() {
                   : "Company, store, job, applicant, and analytics data remain in place. Send checkout first; JewelHire will keep account claims locked until a signed Stripe webhook activates the organization entitlement."}
               </p>
             </div>
-            <button type="button" onClick={refreshStandaloneAccess} className="btn-outline px-3 py-2 text-[12px] whitespace-nowrap">
-              Refresh payment status
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={verifyJewelLinkMembership}
+                disabled={membershipVerifying}
+                className="btn-outline px-3 py-2 text-[12px] whitespace-nowrap disabled:opacity-50"
+              >
+                {membershipVerifying ? "Verifying…" : "Verify JewelLink membership"}
+              </button>
+              <button type="button" onClick={refreshStandaloneAccess} className="btn-outline px-3 py-2 text-[12px] whitespace-nowrap">
+                Refresh payment status
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
