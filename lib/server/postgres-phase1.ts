@@ -3137,7 +3137,12 @@ async function replacePostgresPublicPageTestimonials(client: PoolClient, input: 
   await client.query("delete from public_page_testimonials where public_page_id = $1", [input.pageId]);
   const timestamp = new Date().toISOString();
   for (const [index, testimonial] of input.testimonials.entries()) {
-    const testimonialId = testimonial.id || `testimonial-${slugify(testimonial.name || String(index + 1))}-${index + 1}`;
+    const pagePrefix = `${input.pageId}-`;
+    const requestedId = testimonial.id?.trim()
+      || `testimonial-${slugify(testimonial.name || String(index + 1))}-${index + 1}`;
+    const testimonialId = requestedId.startsWith(pagePrefix)
+      ? requestedId
+      : `${pagePrefix}${requestedId}`;
     await client.query(
       `
         insert into public_page_testimonials (
