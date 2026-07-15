@@ -24,7 +24,8 @@ testUrl.searchParams.set("sslmode", "disable");
 const admin = new Client({ connectionString: adminUrl.toString(), ssl: false });
 let databaseCreated = false;
 let pool;
-let cleanupStarted = false;
+let poolError;
+const originalFetch = globalThis.fetch;
 
 function migrateDatabase() {
   const result = spawnSync(
@@ -63,15 +64,18 @@ async function main() {
   const adminBilling = await import("../lib/server/postgres-phase1.ts");
   pool = postgres.getPostgresPool();
   pool.on("error", (error) => {
-    // The disposable database is dropped only after pg_stat_activity reports
-    // zero sessions, so a 57P01 here is tolerable only once cleanup has begun.
-    if (cleanupStarted && error?.code === "57P01") return;
-    throw error;
+    // Teardown never force-drops the database and never issues an administrator
+    // termination, so no session is severed out from under the pool and no
+    // asynchronous pool error is expected. Every pool error is therefore
+    // captured into controlled state (never thrown from this asynchronous
+    // handler, where it would escape the try/catch around main() as an uncaught
+    // exception and skip teardown) and surfaced deterministically after
+    // cleanup completes.
+    if (!poolError) poolError = error;
   });
 
   process.env.JEWELLINK_URL = "https://jewellink.example.test";
   process.env.JEWELLINK_INTEGRATION_SHARED_SECRET = "integration_test_secret";
-  const originalFetch = globalThis.fetch;
   let upstreamState = "active";
   let checkoutSequence = 0;
   globalThis.fetch = async (url, init) => {
@@ -608,16 +612,34 @@ async function waitForDatabaseSessionsToDrain({ timeoutMs = 10_000, intervalMs =
 }
 
 async function cleanup() {
-  cleanupStarted = true;
+  let primaryCleanupError;
   try {
     if (pool) await pool.end();
     if (databaseCreated) {
       await waitForDatabaseSessionsToDrain();
       await admin.query(`drop database if exists "${databaseName}"`);
     }
-  } finally {
-    await admin.end().catch(() => undefined);
+  } catch (error) {
+    primaryCleanupError = error;
   }
+
+  // Always restore the real fetch, even on the failure path where main() threw
+  // before reaching its own success-path restore and left the mock installed.
+  globalThis.fetch = originalFetch;
+
+  // The admin client must always be closed, but its own failure must not be
+  // silently swallowed: surface it, subordinate to any earlier cleanup failure.
+  try {
+    await admin.end();
+  } catch (error) {
+    if (primaryCleanupError) {
+      console.error("Closing the admin client also failed during cleanup:", error);
+    } else {
+      primaryCleanupError = error;
+    }
+  }
+
+  if (primaryCleanupError) throw primaryCleanupError;
 }
 
 let testError;
@@ -635,7 +657,12 @@ try {
 }
 
 if (testError) {
+  if (poolError) console.error("An asynchronous pool error also occurred during the test:", poolError);
   if (cleanupError) console.error("Cleanup also failed after the test failure:", cleanupError);
   throw testError;
+}
+if (poolError) {
+  if (cleanupError) console.error("Cleanup also failed after the pool error:", cleanupError);
+  throw poolError;
 }
 if (cleanupError) throw cleanupError;
