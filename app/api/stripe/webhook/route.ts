@@ -15,7 +15,10 @@ export async function POST(request: Request) {
   }
 
   const result = await handleStripeBillingEvent(verification.event);
-  return NextResponse.json({ received: true, ...result });
+  return NextResponse.json(
+    { received: !result.retryable, ...result },
+    { status: result.retryable ? 503 : 200 },
+  );
 }
 
 export function GET() {

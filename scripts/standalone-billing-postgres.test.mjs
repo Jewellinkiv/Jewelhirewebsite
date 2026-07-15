@@ -56,6 +56,8 @@ async function main() {
   const postgres = await import("../lib/server/postgres.ts");
   const access = await import("../lib/server/standalone-access.ts");
   const jewelLinkAccess = await import("../lib/server/jewellink-company-access.ts");
+  const storeSignup = await import("../lib/server/store-signup.ts");
+  const stripeBilling = await import("../lib/server/stripe-billing.ts");
   const adminBilling = await import("../lib/server/postgres-phase1.ts");
   pool = postgres.getPostgresPool();
 
@@ -364,6 +366,208 @@ async function main() {
     entitlement_status: "active",
     stores: 1,
   });
+
+  await pool.query(
+    `insert into companies (id, name, plan_tier, status)
+     values
+       ('co-ordering', 'Ordering Jewelers', 'growth', 'paused'),
+       ('co-replaced', 'Replaced Link Jewelers', 'growth', 'paused');
+
+     insert into stores (id, company_id, name, slug, status)
+     values
+       ('store-ordering', 'co-ordering', 'Ordering Store', 'ordering-store', 'active'),
+       ('store-replaced', 'co-replaced', 'Replaced Store', 'replaced-store', 'active');
+
+     insert into users (id, company_id, email, email_normalized, name, status)
+     values
+       ('user-ordering-owner', 'co-ordering', 'ordering@example.test', 'ordering@example.test', 'Ordering Owner', 'active'),
+       ('user-replaced-owner', 'co-replaced', 'replaced@example.test', 'replaced@example.test', 'Replaced Owner', 'active');
+
+     insert into store_users (id, store_id, user_id, role, status)
+     values
+       ('membership-ordering', 'store-ordering', 'user-ordering-owner', 'store_owner', 'active'),
+       ('membership-replaced', 'store-replaced', 'user-replaced-owner', 'store_owner', 'active');
+
+     insert into company_access_entitlements (company_id, source, plan_code, status, amount_cents)
+     values
+       ('co-ordering', 'jewellink_included', 'jewellink', 'paused', 0),
+       ('co-replaced', 'jewellink_included', 'jewellink', 'paused', 0);
+
+     insert into standalone_checkout_requests (
+       id, company_id, store_id, requested_for_user_id, billing_interval,
+       amount_cents, status, provider_checkout_session_id, expires_at
+     ) values (
+       'scr-ordering-cancel-first', 'co-ordering', 'store-ordering',
+       'user-ordering-owner', 'month', 14900, 'pending',
+       'cs_test_ordering_cancel_first', now() + interval '1 hour'
+     );
+
+     insert into standalone_checkout_requests (
+       id, company_id, store_id, requested_for_user_id, billing_interval,
+       amount_cents, status, cancellation_reason, provider_checkout_session_id, expires_at
+     ) values (
+       'scr-replaced-delayed-paid', 'co-replaced', 'store-replaced',
+       'user-replaced-owner', 'year', 129900, 'cancelled', 'checkout_replaced',
+       'cs_test_replaced_delayed_paid', now() - interval '1 hour'
+     )`,
+  );
+
+  const orderingEventCreated = Math.floor(Date.now() / 1000);
+  const orderingEventTime = new Date(orderingEventCreated * 1000).toISOString();
+  const cancelledBeforeCheckout = await stripeBilling.handleStripeBillingEvent({
+    id: "evt_test_ordering_cancel_first",
+    type: "customer.subscription.deleted",
+    created: orderingEventCreated,
+    data: {
+      object: {
+        object: "subscription",
+        id: "sub_test_ordering_cancel_first",
+        status: "canceled",
+        current_period_end: orderingEventCreated + 30 * 24 * 60 * 60,
+        customer: "cus_test_ordering",
+        metadata: { jewelhireReferenceId: "scr-ordering-cancel-first" },
+      },
+    },
+  });
+  assert.deepEqual(
+    {
+      reconciled: cancelledBeforeCheckout.reconciled,
+      target: cancelledBeforeCheckout.target,
+      deferred: cancelledBeforeCheckout.deferred,
+      status: cancelledBeforeCheckout.status,
+    },
+    { reconciled: true, target: "subscription_state", deferred: true, status: "cancelled" },
+  );
+  assert.equal(cancelledBeforeCheckout.retryable, false);
+  const sameSecondStaleActive = await access.reconcileStandaloneSubscriptionStatus({
+    providerSubscriptionId: "sub_test_ordering_cancel_first",
+    status: "active",
+    providerCustomerId: "cus_test_ordering",
+    checkoutReferenceId: "scr-ordering-cancel-first",
+    providerEventId: "evt_test_ordering_stale_active",
+    providerEventCreatedAt: orderingEventTime,
+  });
+  assert.equal(sameSecondStaleActive.status, "cancelled");
+  const orderedCheckout = await access.reconcilePaidStandaloneCheckout({
+    referenceId: "scr-ordering-cancel-first",
+    checkoutSessionId: "cs_test_ordering_cancel_first",
+    providerSubscriptionId: "sub_test_ordering_cancel_first",
+    providerCustomerId: "cus_test_ordering",
+    mode: "subscription",
+    status: "complete",
+    paymentStatus: "paid",
+    currency: "usd",
+    amountSubtotal: 14900,
+  });
+  assert.equal(orderedCheckout.reconciled, true);
+  assert.equal(orderedCheckout.deferredStatus, "cancelled");
+  const orderedState = await pool.query(
+    `select c.status as company_status, sub.status as subscription_status,
+            entitlement.status as entitlement_status
+     from companies c
+     join subscriptions sub on sub.company_id = c.id
+     join company_access_entitlements entitlement on entitlement.company_id = c.id
+     where c.id = 'co-ordering'`,
+  );
+  assert.deepEqual(orderedState.rows[0], {
+    company_status: "paused",
+    subscription_status: "cancelled",
+    entitlement_status: "cancelled",
+  });
+
+  const delayedReplacedPayment = await access.reconcilePaidStandaloneCheckout({
+    referenceId: "scr-replaced-delayed-paid",
+    checkoutSessionId: "cs_test_replaced_delayed_paid",
+    providerSubscriptionId: "sub_test_replaced_delayed_paid",
+    providerCustomerId: "cus_test_replaced",
+    mode: "subscription",
+    status: "complete",
+    paymentStatus: "paid",
+    currency: "usd",
+    amountSubtotal: 129900,
+  });
+  assert.equal(delayedReplacedPayment.reconciled, true);
+  const replacedState = await pool.query(
+    `select c.status as company_status, request.status as request_status,
+            entitlement.status as entitlement_status
+     from companies c
+     join standalone_checkout_requests request on request.company_id = c.id
+     join company_access_entitlements entitlement on entitlement.company_id = c.id
+     where c.id = 'co-replaced'`,
+  );
+  assert.deepEqual(replacedState.rows[0], {
+    company_status: "active",
+    request_status: "activated",
+    entitlement_status: "active",
+  });
+
+  const integrationFetch = globalThis.fetch;
+  const checkoutReferences = [];
+  globalThis.fetch = async (url, init = {}) => {
+    assert.equal(String(url), "https://api.stripe.com/v1/checkout/sessions");
+    const body = init.body;
+    const reference = body.get("client_reference_id");
+    checkoutReferences.push(reference);
+    return new Response(JSON.stringify({
+      id: `cs_test_${reference.replace(/[^A-Za-z0-9_]/g, "_")}`,
+      url: `https://checkout.stripe.test/${reference}`,
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  let duplicateCheckouts;
+  try {
+    duplicateCheckouts = await Promise.all([
+      storeSignup.createPendingStoreSignupCheckout({
+        companyName: "Concurrent Jewelers",
+        ownerName: "Concurrent Owner",
+        ownerEmail: "Concurrent@Example.test",
+        plan: "growth",
+        billingInterval: "month",
+      }),
+      storeSignup.createPendingStoreSignupCheckout({
+        companyName: "Concurrent Jewelers",
+        ownerName: "Concurrent Owner",
+        ownerEmail: "concurrent@example.test",
+        plan: "growth",
+        billingInterval: "month",
+      }),
+    ]);
+  } finally {
+    globalThis.fetch = integrationFetch;
+  }
+  assert.equal(duplicateCheckouts.every((checkout) => checkout.ok), true);
+  assert.equal(duplicateCheckouts[0].id, duplicateCheckouts[1].id);
+  assert.equal(duplicateCheckouts[0].sessionId, duplicateCheckouts[1].sessionId);
+  assert.deepEqual(duplicateCheckouts.map((checkout) => checkout.reused).sort(), [false, true]);
+  assert.equal(new Set(checkoutReferences).size, 1);
+  const onePendingSignup = await pool.query(
+    `select count(*)::int as count
+     from pending_store_signups
+     where owner_email_normalized = 'concurrent@example.test' and status = 'pending'`,
+  );
+  assert.equal(onePendingSignup.rows[0]?.count, 1);
+
+  const duplicatePayments = await Promise.all(duplicateCheckouts.map((checkout) =>
+    storeSignup.provisionStoreFromPendingSignup({
+      pendingId: checkout.id,
+      stripeReference: "sub_test_concurrent_signup",
+      checkoutSessionId: checkout.sessionId,
+      billingInterval: "month",
+      amountCents: 14900,
+      customerEmail: "concurrent@example.test",
+    })));
+  assert.equal(duplicatePayments.every((payment) => payment.provisioned), true);
+  assert.equal(duplicatePayments.filter((payment) => payment.provisioned && payment.alreadyDone).length, 1);
+  const paidSignup = duplicatePayments.find((payment) => payment.provisioned && !payment.alreadyDone);
+  assert.ok(paidSignup?.provisioned);
+  const signupProvisioningCounts = await pool.query(
+    `select
+       (select count(*)::int from users where email_normalized = 'concurrent@example.test') as users,
+       (select count(*)::int from companies where id = $1) as companies,
+       (select count(*)::int from subscriptions where company_id = $1) as subscriptions`,
+    [paidSignup.companyId],
+  );
+  assert.deepEqual(signupProvisioningCounts.rows[0], { users: 1, companies: 1, subscriptions: 1 });
+
   globalThis.fetch = originalFetch;
 
   console.log("PASS active JewelLink access cannot be charged");
@@ -372,6 +576,9 @@ async function main() {
   console.log("PASS MRR includes current Stripe access and excludes free JewelLink access");
   console.log("PASS database offer constraints and mismatched webhook evidence cannot activate access");
   console.log("PASS cancelled JewelLink access reconciles idempotently, retains data, and permits exact paid recovery");
+  console.log("PASS cancellation before checkout is durably replayed without provisional access");
+  console.log("PASS a delayed paid webhook for a safely replaced link still activates exact access");
+  console.log("PASS concurrent duplicate signup checkout and payment replay provision exactly once");
 }
 
 try {

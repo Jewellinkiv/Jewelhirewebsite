@@ -75,6 +75,8 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
       ? "This company already has active standalone access."
       : checkout.reason === "jewellink_access_active"
         ? "Standalone access is included while this company's JewelLink membership is active."
+      : checkout.reason === "checkout_payment_processing"
+        ? "An earlier payment is still being confirmed. Refresh shortly; no replacement checkout was created."
       : checkout.reason === "billing_schema_not_ready"
         ? "Billing is temporarily unavailable while a database migration finishes."
       : checkout.reason === "owner_not_found"
@@ -84,7 +86,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
           : "Stripe checkout is temporarily unavailable.";
     return NextResponse.json(
       { error: { code: checkout.reason, message } },
-      { status: checkout.reason === "standalone_access_active" || checkout.reason === "jewellink_access_active" ? 409 : checkout.reason === "owner_not_found" ? 403 : 503 },
+      { status: checkout.reason === "standalone_access_active" || checkout.reason === "jewellink_access_active" || checkout.reason === "checkout_payment_processing" ? 409 : checkout.reason === "owner_not_found" ? 403 : 503 },
     );
   }
   return NextResponse.json({ url: checkout.url, mode: readiness.mode, allowPromotionCodes: readiness.allowPromotionCodes });

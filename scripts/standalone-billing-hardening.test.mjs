@@ -6,6 +6,7 @@ import fs from "node:fs";
 import test from "node:test";
 import {
   createStoreOwnerCheckoutSession,
+  expireStoreOwnerCheckoutSession,
   getStoreOwnerBillingCheckoutReadiness,
   storeOwnerBillingOffer,
   stripeCheckoutMatchesStoreOwnerOffer,
@@ -101,6 +102,57 @@ test("Checkout Session creation binds one server-side session to the opaque requ
   }
 });
 
+test("Checkout replacement binds provider expiry and lets completed payment win the race", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    if (String(url).endsWith("/expire")) {
+      return new Response(JSON.stringify({ error: { code: "checkout_session_not_open" } }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    if (init.method === "GET") {
+      return new Response(JSON.stringify({ status: "complete", payment_status: "paid" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ id: "cs_test_expiring", url: "https://checkout.stripe.test/expiring" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+  try {
+    await withEnv({
+      STRIPE_SECRET_KEY: "sk_test_placeholder",
+      STRIPE_STORE_OWNER_MONTHLY_PRICE_ID: "price_monthly_placeholder",
+      STRIPE_STORE_OWNER_ANNUAL_PRICE_ID: "price_annual_placeholder",
+    }, async () => {
+      const expiresAt = new Date(Date.now() + 23 * 60 * 60 * 1000);
+      const checkout = await createStoreOwnerCheckoutSession({
+        referenceId: "scr-expiry_bound_123",
+        customerEmail: "owner@example.test",
+        billingInterval: "month",
+        expiresAt,
+      });
+      assert.equal(checkout.ok, true);
+      const createBody = calls[0].init.body;
+      assert.equal(createBody.get("expires_at"), String(Math.floor(expiresAt.getTime() / 1000)));
+
+      const expired = await expireStoreOwnerCheckoutSession("cs_test_expiring");
+      assert.deepEqual(expired, { ok: false, reason: "already_completed" });
+      assert.match(calls[1].url, /\/cs_test_expiring\/expire$/);
+      assert.equal(calls[1].init.headers["idempotency-key"], "jewelhire-expire-cs_test_expiring");
+      assert.match(calls[2].url, /\/cs_test_expiring$/);
+      assert.equal(calls[2].init.method, "GET");
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("webhook activation requires exact paid subscription checkout evidence", () => {
   const valid = {
     interval: "month",
@@ -134,11 +186,15 @@ test("retained-company recovery is payment-gated, idempotent, audited, and data-
   const access = read("lib/server/standalone-access.ts");
   const jewelLinkAccess = read("lib/server/jewellink-company-access.ts");
   const webhook = read("lib/server/stripe-billing.ts");
+  const webhookRoute = read("app/api/stripe/webhook/route.ts");
+  const signup = read("lib/server/store-signup.ts");
   const adminRoute = read("app/api/admin/companies/[id]/standalone-access/route.ts");
   const claimRoute = read("app/api/admin/companies/[id]/claim-links/route.ts");
   const claimCompletion = read("lib/server/password-auth.ts");
 
   assert.match(migration, /standalone_checkout_requests/);
+  assert.match(migration, /stripe_subscription_states/);
+  assert.match(migration, /pending_store_signups_pending_email_uidx/);
   assert.match(migration, /provider_checkout_session_id/);
   assert.match(migration, /billing_interval = 'month' and amount_cents = 14900[\s\S]*billing_interval = 'year' and amount_cents = 129900/);
   assert.match(migration, /status in \('pending', 'activated', 'cancelled', 'expired'\)/);
@@ -150,10 +206,16 @@ test("retained-company recovery is payment-gated, idempotent, audited, and data-
   assert.match(access, /insert into company_access_entitlements/);
   assert.match(access, /source = 'stripe'/);
   assert.match(access, /return \{ ok: false, reason: "jewellink_access_active" \}/);
+  assert.match(access, /applyDeferredStandaloneSubscriptionState/);
+  assert.match(access, /checkout_replaced/);
   assert.match(access, /update companies set status = 'active'/);
   assert.doesNotMatch(access, /delete from (companies|stores|users|applications)/i);
   assert.match(webhook, /clientReferenceId\.startsWith\("scr-"\)/);
   assert.match(webhook, /reconcilePaidStandaloneCheckout/);
+  assert.match(webhook, /providerEventCreatedAt/);
+  assert.match(webhookRoute, /result\.retryable \? 503 : 200/);
+  assert.match(signup, /pg_advisory_lock/);
+  assert.match(signup, /createPendingStoreSignupCheckout/);
   assert.match(webhook, /Never turn an unknown state into[\s\S]*return "past_due"/);
   assert.match(adminRoute, /notifyStandaloneCheckout/);
   assert.match(adminRoute, /reconcileCurrentJewelLinkCompanyAccess/);

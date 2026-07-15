@@ -12,6 +12,7 @@ type CheckoutSessionInput = {
   referenceId: string;
   customerEmail?: string | null;
   billingInterval: StoreOwnerBillingInterval;
+  expiresAt?: string | Date | null;
   successPath?: string;
   cancelPath?: string;
 };
@@ -19,6 +20,10 @@ type CheckoutSessionInput = {
 export type StoreOwnerCheckoutSessionResult =
   | { ok: true; id: string; url: string }
   | { ok: false; reason: "not_configured" | "invalid_input" | "stripe_rejected" | "stripe_unavailable" };
+
+export type StoreOwnerCheckoutExpirationResult =
+  | { ok: true; status: "expired" }
+  | { ok: false; reason: "not_configured" | "invalid_input" | "already_completed" | "stripe_rejected" | "stripe_unavailable" };
 
 const STRIPE_CHECKOUT_SESSIONS_URL = "https://api.stripe.com/v1/checkout/sessions";
 const STRIPE_TIMEOUT_MS = 10_000;
@@ -70,6 +75,23 @@ function safeEmail(value?: string | null) {
     : "";
 }
 
+function safeCheckoutSessionId(value?: string | null) {
+  const normalized = value?.trim() || "";
+  return /^cs_(?:test_|live_)?[A-Za-z0-9_]{6,255}$/.test(normalized) ? normalized : "";
+}
+
+function safeCheckoutExpiry(value?: string | Date | null) {
+  if (!value) return undefined;
+  const milliseconds = value instanceof Date ? value.getTime() : Date.parse(value);
+  if (!Number.isFinite(milliseconds)) return undefined;
+  const seconds = Math.floor(milliseconds / 1000);
+  const now = Math.floor(Date.now() / 1000);
+  // Stripe accepts a Checkout expiry from 30 minutes through 24 hours after
+  // creation. Callers use 23 hours so the same timestamp remains valid after
+  // short database or network delays.
+  return seconds >= now + 30 * 60 && seconds <= now + 24 * 60 * 60 ? seconds : undefined;
+}
+
 function safeAppPath(value: string | undefined, fallback: string) {
   const normalized = value?.trim() || fallback;
   return normalized.startsWith("/") && !normalized.startsWith("//") ? normalized : fallback;
@@ -117,6 +139,8 @@ export async function createStoreOwnerCheckoutSession(
   const referenceId = safeStripeReference(input.referenceId);
   if (!referenceId) return { ok: false, reason: "invalid_input" };
   const offer = storeOwnerBillingOffer(input.billingInterval);
+  const expiresAt = safeCheckoutExpiry(input.expiresAt);
+  if (input.expiresAt && !expiresAt) return { ok: false, reason: "invalid_input" };
   const successPath = safeAppPath(input.successPath, "/login?billing=payment_received");
   const cancelPath = safeAppPath(input.cancelPath, "/login?billing=cancelled");
   const body = new URLSearchParams({
@@ -135,6 +159,7 @@ export async function createStoreOwnerCheckoutSession(
   });
   const customerEmail = safeEmail(input.customerEmail);
   if (customerEmail) body.set("customer_email", customerEmail);
+  if (expiresAt) body.set("expires_at", String(expiresAt));
   if (stripeAllowPromotionCodes()) body.set("allow_promotion_codes", "true");
 
   let response: Response;
@@ -158,6 +183,73 @@ export async function createStoreOwnerCheckoutSession(
     return { ok: false, reason: "stripe_rejected" };
   }
   return { ok: true, id: payload.id, url: payload.url };
+}
+
+async function retrieveStoreOwnerCheckoutSession(
+  sessionId: string,
+  secret: string,
+): Promise<{ ok: true; status: string; paymentStatus: string } | { ok: false; reason: "stripe_rejected" | "stripe_unavailable" }> {
+  let response: Response;
+  try {
+    response = await fetch(`${STRIPE_CHECKOUT_SESSIONS_URL}/${encodeURIComponent(sessionId)}`, {
+      method: "GET",
+      headers: { authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(STRIPE_TIMEOUT_MS),
+    });
+  } catch {
+    return { ok: false, reason: "stripe_unavailable" };
+  }
+  if (!response.ok) return { ok: false, reason: "stripe_rejected" };
+  const payload = await response.json().catch(() => null) as { status?: unknown; payment_status?: unknown } | null;
+  return {
+    ok: true,
+    status: typeof payload?.status === "string" ? payload.status : "",
+    paymentStatus: typeof payload?.payment_status === "string" ? payload.payment_status : "",
+  };
+}
+
+/**
+ * Expire a replaced Checkout Session before its database request is cancelled.
+ * If payment won the race, leave the request pending so its delayed signed
+ * webhook can activate access rather than creating a second chargeable link.
+ */
+export async function expireStoreOwnerCheckoutSession(
+  rawSessionId: string,
+): Promise<StoreOwnerCheckoutExpirationResult> {
+  const secret = stripeSecretKey();
+  if (!secret) return { ok: false, reason: "not_configured" };
+  const sessionId = safeCheckoutSessionId(rawSessionId);
+  if (!sessionId) return { ok: false, reason: "invalid_input" };
+
+  let response: Response;
+  try {
+    response = await fetch(`${STRIPE_CHECKOUT_SESSIONS_URL}/${encodeURIComponent(sessionId)}/expire`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${secret}`,
+        "content-type": "application/x-www-form-urlencoded",
+        "idempotency-key": `jewelhire-expire-${sessionId}`,
+      },
+      body: new URLSearchParams(),
+      signal: AbortSignal.timeout(STRIPE_TIMEOUT_MS),
+    });
+  } catch {
+    return { ok: false, reason: "stripe_unavailable" };
+  }
+  if (response.ok) {
+    const payload = await response.json().catch(() => null) as { status?: unknown } | null;
+    return payload?.status === "expired"
+      ? { ok: true, status: "expired" }
+      : { ok: false, reason: "stripe_rejected" };
+  }
+
+  const current = await retrieveStoreOwnerCheckoutSession(sessionId, secret);
+  if (!current.ok) return current;
+  if (current.status === "expired") return { ok: true, status: "expired" };
+  if (current.status === "complete" || current.paymentStatus === "paid") {
+    return { ok: false, reason: "already_completed" };
+  }
+  return { ok: false, reason: "stripe_rejected" };
 }
 
 export function stripeCheckoutMatchesStoreOwnerOffer(input: {

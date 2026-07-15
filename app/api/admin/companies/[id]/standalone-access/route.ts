@@ -149,6 +149,8 @@ export const POST = withApiErrorHandling(async function POST(
       ? "Standalone access is already active. Refresh the status, then send the secure account claim link."
       : checkout.reason === "jewellink_access_active"
         ? "This company's JewelHire access is still included with its active JewelLink membership. Do not send paid standalone checkout."
+      : checkout.reason === "checkout_payment_processing"
+        ? "An earlier Stripe payment is already complete and is still being confirmed. Refresh payment status shortly; no replacement link was created."
       : checkout.reason === "billing_schema_not_ready"
         ? "Standalone billing is temporarily unavailable while its database migration finishes."
       : checkout.reason === "billing_not_configured"
@@ -158,7 +160,7 @@ export const POST = withApiErrorHandling(async function POST(
           : "Secure checkout could not be created.";
     return NextResponse.json(
       { error: { code: checkout.reason, message } },
-      { status: checkout.reason === "standalone_access_active" || checkout.reason === "jewellink_access_active" ? 409 : 503 },
+      { status: checkout.reason === "standalone_access_active" || checkout.reason === "jewellink_access_active" || checkout.reason === "checkout_payment_processing" ? 409 : 503 },
     );
   }
 

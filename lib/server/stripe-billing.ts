@@ -141,6 +141,10 @@ export async function handleStripeBillingEvent(event: StripeWebhookEvent) {
   const supported = supportedStripeBillingEventTypes().has(event.type);
   const object = (event.data?.object || {}) as StripeObject;
   const result = supported ? await reconcileStripeBillingObject(event, object) : { reconciled: false, reason: "unsupported_event_type" };
+  const jewelHireReference = clientReferenceIdFor(object) || metadataString(object, "jewelhireReferenceId");
+  const retryable = supported
+    && !result.reconciled
+    && (jewelHireReference.startsWith("scr-") || jewelHireReference.startsWith("psu-"));
   const firstDelivery = await recordStripeBillingAudit(event, object, result);
   const notification = firstDelivery
     ? await notifyStripeBillingChange(event, object, result)
@@ -149,6 +153,7 @@ export async function handleStripeBillingEvent(event: StripeWebhookEvent) {
     handled: supported,
     eventId: event.id,
     type: event.type,
+    retryable,
     firstDelivery,
     notification,
     ...result,
@@ -312,18 +317,22 @@ async function reconcileStripeBillingObject(event: StripeWebhookEvent, object = 
   return { reconciled: false, reason: "unsupported_event_type" };
 }
 
-async function reconcileStripeSubscriptionEvent(_event: StripeWebhookEvent, object: StripeObject) {
+async function reconcileStripeSubscriptionEvent(event: StripeWebhookEvent, object: StripeObject) {
   const providerSubscriptionId = object.id || "";
   if (!providerSubscriptionId) return { reconciled: false, reason: "missing_subscription" };
   const status = subscriptionStatusFor(object.status);
   const currentPeriodStart = timestampFromUnix(object.current_period_start);
   const currentPeriodEnd = timestampFromUnix(object.current_period_end);
+  const checkoutReferenceId = metadataString(object, "jewelhireReferenceId");
   return reconcileStandaloneSubscriptionStatus({
     providerSubscriptionId,
     status,
     currentPeriodStart,
     currentPeriodEnd,
     providerCustomerId: typeof object.customer === "string" ? object.customer : null,
+    checkoutReferenceId,
+    providerEventId: event.id,
+    providerEventCreatedAt: timestampFromUnix(event.created) || new Date().toISOString(),
   });
 }
 

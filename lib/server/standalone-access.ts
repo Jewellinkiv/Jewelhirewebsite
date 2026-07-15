@@ -1,14 +1,30 @@
 import { randomBytes } from "node:crypto";
+import type { PoolClient } from "pg";
 import { getPostgresPool } from "@/lib/server/postgres";
 import {
   createStoreOwnerCheckoutSession,
+  expireStoreOwnerCheckoutSession,
   getStoreOwnerBillingCheckoutReadiness,
   storeOwnerBillingOffer,
   stripeCheckoutMatchesStoreOwnerOffer,
   type StoreOwnerBillingInterval,
 } from "@/lib/server/store-owner-billing";
 
-const CHECKOUT_TTL_DAYS = 1;
+const CHECKOUT_TTL_MS = 23 * 60 * 60 * 1000;
+
+type StandaloneSubscriptionStatus = "active" | "trialing" | "past_due" | "cancelled";
+
+type StoredSubscriptionState = {
+  checkout_reference_id: string;
+  provider_customer_id: string | null;
+  status: StandaloneSubscriptionStatus;
+  current_period_start: Date | string | null;
+  current_period_end: Date | string | null;
+};
+
+function validCheckoutReferenceId(value?: string | null) {
+  return /^(?:scr|psu)-[A-Za-z0-9_-]{8,200}$/.test(value || "");
+}
 
 export type StandaloneAccessState = {
   schemaReady: boolean;
@@ -55,11 +71,93 @@ function iso(value: Date | string | null) {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
+async function storedSubscriptionState(
+  client: PoolClient,
+  providerSubscriptionId: string,
+  checkoutReferenceId?: string | null,
+) {
+  const result = await client.query<StoredSubscriptionState>(
+    `select checkout_reference_id, provider_customer_id, status,
+            current_period_start, current_period_end
+     from stripe_subscription_states
+     where provider_subscription_id = $1
+       and ($2::text is null or checkout_reference_id = $2)
+     limit 1`,
+    [providerSubscriptionId, checkoutReferenceId || null],
+  );
+  return result.rows[0];
+}
+
+async function applySubscriptionState(
+  client: PoolClient,
+  input: {
+    companyId: string;
+    providerSubscriptionId: string;
+    state: StoredSubscriptionState;
+  },
+) {
+  await client.query(
+    `update subscriptions
+     set status = $2,
+         current_period_start = coalesce($3::timestamptz, current_period_start),
+         current_period_end = coalesce($4::timestamptz, current_period_end),
+         updated_at = now()
+     where company_id = $1 and provider = 'stripe' and provider_subscription_id = $5`,
+    [
+      input.companyId,
+      input.state.status,
+      input.state.current_period_start || null,
+      input.state.current_period_end || null,
+      input.providerSubscriptionId,
+    ],
+  );
+  const entitlementStatus = input.state.status === "active" || input.state.status === "trialing"
+    ? "active"
+    : input.state.status;
+  await client.query(
+    `update company_access_entitlements
+     set status = $2,
+         provider_customer_id = coalesce($3, provider_customer_id),
+         expires_at = coalesce($4::timestamptz, expires_at),
+         updated_at = now()
+     where company_id = $1 and source = 'stripe' and provider_subscription_id = $5`,
+    [
+      input.companyId,
+      entitlementStatus,
+      input.state.provider_customer_id,
+      input.state.current_period_end || null,
+      input.providerSubscriptionId,
+    ],
+  );
+  await client.query(
+    `update companies
+     set status = case when $2 in ('active', 'trialing') then 'active' else 'paused' end,
+         updated_at = now()
+     where id = $1`,
+    [input.companyId, input.state.status],
+  );
+  return input.state.status;
+}
+
+export async function applyDeferredStandaloneSubscriptionState(
+  client: PoolClient,
+  input: {
+    companyId: string;
+    providerSubscriptionId: string;
+    checkoutReferenceId: string;
+  },
+) {
+  const state = await storedSubscriptionState(client, input.providerSubscriptionId, input.checkoutReferenceId);
+  if (!state) return null;
+  return applySubscriptionState(client, { ...input, state });
+}
+
 export async function standaloneBillingSchemaReady() {
   const pool = getPostgresPool();
   const result = await pool.query<{ ready: boolean }>(
     `select (
        to_regclass('public.standalone_checkout_requests') is not null
+       and to_regclass('public.stripe_subscription_states') is not null
        and to_regclass('public.schema_migrations') is not null
        and exists (
          select 1 from information_schema.columns
@@ -72,6 +170,12 @@ export async function standaloneBillingSchemaReady() {
          where table_schema = 'public'
            and table_name = 'pending_store_signups'
            and column_name = 'provider_checkout_session_id'
+       )
+       and exists (
+         select 1 from information_schema.columns
+         where table_schema = 'public'
+           and table_name = 'pending_store_signups'
+           and column_name = 'checkout_expires_at'
        )
      ) as ready`,
   );
@@ -247,7 +351,7 @@ export async function getCompanyStandaloneAccessState(companyId: string): Promis
 
 export type CreateStandaloneCheckoutResult =
   | { ok: true; requestId: string; sessionId: string; url: string; reused: boolean }
-  | { ok: false; reason: "company_not_found" | "owner_not_found" | "jewellink_access_active" | "standalone_access_active" | "billing_not_configured" | "billing_schema_not_ready" | "stripe_rejected" | "stripe_unavailable" };
+  | { ok: false; reason: "company_not_found" | "owner_not_found" | "jewellink_access_active" | "standalone_access_active" | "billing_not_configured" | "billing_schema_not_ready" | "checkout_payment_processing" | "stripe_rejected" | "stripe_unavailable" };
 
 export async function createStandaloneCheckoutRequest(input: {
   companyId: string;
@@ -266,6 +370,7 @@ export async function createStandaloneCheckoutRequest(input: {
   const client = await pool.connect();
   let requestId = "";
   let reused = false;
+  let expiresAt = new Date(Date.now() + CHECKOUT_TTL_MS);
   try {
     await client.query("begin");
     const company = await client.query<{ id: string }>(
@@ -345,15 +450,15 @@ export async function createStandaloneCheckoutRequest(input: {
       return { ok: false, reason: "standalone_access_active" };
     }
 
-    const existing = await client.query<{ id: string }>(
-      `select id
+    const existing = await client.query<{ id: string; expires_at: Date | string }>(
+      `select id, expires_at
        from standalone_checkout_requests
        where company_id = $1
          and requested_for_user_id = $2
          and billing_interval = $3
          and amount_cents = $4
          and status = 'pending'
-         and expires_at > now()
+         and expires_at > now() + interval '30 minutes'
        order by created_at desc
        limit 1
        for update`,
@@ -361,10 +466,37 @@ export async function createStandaloneCheckoutRequest(input: {
     );
     requestId = existing.rows[0]?.id || `scr-${randomBytes(18).toString("base64url")}`;
     reused = Boolean(existing.rows[0]);
+    if (existing.rows[0]) expiresAt = new Date(existing.rows[0].expires_at);
     if (!reused) {
+      const replaced = await client.query<{ provider_checkout_session_id: string | null }>(
+        `select provider_checkout_session_id
+         from standalone_checkout_requests
+         where company_id = $1 and status = 'pending'
+         order by created_at desc
+         for update`,
+        [input.companyId],
+      );
+      for (const prior of replaced.rows) {
+        if (!prior.provider_checkout_session_id) continue;
+        const expired = await expireStoreOwnerCheckoutSession(prior.provider_checkout_session_id);
+        if (!expired.ok) {
+          await client.query("rollback");
+          if (expired.reason === "already_completed") {
+            return { ok: false, reason: "checkout_payment_processing" };
+          }
+          return {
+            ok: false,
+            reason: expired.reason === "stripe_unavailable"
+              ? "stripe_unavailable"
+              : expired.reason === "not_configured"
+                ? "billing_not_configured"
+                : "stripe_rejected",
+          };
+        }
+      }
       await client.query(
         `update standalone_checkout_requests
-         set status = 'cancelled', updated_at = now()
+         set status = 'cancelled', cancellation_reason = 'checkout_replaced', updated_at = now()
          where company_id = $1 and status = 'pending'`,
         [input.companyId],
       );
@@ -376,48 +508,59 @@ export async function createStandaloneCheckoutRequest(input: {
          values (
            $1, $2, $3, $4,
            case when exists (select 1 from users where id = $5) then $5 else null end,
-           $6, $7, 'pending', now() + ($8::text || ' days')::interval
+           $6, $7, 'pending', $8
          )`,
-        [requestId, input.companyId, input.storeId, input.requestedForUserId, input.createdByUserId, offer.interval, offer.amountCents, CHECKOUT_TTL_DAYS],
+        [requestId, input.companyId, input.storeId, input.requestedForUserId, input.createdByUserId, offer.interval, offer.amountCents, expiresAt],
       );
     }
+    const checkout = await createStoreOwnerCheckoutSession({
+      referenceId: requestId,
+      customerEmail: input.customerEmail,
+      billingInterval: input.billingInterval,
+      expiresAt,
+    });
+    if (!checkout.ok) {
+      if (checkout.reason === "stripe_rejected" || checkout.reason === "invalid_input") {
+        await client.query(
+          `update standalone_checkout_requests
+           set status = 'cancelled', cancellation_reason = 'checkout_creation_failed', updated_at = now()
+           where id = $1 and status = 'pending'`,
+          [requestId],
+        );
+      }
+      // A network timeout is ambiguous: preserve the same opaque request so an
+      // idempotent retry cannot create an orphan Checkout Session.
+      await client.query("commit");
+      return {
+        ok: false,
+        reason: checkout.reason === "not_configured"
+          ? "billing_not_configured"
+          : checkout.reason === "stripe_unavailable"
+            ? "stripe_unavailable"
+            : "stripe_rejected",
+      };
+    }
+    const bound = await client.query(
+      `update standalone_checkout_requests
+       set provider_checkout_session_id = $2, updated_at = now()
+       where id = $1 and status = 'pending'
+         and (provider_checkout_session_id is null or provider_checkout_session_id = $2)
+       returning id`,
+      [requestId, checkout.id],
+    );
+    if (!bound.rows[0]) {
+      await client.query("rollback");
+      await expireStoreOwnerCheckoutSession(checkout.id);
+      return { ok: false, reason: "stripe_rejected" };
+    }
     await client.query("commit");
+    return { ok: true, requestId, sessionId: checkout.id, url: checkout.url, reused };
   } catch (error) {
     await client.query("rollback");
     throw error;
   } finally {
     client.release();
   }
-
-  const checkout = await createStoreOwnerCheckoutSession({
-    referenceId: requestId,
-    customerEmail: input.customerEmail,
-    billingInterval: input.billingInterval,
-  });
-  if (!checkout.ok) {
-    if (checkout.reason === "stripe_rejected" || checkout.reason === "invalid_input") {
-      await pool.query(
-        "update standalone_checkout_requests set status = 'cancelled', updated_at = now() where id = $1 and status = 'pending'",
-        [requestId],
-      );
-    }
-    return {
-      ok: false,
-      reason: checkout.reason === "not_configured"
-        ? "billing_not_configured"
-        : checkout.reason === "stripe_unavailable"
-          ? "stripe_unavailable"
-          : "stripe_rejected",
-    };
-  }
-  await pool.query(
-    `update standalone_checkout_requests
-     set provider_checkout_session_id = $2, updated_at = now()
-     where id = $1 and status = 'pending'
-       and (provider_checkout_session_id is null or provider_checkout_session_id = $2)`,
-    [requestId, checkout.id],
-  );
-  return { ok: true, requestId, sessionId: checkout.id, url: checkout.url, reused };
 }
 
 export async function reconcilePaidStandaloneCheckout(input: {
@@ -439,13 +582,12 @@ export async function reconcilePaidStandaloneCheckout(input: {
       billing_interval: StoreOwnerBillingInterval;
       amount_cents: number;
       status: string;
+      cancellation_reason: string | null;
       provider_checkout_session_id: string | null;
       provider_subscription_id: string | null;
-      request_active: boolean;
     }>(
-      `select company_id, billing_interval, amount_cents, status,
-              provider_checkout_session_id, provider_subscription_id,
-              expires_at > now() as request_active
+      `select company_id, billing_interval, amount_cents, status, cancellation_reason,
+              provider_checkout_session_id, provider_subscription_id
        from standalone_checkout_requests
        where id = $1
        for update`,
@@ -461,21 +603,24 @@ export async function reconcilePaidStandaloneCheckout(input: {
       && row.provider_checkout_session_id === input.checkoutSessionId
       && row.provider_subscription_id === input.providerSubscriptionId
     ) {
+      const deferredStatus = await applyDeferredStandaloneSubscriptionState(client, {
+        companyId: row.company_id,
+        providerSubscriptionId: input.providerSubscriptionId,
+        checkoutReferenceId: input.referenceId,
+      });
       await client.query("commit");
-      return { reconciled: true, target: "standalone_access", companyId: row.company_id, alreadyActivated: true };
-    }
-    if (row.status !== "pending" || !row.request_active) {
-      if (row.status === "pending") {
-        await client.query("update standalone_checkout_requests set status = 'expired', updated_at = now() where id = $1", [input.referenceId]);
-        await client.query("commit");
-      } else {
-        await client.query("rollback");
-      }
-      return { reconciled: false, reason: "checkout_request_not_active" };
+      return { reconciled: true, target: "standalone_access", companyId: row.company_id, alreadyActivated: true, deferredStatus };
     }
     if (!row.provider_checkout_session_id || row.provider_checkout_session_id !== input.checkoutSessionId) {
       await client.query("rollback");
       return { reconciled: false, reason: "checkout_session_mismatch" };
+    }
+    const delayedPaidSessionAllowed = row.status === "pending"
+      || row.status === "expired"
+      || (row.status === "cancelled" && row.cancellation_reason === "checkout_replaced");
+    if (!delayedPaidSessionAllowed) {
+      await client.query("rollback");
+      return { reconciled: false, reason: "checkout_request_not_active" };
     }
     const offer = storeOwnerBillingOffer(row.billing_interval);
     if (
@@ -551,11 +696,16 @@ export async function reconcilePaidStandaloneCheckout(input: {
     );
     await client.query(
       `update standalone_checkout_requests
-       set status = 'activated', provider_subscription_id = $2,
+       set status = 'activated', cancellation_reason = null, provider_subscription_id = $2,
            activated_at = now(), updated_at = now()
        where id = $1`,
       [input.referenceId, input.providerSubscriptionId],
     );
+    const deferredStatus = await applyDeferredStandaloneSubscriptionState(client, {
+      companyId: row.company_id,
+      providerSubscriptionId: input.providerSubscriptionId,
+      checkoutReferenceId: input.referenceId,
+    });
     await client.query("commit");
     return {
       reconciled: true,
@@ -564,6 +714,7 @@ export async function reconcilePaidStandaloneCheckout(input: {
       providerSubscriptionId: input.providerSubscriptionId,
       billingInterval: offer.interval,
       amountCents: offer.amountCents,
+      deferredStatus,
     };
   } catch (error) {
     await client.query("rollback");
@@ -575,14 +726,73 @@ export async function reconcilePaidStandaloneCheckout(input: {
 
 export async function reconcileStandaloneSubscriptionStatus(input: {
   providerSubscriptionId: string;
-  status: "active" | "trialing" | "past_due" | "cancelled";
+  status: StandaloneSubscriptionStatus;
   currentPeriodStart?: string | null;
   currentPeriodEnd?: string | null;
   providerCustomerId?: string | null;
+  checkoutReferenceId?: string | null;
+  providerEventId?: string | null;
+  providerEventCreatedAt?: string | null;
 }) {
   const client = await getPostgresPool().connect();
   try {
     await client.query("begin");
+    let durableState: StoredSubscriptionState | undefined;
+    const eventCreatedAt = Date.parse(input.providerEventCreatedAt || "");
+    if (
+      validCheckoutReferenceId(input.checkoutReferenceId)
+      && typeof input.providerEventId === "string"
+      && input.providerEventId.length > 0
+      && input.providerEventId.length <= 255
+      && Number.isFinite(eventCreatedAt)
+    ) {
+      await client.query(
+        `insert into stripe_subscription_states (
+           provider_subscription_id, checkout_reference_id, provider_customer_id,
+           status, current_period_start, current_period_end,
+           provider_event_id, provider_event_created_at, received_at, updated_at
+         )
+         values ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, $7, $8::timestamptz, now(), now())
+         on conflict (provider_subscription_id) do update set
+           provider_customer_id = coalesce(excluded.provider_customer_id, stripe_subscription_states.provider_customer_id),
+           status = excluded.status,
+           current_period_start = coalesce(excluded.current_period_start, stripe_subscription_states.current_period_start),
+           current_period_end = coalesce(excluded.current_period_end, stripe_subscription_states.current_period_end),
+           provider_event_id = excluded.provider_event_id,
+           provider_event_created_at = excluded.provider_event_created_at,
+           received_at = now(),
+           updated_at = now()
+         where stripe_subscription_states.checkout_reference_id = excluded.checkout_reference_id
+           and (
+             stripe_subscription_states.provider_event_created_at < excluded.provider_event_created_at
+             or (
+               stripe_subscription_states.provider_event_created_at = excluded.provider_event_created_at
+               and (
+                 stripe_subscription_states.provider_event_id = excluded.provider_event_id
+                 or (
+                   stripe_subscription_states.status in ('active', 'trialing')
+                   and excluded.status in ('past_due', 'cancelled')
+                 )
+               )
+             )
+           )`,
+        [
+          input.providerSubscriptionId,
+          input.checkoutReferenceId,
+          input.providerCustomerId || null,
+          input.status,
+          input.currentPeriodStart || null,
+          input.currentPeriodEnd || null,
+          input.providerEventId,
+          input.providerEventCreatedAt,
+        ],
+      );
+      durableState = await storedSubscriptionState(
+        client,
+        input.providerSubscriptionId,
+        input.checkoutReferenceId,
+      );
+    }
     const subscription = await client.query<{ company_id: string }>(
       `select sub.company_id
        from subscriptions sub
@@ -597,37 +807,39 @@ export async function reconcileStandaloneSubscriptionStatus(input: {
     );
     const companyId = subscription.rows[0]?.company_id;
     if (!companyId) {
+      if (durableState) {
+        await client.query("commit");
+        return {
+          reconciled: true,
+          target: "subscription_state",
+          providerSubscriptionId: input.providerSubscriptionId,
+          deferred: true,
+          status: durableState.status,
+        };
+      }
       await client.query("rollback");
       return { reconciled: false, reason: "unknown_standalone_subscription" };
     }
-    await client.query(
-      `update subscriptions
-       set status = $2,
-           current_period_start = coalesce($3::timestamptz, current_period_start),
-           current_period_end = coalesce($4::timestamptz, current_period_end),
-           updated_at = now()
-       where company_id = $1 and provider_subscription_id = $5`,
-      [companyId, input.status, input.currentPeriodStart || null, input.currentPeriodEnd || null, input.providerSubscriptionId],
-    );
-    const entitlementStatus = input.status === "active" || input.status === "trialing" ? "active" : input.status;
-    await client.query(
-      `update company_access_entitlements
-       set status = $2,
-           provider_customer_id = coalesce($3, provider_customer_id),
-           expires_at = coalesce($4::timestamptz, expires_at),
-           updated_at = now()
-       where company_id = $1 and source = 'stripe' and provider_subscription_id = $5`,
-      [companyId, entitlementStatus, input.providerCustomerId || null, input.currentPeriodEnd || null, input.providerSubscriptionId],
-    );
-    await client.query(
-      `update companies
-       set status = case when $2 in ('active', 'trialing') then 'active' else 'paused' end,
-           updated_at = now()
-       where id = $1`,
-      [companyId, input.status],
-    );
+    const state = durableState || {
+      checkout_reference_id: input.checkoutReferenceId || "",
+      provider_customer_id: input.providerCustomerId || null,
+      status: input.status,
+      current_period_start: input.currentPeriodStart || null,
+      current_period_end: input.currentPeriodEnd || null,
+    };
+    await applySubscriptionState(client, {
+      companyId,
+      providerSubscriptionId: input.providerSubscriptionId,
+      state,
+    });
     await client.query("commit");
-    return { reconciled: true, target: "subscription", companyId, providerSubscriptionId: input.providerSubscriptionId };
+    return {
+      reconciled: true,
+      target: "subscription",
+      companyId,
+      providerSubscriptionId: input.providerSubscriptionId,
+      status: state.status,
+    };
   } catch (error) {
     await client.query("rollback");
     throw error;

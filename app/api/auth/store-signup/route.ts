@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { isConfiguredAdminEmail } from "@/lib/server/auth";
 import { userExistsForEmail } from "@/lib/server/invite-claim";
-import { createPendingStoreSignup } from "@/lib/server/store-signup";
-import { getPostgresPool } from "@/lib/server/postgres";
+import { createPendingStoreSignupCheckout } from "@/lib/server/store-signup";
 import { standaloneBillingSchemaReady } from "@/lib/server/standalone-access";
 import {
-  createStoreOwnerCheckoutSession,
   getStoreOwnerBillingCheckoutReadiness,
   isStoreOwnerBillingInterval,
 } from "@/lib/server/store-owner-billing";
@@ -81,32 +79,30 @@ export async function POST(request: Request) {
     context: { companyName },
   });
 
-  const { id } = await createPendingStoreSignup({
+  const checkout = await createPendingStoreSignupCheckout({
     companyName,
     ownerName,
     ownerEmail: email,
     plan: "growth",
     billingInterval,
   });
-  const checkout = await createStoreOwnerCheckoutSession({
-    referenceId: id,
-    customerEmail: email,
-    billingInterval,
-    successPath: "/login?signup=payment_received",
-    cancelPath: "/signup/store?signup=cancelled",
-  });
   if (!checkout.ok) {
+    const paymentProcessing = checkout.reason === "checkout_payment_processing";
+    const accountExists = checkout.reason === "account_exists";
     return NextResponse.json(
-      { error: { code: "billing_unavailable", message: "We couldn't start checkout. Please try again." } },
-      { status: 503 },
+      {
+        error: {
+          code: checkout.reason,
+          message: accountExists
+            ? "An account with this email already exists. Sign in instead."
+            : paymentProcessing
+              ? "Your earlier payment is still being confirmed. Check your email or try signing in shortly."
+              : "We couldn't start checkout. Please try again.",
+        },
+      },
+      { status: paymentProcessing || accountExists ? 409 : 503 },
     );
   }
-  await getPostgresPool().query(
-    `update pending_store_signups
-     set provider_checkout_session_id = $2, updated_at = now()
-     where id = $1 and status = 'pending'`,
-    [id, checkout.id],
-  );
 
   return NextResponse.json({ ok: true, checkoutUrl: checkout.url });
 }
