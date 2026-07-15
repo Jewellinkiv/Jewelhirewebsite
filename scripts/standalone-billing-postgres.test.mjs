@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 
@@ -23,6 +24,7 @@ testUrl.searchParams.set("sslmode", "disable");
 const admin = new Client({ connectionString: adminUrl.toString(), ssl: false });
 let databaseCreated = false;
 let pool;
+let cleanupStarted = false;
 
 function migrateDatabase() {
   const result = spawnSync(
@@ -60,6 +62,12 @@ async function main() {
   const stripeBilling = await import("../lib/server/stripe-billing.ts");
   const adminBilling = await import("../lib/server/postgres-phase1.ts");
   pool = postgres.getPostgresPool();
+  pool.on("error", (error) => {
+    // The disposable database is dropped only after pg_stat_activity reports
+    // zero sessions, so a 57P01 here is tolerable only once cleanup has begun.
+    if (cleanupStarted && error?.code === "57P01") return;
+    throw error;
+  });
 
   process.env.JEWELLINK_URL = "https://jewellink.example.test";
   process.env.JEWELLINK_INTEGRATION_SHARED_SECRET = "integration_test_secret";
@@ -581,12 +589,53 @@ async function main() {
   console.log("PASS concurrent duplicate signup checkout and payment replay provision exactly once");
 }
 
+async function waitForDatabaseSessionsToDrain({ timeoutMs = 10_000, intervalMs = 200 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const result = await admin.query(
+      "select count(*)::int as sessions from pg_stat_activity where datname = $1",
+      [databaseName],
+    );
+    const sessions = result.rows[0]?.sessions ?? 0;
+    if (sessions === 0) return;
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Disposable database "${databaseName}" still has ${sessions} session(s) after ${timeoutMs}ms; refusing to force-drop.`,
+      );
+    }
+    await delay(intervalMs);
+  }
+}
+
+async function cleanup() {
+  cleanupStarted = true;
+  try {
+    if (pool) await pool.end();
+    if (databaseCreated) {
+      await waitForDatabaseSessionsToDrain();
+      await admin.query(`drop database if exists "${databaseName}"`);
+    }
+  } finally {
+    await admin.end().catch(() => undefined);
+  }
+}
+
+let testError;
 try {
   await main();
-} finally {
-  if (pool) await pool.end().catch(() => undefined);
-  if (databaseCreated) {
-    await admin.query(`drop database if exists "${databaseName}" with (force)`).catch(() => undefined);
-  }
-  await admin.end().catch(() => undefined);
+} catch (error) {
+  testError = error;
 }
+
+let cleanupError;
+try {
+  await cleanup();
+} catch (error) {
+  cleanupError = error;
+}
+
+if (testError) {
+  if (cleanupError) console.error("Cleanup also failed after the test failure:", cleanupError);
+  throw testError;
+}
+if (cleanupError) throw cleanupError;
