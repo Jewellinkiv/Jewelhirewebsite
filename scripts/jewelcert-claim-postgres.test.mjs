@@ -24,6 +24,7 @@ testUrl.searchParams.set("sslmode", "disable");
 const admin = new Client({ connectionString: adminUrl.toString(), ssl: false });
 let databaseCreated = false;
 let pool;
+let poolError;
 const inviteRecipients = new Map();
 
 function stableIntegrationId(prefix, value) {
@@ -207,6 +208,16 @@ async function main() {
   const previewRoute = await import("../app/api/auth/jewelcert-claim/preview/route.ts");
   const legal = await import("../lib/legal.ts");
   pool = postgres.getPostgresPool();
+  pool.on("error", (error) => {
+    // Teardown never force-drops the database and never issues an administrator
+    // termination, so no session is severed out from under the pool and no
+    // asynchronous pool error is expected. Every pool error is therefore
+    // captured into controlled state (never thrown from this asynchronous
+    // handler, where it would escape the try/catch around main() as an uncaught
+    // exception and skip teardown) and surfaced deterministically after cleanup
+    // completes. 57P01 is captured like any other error rather than tolerated.
+    if (!poolError) poolError = error;
+  });
   const legalPayload = legal.currentLegalConsentPayload();
   const fakePasswordHash = "scrypt$1$16384$8$1$test-salt$test-derived-key";
   const fastHasher = async () => fakePasswordHash;
@@ -856,16 +867,72 @@ async function main() {
   console.log("PASS JewelCert claim PostgreSQL hardening suite");
 }
 
+async function waitForDatabaseSessionsToDrain({ timeoutMs = 10_000, intervalMs = 200 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const result = await admin.query(
+      "select count(*)::int as sessions from pg_stat_activity where datname = $1",
+      [databaseName],
+    );
+    const sessions = result.rows[0]?.sessions ?? 0;
+    if (sessions === 0) return;
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Disposable database "${databaseName}" still has ${sessions} session(s) after ${timeoutMs}ms; refusing to force-drop.`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
+async function cleanup() {
+  let primaryCleanupError;
+  try {
+    if (pool) await pool.end();
+    if (databaseCreated) {
+      await waitForDatabaseSessionsToDrain();
+      await admin.query(`drop database if exists "${databaseName}"`);
+    }
+  } catch (error) {
+    primaryCleanupError = error;
+  }
+
+  // The admin client must always be closed, but its own failure must not be
+  // silently swallowed: surface it, subordinate to any earlier cleanup failure.
+  try {
+    await admin.end();
+  } catch (error) {
+    if (primaryCleanupError) {
+      console.error("Closing the admin client also failed during cleanup:", error);
+    } else {
+      primaryCleanupError = error;
+    }
+  }
+
+  if (primaryCleanupError) throw primaryCleanupError;
+}
+
+let testError;
 try {
   await main();
-} finally {
-  if (pool) await pool.end().catch(() => undefined);
-  if (databaseCreated) {
-    await admin.query(
-      "select pg_terminate_backend(pid) from pg_stat_activity where datname = $1 and pid <> pg_backend_pid()",
-      [databaseName],
-    ).catch(() => undefined);
-    await admin.query(`drop database if exists "${databaseName}"`).catch(() => undefined);
-  }
-  await admin.end().catch(() => undefined);
+} catch (error) {
+  testError = error;
 }
+
+let cleanupError;
+try {
+  await cleanup();
+} catch (error) {
+  cleanupError = error;
+}
+
+if (testError) {
+  if (poolError) console.error("An asynchronous pool error also occurred during the test:", poolError);
+  if (cleanupError) console.error("Cleanup also failed after the test failure:", cleanupError);
+  throw testError;
+}
+if (poolError) {
+  if (cleanupError) console.error("Cleanup also failed after the pool error:", cleanupError);
+  throw poolError;
+}
+if (cleanupError) throw cleanupError;
