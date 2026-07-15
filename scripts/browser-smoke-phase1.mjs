@@ -23,7 +23,6 @@ const headed = args.has("headed");
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const artifactDir = path.resolve(rootDir, args.get("artifacts") || `docs/qa-runs/${timestamp}`);
 const STORE_ID = "store-sissys-little-rock";
-const MAYA_EMAIL = "maya.chen@email.com";
 const PUBLIC_STORE_SLUG = "sissys-log-cabin-careers";
 
 const desktop = { width: 1440, height: 1000 };
@@ -429,10 +428,11 @@ async function publicApplyFlow(page) {
   await page.goto(`${baseUrl}/careers/${PUBLIC_STORE_SLUG}/apply/job-luxury-sales-associate`, { waitUntil: "networkidle" });
   await fillField(page, "Full name *", `Browser Applicant ${suffix}`);
   await fillField(page, "Email *", `browser-applicant-${suffix}@example.com`);
-  await fillField(page, "Phone", "555-0160");
-  await fillField(page, "Location", "Little Rock, AR");
+  await fillField(page, "Phone (optional)", "555-0160");
+  await fillField(page, "City and state (optional)", "Little Rock, AR");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: /Submit application/i }).click();
+  await page.getByRole("button", { name: /Send application/i }).click();
   await page.getByText("Application sent").waitFor({ timeout: 20000 });
   await screenshot(page, "flow-public-apply-submitted");
   console.log("ok flow public apply");
@@ -491,6 +491,57 @@ async function applicantPortalFlow(page) {
   await expectPageHealthy(page, "/portal/training");
   await screenshot(page, "flow-applicant-training");
   console.log("ok flow applicant portal");
+}
+
+async function applicantProfileTruthfulnessFlow(page) {
+  await page.setExtraHTTPHeaders(applicantHeaders());
+  await page.setViewportSize(desktop);
+  let apiMeRequests = 0;
+  const countApiMe = (request) => {
+    if (new URL(request.url()).pathname === "/api/me") apiMeRequests += 1;
+  };
+  page.on("request", countApiMe);
+
+  try {
+    await page.route("**/api/applicant/invites", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ count: 0, items: [] }) }),
+    );
+    await page.goto(`${baseUrl}/portal/profile`, { waitUntil: "networkidle" });
+    await page.getByText("No completed JewelCert yet", { exact: true }).waitFor();
+    const emptyText = await page.locator("body").innerText();
+    if (/Jordan Smith|jordan@email\.com|Trailblazer/.test(emptyText)) {
+      throw new Error("Applicant profile rendered demo identity or a fabricated JewelCert result");
+    }
+    await page.unroute("**/api/applicant/invites");
+
+    await page.route("**/api/applicant/invites", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          count: 1,
+          items: [{
+            kind: "GemMatch",
+            status: "completed",
+            resultProfileCode: "V",
+            resultMix: { V: 44, C: 16, F: 10, D: 30 },
+            completedAt: "2026-07-15T12:00:00.000Z",
+          }],
+        }),
+      }),
+    );
+    await page.goto(`${baseUrl}/portal/profile`, { waitUntil: "networkidle" });
+    await page.getByText("Trailblazer", { exact: true }).waitFor();
+    await page.getByText("Visionary · Determined", { exact: true }).waitFor();
+    if (apiMeRequests !== 0) {
+      throw new Error(`Applicant portal made ${apiMeRequests} client /api/me request(s) instead of using the authenticated server session`);
+    }
+    await screenshot(page, "flow-applicant-profile-truthfulness");
+    console.log("ok flow applicant profile truthfulness");
+  } finally {
+    page.off("request", countApiMe);
+    await page.unroute("**/api/applicant/invites").catch(() => undefined);
+  }
 }
 
 async function privacyApiChecks(request) {
@@ -1022,6 +1073,7 @@ async function main() {
     await runStep(results, "public apply flow", () => publicApplyFlow(page));
     await runStep(results, "store new-candidate interview flow", () => storeInterviewFlow(page));
     await runStep(results, "applicant portal flow", () => applicantPortalFlow(page));
+    await runStep(results, "applicant profile truthfulness flow", () => applicantProfileTruthfulnessFlow(page));
     await runStep(results, "admin company flow", () => adminCompanyFlow(page));
     await runStep(results, "workflow API checks", () => workflowApiChecks(context.request));
     await runStep(results, "privacy API checks", () => privacyApiChecks(context.request));

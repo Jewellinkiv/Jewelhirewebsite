@@ -907,13 +907,15 @@ export function completeGemMatchResponse(input: { inviteId: string; pickedAdject
       return ADJECTIVES.find((adj) => slugify(adj.text) === normalized || adj.text === rawId)?.text;
     })
     .filter((text): text is string => Boolean(text));
-  const primary: ProfileCode = pickedTexts.length ? scoreGemMatch(pickedTexts).primary : "F";
+  const scored = pickedTexts.length ? scoreGemMatch(pickedTexts) : undefined;
+  const primary: ProfileCode = scored?.primary || "F";
   // Pre-update completion state so the caller only fires the "assessment
   // completed" emails on the genuine started->completed transition; a repeat
   // POST for an already-completed invite must not re-notify (mirrors postgres).
   const wasAlreadyCompleted = invite.status === "completed";
   invite.status = "completed";
   invite.resultProfileCode = primary;
+  invite.resultMix = scored?.mix;
   invite.fitRating = primary === "C" || primary === "F" ? "Strong fit" : "Good fit";
   invite.completedAt = timestamp;
 

@@ -1,8 +1,6 @@
 // Associate-portal mock data: invites to complete, interview invites to RSVP,
 // and assigned training packages. Job-seeker owned (Phase 1, private).
 
-import { ProfileCode } from "./gemmatch";
-
 export interface AssociateInvite {
   id: string;
   store: string;
@@ -57,10 +55,3 @@ export const ASSOC_TRAINING: TrainingAssignment[] = [
   { id: "tr2", course: "Clienteling & Follow-up", package: "New Associate Onboarding", assignedBy: "Sissy's Log Cabin", progress: 45, status: "In progress", lessons: 8, credentialed: false },
   { id: "tr3", course: "Bridal Consultation Basics", package: "Sales Skills", assignedBy: "Harbor Gold", progress: 0, status: "Not started", lessons: 5, credentialed: false },
 ];
-
-export const GEMMATCH_RESULT: { type: string; primary: ProfileCode; secondary: ProfileCode; mix: Record<ProfileCode, number> } = {
-  type: "Trailblazer",
-  primary: "V",
-  secondary: "D",
-  mix: { V: 44, C: 16, F: 10, D: 30 },
-};

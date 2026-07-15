@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IconDiamond, IconLayoutDashboard, IconBriefcase, IconClipboardList, IconCalendar, IconFileText, IconSchool, IconMenu, IconX } from "@/components/icons";
 import { LogoutButton } from "@/components/LogoutButton";
-import { useCurrentSessionUser } from "@/lib/client-session";
+import { CurrentSessionUserProvider, useCurrentSessionUser } from "@/lib/client-session";
+import type { SessionUser } from "@/lib/session";
 
 const NAV = [
   { label: "Home", href: "/portal", icon: <IconLayoutDashboard size={17} /> },
@@ -16,7 +17,15 @@ const NAV = [
   { label: "Training", href: "/portal/training", icon: <IconSchool size={17} /> },
 ];
 
-export function AssociateShell({ children }: { children: ReactNode }) {
+export function AssociateShell({ children, user }: { children: ReactNode; user: SessionUser }) {
+  return (
+    <CurrentSessionUserProvider user={user}>
+      <AssociateShellContent>{children}</AssociateShellContent>
+    </CurrentSessionUserProvider>
+  );
+}
+
+function AssociateShellContent({ children }: { children: ReactNode }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const user = useCurrentSessionUser();

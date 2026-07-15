@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Panel, Radar, TypeLabel } from "@/components/ui";
 import { useCurrentSessionUser } from "@/lib/client-session";
-import { GEMMATCH_RESULT } from "@/lib/associate-portal";
+import { latestCompletedJewelCertResult, type ApplicantJewelCertResult } from "@/lib/applicant-jewelcert-result";
 import { PROFILES } from "@/lib/gemmatch";
 import { IconUser, IconDiamond, IconBell, IconCheck } from "@/components/icons";
 
@@ -21,30 +21,41 @@ export default function PortalProfilePage() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingPref, setSavingPref] = useState<keyof Prefs | null>(null);
-  const [error, setError] = useState("");
-  const gm = GEMMATCH_RESULT;
+  const [profileError, setProfileError] = useState("");
+  const [prefsError, setPrefsError] = useState("");
+  const [jewelCert, setJewelCert] = useState<ApplicantJewelCertResult | null>(null);
+  const [jewelCertState, setJewelCertState] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
     let cancelled = false;
-    setName(user.name);
-    setEmail(user.email);
-    setSaved(false);
-    setError("");
 
-    Promise.all([
+    Promise.allSettled([
       fetch("/api/applicant/profile", { cache: "no-store" }).then((response) => (response.ok ? response.json() : Promise.reject())),
       fetch("/api/applicant/notification-prefs", { cache: "no-store" }).then((response) => (response.ok ? response.json() : Promise.reject())),
+      fetch("/api/applicant/invites", { cache: "no-store" }).then((response) => (response.ok ? response.json() : Promise.reject())),
     ])
-      .then(([profilePayload, prefsPayload]) => {
+      .then(([profileResult, prefsResult, invitesResult]) => {
         if (cancelled) return;
-        const profile = profilePayload.profile || {};
-        setName(profile.fullName || user.name);
-        setEmail(profile.email || user.email);
-        setPhone(profile.phone || "");
-        setPrefs((current) => ({ ...current, ...(prefsPayload.prefs || {}) }));
-      })
-      .catch(() => {
-        if (!cancelled) setError("Profile could not be loaded.");
+        if (profileResult.status === "fulfilled") {
+          const profile = profileResult.value.profile || {};
+          setName(profile.fullName || user.name);
+          setEmail(profile.email || user.email);
+          setPhone(profile.phone || "");
+        } else {
+          setProfileError("Profile could not be loaded.");
+        }
+        if (prefsResult.status === "fulfilled") {
+          setPrefs((current) => ({ ...current, ...(prefsResult.value.prefs || {}) }));
+        } else {
+          setPrefsError("Notification preferences could not be loaded.");
+        }
+        if (invitesResult.status === "fulfilled") {
+          setJewelCert(latestCompletedJewelCertResult(invitesResult.value));
+          setJewelCertState("ready");
+        } else {
+          setJewelCert(null);
+          setJewelCertState("error");
+        }
       });
 
     return () => {
@@ -55,7 +66,7 @@ export default function PortalProfilePage() {
   async function saveProfile() {
     setSaving(true);
     setSaved(false);
-    setError("");
+    setProfileError("");
     try {
       const response = await fetch("/api/applicant/profile", {
         method: "PATCH",
@@ -70,7 +81,7 @@ export default function PortalProfilePage() {
       setPhone(profile.phone || phone);
       setSaved(true);
     } catch {
-      setError("Profile could not be saved.");
+      setProfileError("Profile could not be saved.");
     } finally {
       setSaving(false);
     }
@@ -81,7 +92,7 @@ export default function PortalProfilePage() {
     const previous = prefs;
     setPrefs(next);
     setSaved(false);
-    setError("");
+    setPrefsError("");
     setSavingPref(k);
     try {
       const response = await fetch("/api/applicant/notification-prefs", {
@@ -94,7 +105,7 @@ export default function PortalProfilePage() {
       setPrefs((current) => ({ ...current, ...(payload.prefs || {}) }));
     } catch {
       setPrefs(previous);
-      setError("Notifications could not be saved.");
+      setPrefsError("Notifications could not be saved.");
     } finally {
       setSavingPref(null);
     }
@@ -115,7 +126,7 @@ export default function PortalProfilePage() {
               <button onClick={saveProfile} disabled={saving} className="btn-grad inline-flex items-center gap-1.5 px-4 py-2 text-[13px] disabled:opacity-60">
                 {saved ? <><IconCheck size={15} /> Saved</> : saving ? "Saving..." : "Save changes"}
               </button>
-              {error ? <p className="m-0 text-[12px] text-red-600">{error}</p> : null}
+              {profileError ? <p className="m-0 text-[12px] text-red-600">{profileError}</p> : null}
             </div>
           </Panel>
 
@@ -136,18 +147,35 @@ export default function PortalProfilePage() {
                   </span>
                 </button>
               ))}
+              {prefsError ? <p className="m-0 pt-3 text-[12px] text-red-600">{prefsError}</p> : null}
             </div>
           </Panel>
         </div>
 
         <Panel title="Your JewelCert" icon={<IconDiamond size={16} />}>
           <div className="p-4">
-            <div className="text-center mb-2">
-              <div className="text-[20px] font-semibold text-head">{gm.type}</div>
-              <div className="text-[12.5px]"><TypeLabel primary={gm.primary} type={`${PROFILES[gm.primary].name} · ${PROFILES[gm.secondary].name}`} /></div>
-            </div>
-            <div className="max-w-[220px] mx-auto"><Radar mix={gm.mix} /></div>
-            <p className="text-[12px] text-muted text-center mt-2 mb-0">Shared with a store only when you complete their JewelCert invite.</p>
+            {jewelCertState === "loading" ? (
+              <p className="text-[13px] text-muted text-center my-8">Loading your JewelCert result…</p>
+            ) : jewelCertState === "error" ? (
+              <div className="text-center py-6">
+                <div className="text-[14px] font-medium text-head">JewelCert result unavailable</div>
+                <p className="text-[12.5px] text-muted mt-1 mb-0">Refresh the page to try again.</p>
+              </div>
+            ) : jewelCert ? (
+              <>
+                <div className="text-center mb-2">
+                  <div className="text-[20px] font-semibold text-head">{jewelCert.type}</div>
+                  <div className="text-[12.5px]"><TypeLabel primary={jewelCert.primary} type={`${PROFILES[jewelCert.primary].name} · ${PROFILES[jewelCert.secondary].name}`} /></div>
+                </div>
+                <div className="max-w-[220px] mx-auto"><Radar mix={jewelCert.mix} /></div>
+                <p className="text-[12px] text-muted text-center mt-2 mb-0">Shared only with the store whose JewelCert you completed.</p>
+              </>
+            ) : (
+              <div className="text-center py-6">
+                <div className="text-[14px] font-medium text-head">No completed JewelCert yet</div>
+                <p className="text-[12.5px] text-muted mt-1 mb-0">Your result will appear here after you complete a JewelCert invite.</p>
+              </div>
+            )}
           </div>
         </Panel>
       </div>
