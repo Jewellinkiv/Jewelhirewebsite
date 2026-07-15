@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 
@@ -23,6 +24,8 @@ testUrl.searchParams.set("sslmode", "disable");
 const admin = new Client({ connectionString: adminUrl.toString(), ssl: false });
 let databaseCreated = false;
 let pool;
+let poolError;
+const originalFetch = globalThis.fetch;
 
 function migrateDatabase() {
   const result = spawnSync(
@@ -60,10 +63,19 @@ async function main() {
   const stripeBilling = await import("../lib/server/stripe-billing.ts");
   const adminBilling = await import("../lib/server/postgres-phase1.ts");
   pool = postgres.getPostgresPool();
+  pool.on("error", (error) => {
+    // Teardown never force-drops the database and never issues an administrator
+    // termination, so no session is severed out from under the pool and no
+    // asynchronous pool error is expected. Every pool error is therefore
+    // captured into controlled state (never thrown from this asynchronous
+    // handler, where it would escape the try/catch around main() as an uncaught
+    // exception and skip teardown) and surfaced deterministically after
+    // cleanup completes.
+    if (!poolError) poolError = error;
+  });
 
   process.env.JEWELLINK_URL = "https://jewellink.example.test";
   process.env.JEWELLINK_INTEGRATION_SHARED_SECRET = "integration_test_secret";
-  const originalFetch = globalThis.fetch;
   let upstreamState = "active";
   let checkoutSequence = 0;
   globalThis.fetch = async (url, init) => {
@@ -581,12 +593,76 @@ async function main() {
   console.log("PASS concurrent duplicate signup checkout and payment replay provision exactly once");
 }
 
+async function waitForDatabaseSessionsToDrain({ timeoutMs = 10_000, intervalMs = 200 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const result = await admin.query(
+      "select count(*)::int as sessions from pg_stat_activity where datname = $1",
+      [databaseName],
+    );
+    const sessions = result.rows[0]?.sessions ?? 0;
+    if (sessions === 0) return;
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Disposable database "${databaseName}" still has ${sessions} session(s) after ${timeoutMs}ms; refusing to force-drop.`,
+      );
+    }
+    await delay(intervalMs);
+  }
+}
+
+async function cleanup() {
+  let primaryCleanupError;
+  try {
+    if (pool) await pool.end();
+    if (databaseCreated) {
+      await waitForDatabaseSessionsToDrain();
+      await admin.query(`drop database if exists "${databaseName}"`);
+    }
+  } catch (error) {
+    primaryCleanupError = error;
+  }
+
+  // Always restore the real fetch, even on the failure path where main() threw
+  // before reaching its own success-path restore and left the mock installed.
+  globalThis.fetch = originalFetch;
+
+  // The admin client must always be closed, but its own failure must not be
+  // silently swallowed: surface it, subordinate to any earlier cleanup failure.
+  try {
+    await admin.end();
+  } catch (error) {
+    if (primaryCleanupError) {
+      console.error("Closing the admin client also failed during cleanup:", error);
+    } else {
+      primaryCleanupError = error;
+    }
+  }
+
+  if (primaryCleanupError) throw primaryCleanupError;
+}
+
+let testError;
 try {
   await main();
-} finally {
-  if (pool) await pool.end().catch(() => undefined);
-  if (databaseCreated) {
-    await admin.query(`drop database if exists "${databaseName}" with (force)`).catch(() => undefined);
-  }
-  await admin.end().catch(() => undefined);
+} catch (error) {
+  testError = error;
 }
+
+let cleanupError;
+try {
+  await cleanup();
+} catch (error) {
+  cleanupError = error;
+}
+
+if (testError) {
+  if (poolError) console.error("An asynchronous pool error also occurred during the test:", poolError);
+  if (cleanupError) console.error("Cleanup also failed after the test failure:", cleanupError);
+  throw testError;
+}
+if (poolError) {
+  if (cleanupError) console.error("Cleanup also failed after the pool error:", cleanupError);
+  throw poolError;
+}
+if (cleanupError) throw cleanupError;
