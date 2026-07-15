@@ -1,11 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Panel } from "@/components/ui";
 import { COMPANIES, STATUS_STYLE, PLAN_STYLE, AdminCompany, AdminCompanyUser } from "@/lib/admin";
-import { IconChevronLeft, IconUsers, IconMapPin, IconX, IconCheck, IconUser, IconBriefcase } from "@/components/icons";
+import { IconChevronLeft, IconUsers, IconMapPin, IconX, IconCheck, IconUser, IconBriefcase, IconProgress } from "@/components/icons";
+
+type StandaloneAccess = {
+  schemaReady: boolean;
+  companyStatus: string | null;
+  dataRetained: boolean;
+  jewellinkAccessActive: boolean;
+  storeCount: number;
+  claimAllowed: boolean;
+  accessSource: string | null;
+  accessStatus: string | null;
+  billingInterval: "month" | "year" | null;
+  amountCents: number | null;
+  latestCheckout: {
+    status: string;
+    billingInterval: "month" | "year";
+    amountCents: number;
+    createdAt: string;
+    expiresAt: string;
+  } | null;
+};
+
+type BillingOffer = {
+  interval: "month" | "year";
+  amountCents: number;
+  displayPrice: string;
+  configured: boolean;
+};
 
 export default function CompanyDetail() {
   const params = useParams();
@@ -18,6 +45,18 @@ export default function CompanyDetail() {
   const [claimTarget, setClaimTarget] = useState<AdminCompanyUser | null>(null);
   const [claimSending, setClaimSending] = useState(false);
   const [teamInvitesEnabled, setTeamInvitesEnabled] = useState(false);
+  const [standaloneAccess, setStandaloneAccess] = useState<StandaloneAccess | null>(null);
+  const [billingOffers, setBillingOffers] = useState<BillingOffer[]>([]);
+  const [billingTargetId, setBillingTargetId] = useState("");
+  const [checkoutSending, setCheckoutSending] = useState<"month" | "year" | "">("");
+
+  const refreshStandaloneAccess = useCallback(async () => {
+    const response = await fetch(`/api/admin/companies/${companyId}/standalone-access`, { cache: "no-store" });
+    if (!response.ok) return;
+    const data = await response.json() as { access: StandaloneAccess; billing: { offers?: BillingOffer[] } };
+    setStandaloneAccess(data.access);
+    setBillingOffers(data.billing.offers || []);
+  }, [companyId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,7 +66,9 @@ export default function CompanyDetail() {
         if (!cancelled) {
           setCompany(data.company);
           setUsers(data.company.users);
+          setBillingTargetId((current) => current || data.company.users.find((user) => user.role === "Admin")?.id || "");
           setTeamInvitesEnabled(data.capabilities?.teamInvitesEnabled === true);
+          void refreshStandaloneAccess();
         }
       })
       .catch(() => {
@@ -40,7 +81,7 @@ export default function CompanyDetail() {
     return () => {
       cancelled = true;
     };
-  }, [companyId, fallbackCompany]);
+  }, [companyId, fallbackCompany, refreshStandaloneAccess]);
 
   if (!company) {
     return <div><Link href="/admin/companies" className="text-primary no-underline text-[13px]">← Companies</Link><p className="text-muted mt-4">Company not found.</p></div>;
@@ -96,6 +137,29 @@ export default function CompanyDetail() {
     setClaimTarget(null);
     setNotice(`Secure access link sent to ${claimTarget.name}. It expires in 3 days.`);
   };
+  const sendCheckout = async (billingInterval: "month" | "year") => {
+    if (!billingTargetId) {
+      setNotice("Choose a store owner to receive checkout.");
+      return;
+    }
+    setCheckoutSending(billingInterval);
+    const response = await fetch(`/api/admin/companies/${company.id}/standalone-access`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId: billingTargetId, billingInterval }),
+    });
+    const body = await response.json().catch(() => null);
+    setCheckoutSending("");
+    if (!response.ok) {
+      setNotice(body?.error?.message || "Checkout could not be sent.");
+      if (body?.error?.code === "standalone_access_active") await refreshStandaloneAccess();
+      return;
+    }
+    setStandaloneAccess(body.access);
+    const recipient = users.find((user) => user.id === billingTargetId);
+    setNotice(`${billingInterval === "year" ? "Annual" : "Monthly"} checkout sent to ${recipient?.name || "the store owner"}. Refresh after Stripe confirms payment.`);
+  };
+  const billingTargets = users.filter((user) => user.role === "Admin" && user.status === "Active");
 
   return (
     <div className="max-w-[920px]">
@@ -132,6 +196,86 @@ export default function CompanyDetail() {
         ))}
       </div>
 
+      <Panel title="Standalone access recovery" icon={<IconProgress size={16} />} className="mb-[18px]">
+        <div className="p-4">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+            <div>
+              <div className="text-[13.5px] font-semibold text-head">
+                {standaloneAccess?.jewellinkAccessActive ? "Access is included with JewelLink" : standaloneAccess?.claimAllowed ? "Paid access is active" : "Convert retained data to standalone access"}
+              </div>
+              <p className="text-[12.5px] text-body leading-relaxed mt-1 mb-0 max-w-[620px]">
+                {standaloneAccess?.jewellinkAccessActive
+                  ? "This organization still has active JewelLink-included access, so paid standalone checkout is unavailable. If its membership ends, the retained company can be converted here without recreating its data."
+                  : standaloneAccess?.claimAllowed
+                  ? "Stripe has confirmed a current organization entitlement. A secure, single-use account claim can now be sent to an active store owner."
+                  : standaloneAccess && !standaloneAccess.schemaReady
+                    ? "Retained data remains available. Checkout is temporarily paused while the standalone billing migration completes; account claims remain locked unless an earlier valid entitlement already exists."
+                  : "Company, store, job, applicant, and analytics data remain in place. Send checkout first; JewelHire will keep account claims locked until a signed Stripe webhook activates the organization entitlement."}
+              </p>
+            </div>
+            <button type="button" onClick={refreshStandaloneAccess} className="btn-outline px-3 py-2 text-[12px] whitespace-nowrap">
+              Refresh payment status
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+            <div className="rounded-md border border-line bg-page px-3 py-2.5">
+              <div className="text-[10.5px] uppercase font-semibold text-muted">Data</div>
+              <div className="text-[12.5px] font-medium text-head mt-1">{standaloneAccess?.dataRetained ? `Retained · ${standaloneAccess.storeCount} store${standaloneAccess.storeCount === 1 ? "" : "s"}` : "Checking…"}</div>
+            </div>
+            <div className="rounded-md border border-line bg-page px-3 py-2.5">
+              <div className="text-[10.5px] uppercase font-semibold text-muted">Entitlement</div>
+              <div className="text-[12.5px] font-medium text-head mt-1">{standaloneAccess?.claimAllowed ? "Active" : standaloneAccess?.accessStatus || "Payment required"}</div>
+            </div>
+            <div className="rounded-md border border-line bg-page px-3 py-2.5">
+              <div className="text-[10.5px] uppercase font-semibold text-muted">Billing</div>
+              <div className="text-[12.5px] font-medium text-head mt-1">{standaloneAccess?.billingInterval ? (standaloneAccess.billingInterval === "year" ? "$1,299/year" : "$149/month") : "Not selected"}</div>
+            </div>
+            <div className="rounded-md border border-line bg-page px-3 py-2.5">
+              <div className="text-[10.5px] uppercase font-semibold text-muted">Claim link</div>
+              <div className="text-[12.5px] font-medium text-head mt-1">{standaloneAccess?.jewellinkAccessActive ? "Uses JewelLink SSO" : standaloneAccess?.claimAllowed ? "Unlocked" : "Locked until payment"}</div>
+            </div>
+          </div>
+
+          {!standaloneAccess?.claimAllowed && !standaloneAccess?.jewellinkAccessActive && (
+            <div className="mt-4 border-t border-[#eef1f6] pt-4">
+              <label className="block text-[11.5px] font-medium text-head mb-2" htmlFor="billing-owner">Checkout recipient</label>
+              <select
+                id="billing-owner"
+                value={billingTargetId}
+                onChange={(event) => setBillingTargetId(event.target.value)}
+                className="w-full md:max-w-[360px] rounded-md border border-line bg-white px-3 py-2 text-[13px] text-head"
+              >
+                <option value="">Choose a store owner</option>
+                {billingTargets.map((user) => <option key={user.id} value={user.id}>{user.name} · {user.email}</option>)}
+              </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                {billingOffers.map((offer) => (
+                  <div key={offer.interval} className="rounded-md border border-line bg-white p-3">
+                    <div className="text-[15px] font-semibold text-head">{offer.displayPrice}</div>
+                    <div className="text-[11.5px] text-muted mt-1">{offer.interval === "year" ? "Save $489 per year." : "Flexible monthly billing."} One organization subscription.</div>
+                    <button
+                      type="button"
+                      onClick={() => sendCheckout(offer.interval)}
+                      disabled={!offer.configured || !billingTargetId || Boolean(checkoutSending)}
+                      className="btn-grad w-full mt-3 px-3 py-2 text-[12px] disabled:opacity-50"
+                    >
+                      {checkoutSending === offer.interval ? "Sending…" : `Email ${offer.interval === "year" ? "annual" : "monthly"} checkout`}
+                    </button>
+                    {!offer.configured && <div className="text-[11px] text-[#a32d2d] mt-2">Stripe price not configured</div>}
+                  </div>
+                ))}
+              </div>
+              {standaloneAccess?.latestCheckout?.status === "pending" && (
+                <div className="mt-3 rounded-md border border-[#cfe0fb] bg-[#eef4ff] px-3 py-2 text-[12px] text-body">
+                  A {standaloneAccess.latestCheckout.billingInterval === "year" ? "yearly" : "monthly"} checkout is pending. Retrying reuses the same Stripe session; it does not create a second charge.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Panel>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] items-start">
         <Panel title={`Stores (${company.stores.length})`} icon={<IconMapPin size={16} />}>
           {company.stores.length > 0 ? (
@@ -154,7 +298,14 @@ export default function CompanyDetail() {
                 </div>
                 <div className="ml-auto flex gap-1.5">
                   {u.role === "Admin" ? (
-                    <button onClick={() => setClaimTarget(u)} className="text-[11.5px] px-2 py-1 rounded border border-line text-primary hover:bg-[#e8f1ff]">Send access link</button>
+                    <button
+                      disabled={!standaloneAccess?.claimAllowed}
+                      title={standaloneAccess?.claimAllowed ? "Send a single-use account claim" : "Payment must be confirmed before a claim can be sent"}
+                      onClick={() => setClaimTarget(u)}
+                      className="text-[11.5px] px-2 py-1 rounded border border-line text-primary hover:bg-[#e8f1ff] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {standaloneAccess?.claimAllowed ? "Send access link" : "Payment required"}
+                    </button>
                   ) : (
                     <button disabled={!teamInvitesEnabled} onClick={() => resend(u.id, u.name)} className="text-[11.5px] px-2 py-1 rounded border border-line text-body hover:bg-rowhover disabled:cursor-not-allowed disabled:opacity-50">{teamInvitesEnabled ? "Resend" : "Invites paused"}</button>
                   )}
@@ -190,7 +341,7 @@ export default function CompanyDetail() {
                 JewelHire will email {claimTarget.name} at {claimTarget.email} a single-use link to set a password for the retained account. The link expires in 3 days.
               </p>
               <p className="text-[12px] text-muted mt-3 mb-0">
-                This does not create another company, change billing, or unsuspend access. Confirm the company has an active entitlement before sending it.
+                Stripe has confirmed an active standalone organization entitlement. This does not create another company or duplicate retained data.
               </p>
             </div>
             <div className="flex justify-end gap-2 px-5 py-3.5 border-t border-line">

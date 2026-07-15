@@ -51,26 +51,35 @@ function SettingRow({ label, value, helper }: { label: string; value: string; he
 }
 
 function BillingSettings({ storeId }: { storeId: string }) {
-  const [configured, setConfigured] = useState(false);
   const [allowPromotionCodes, setAllowPromotionCodes] = useState(true);
-  const [promotionCode, setPromotionCode] = useState("");
+  const [offers, setOffers] = useState<Array<{ interval: "month" | "year"; displayPrice: string; configured: boolean }>>([]);
+  const [claimAllowed, setClaimAllowed] = useState(false);
+  const [jewellinkAccessActive, setJewellinkAccessActive] = useState(false);
   const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<"month" | "year" | "">("");
 
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/stores/${storeId}/billing/checkout`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data: { configured: boolean; allowPromotionCodes: boolean }) => {
+      .then((data: {
+        allowPromotionCodes: boolean;
+        offers?: Array<{ interval: "month" | "year"; displayPrice: string; configured: boolean }>;
+        access?: { claimAllowed?: boolean; jewellinkAccessActive?: boolean } | null;
+      }) => {
         if (!cancelled) {
-          setConfigured(data.configured);
           setAllowPromotionCodes(data.allowPromotionCodes);
+          setOffers(data.offers || []);
+          setClaimAllowed(data.access?.claimAllowed === true);
+          setJewellinkAccessActive(data.access?.jewellinkAccessActive === true);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setConfigured(false);
           setAllowPromotionCodes(false);
+          setOffers([]);
+          setClaimAllowed(false);
+          setJewellinkAccessActive(false);
         }
       });
     return () => {
@@ -78,16 +87,16 @@ function BillingSettings({ storeId }: { storeId: string }) {
     };
   }, [storeId]);
 
-  const openCheckout = async () => {
-    setLoading(true);
+  const openCheckout = async (billingInterval: "month" | "year") => {
+    setLoading(billingInterval);
     setStatus("");
     const response = await fetch(`/api/stores/${storeId}/billing/checkout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ promotionCode: promotionCode.trim() || undefined }),
+      body: JSON.stringify({ billingInterval }),
     });
     const data = await response.json().catch(() => ({}));
-    setLoading(false);
+    setLoading("");
     if (!response.ok || !data?.url) {
       setStatus(data?.error?.message || "Stripe checkout is unavailable.");
       return;
@@ -97,37 +106,32 @@ function BillingSettings({ storeId }: { storeId: string }) {
 
   return (
     <Panel title="Billing" icon={<IconProgress size={16} />} className="mb-[18px]">
-      <div className="p-4 grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="rounded-md border border-line bg-white px-3 py-2.5">
-            <div className="text-[11px] font-semibold uppercase text-muted">Stripe</div>
-            <div className="mt-1 text-[13px] font-medium text-head">{configured ? "Connected" : "Not configured"}</div>
+      <div className="p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <div className="text-[13px] font-medium text-head">{jewellinkAccessActive ? "Included with JewelLink" : claimAllowed ? "Standalone access active" : "Choose organization billing"}</div>
+            <div className="text-[11.5px] text-muted mt-0.5">{jewellinkAccessActive ? "No standalone payment is due while the organization's JewelLink membership remains active." : `One subscription covers the organization.${allowPromotionCodes ? " Promotion codes can be entered securely on Stripe." : ""}`}</div>
           </div>
-          <div className="rounded-md border border-line bg-white px-3 py-2.5">
-            <div className="text-[11px] font-semibold uppercase text-muted">Discount codes</div>
-            <div className="mt-1 text-[13px] font-medium text-head">{allowPromotionCodes ? "Accepted" : "Off"}</div>
-          </div>
+          <div className="text-[11px] font-semibold uppercase text-muted">Stripe</div>
         </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-[11.5px] font-medium text-head" htmlFor="promotion-code">Promotion code</label>
-          <input
-            id="promotion-code"
-            className="rounded-md border border-line bg-white px-3 py-2 text-[13px] outline-none focus:border-primary"
-            value={promotionCode}
-            onChange={(event) => setPromotionCode(event.target.value)}
-            placeholder="Optional"
-            disabled={!allowPromotionCodes}
-          />
-          <button
-            type="button"
-            className="btn-grad inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-[12.5px] disabled:opacity-60"
-            onClick={openCheckout}
-            disabled={!configured || loading}
-          >
-            Open Stripe <IconArrowUpRight size={14} />
-          </button>
-          {status && <div className="text-[12px] text-[#a32d2d]">{status}</div>}
-        </div>
+        {!jewellinkAccessActive && <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {offers.map((offer) => (
+            <div key={offer.interval} className="rounded-md border border-line bg-white p-3">
+              <div className="text-[15px] font-semibold text-head">{offer.displayPrice}</div>
+              <div className="text-[11.5px] text-muted mt-1">{offer.interval === "year" ? "Save $489 compared with monthly billing." : "Flexible month-to-month billing."}</div>
+              <button
+                type="button"
+                className="btn-grad mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-[12.5px] disabled:opacity-60"
+                onClick={() => openCheckout(offer.interval)}
+                disabled={!offer.configured || Boolean(loading) || claimAllowed || jewellinkAccessActive}
+              >
+                {loading === offer.interval ? "Opening…" : `Choose ${offer.interval === "year" ? "annual" : "monthly"}`} <IconArrowUpRight size={14} />
+              </button>
+            </div>
+          ))}
+        </div>}
+        {!jewellinkAccessActive && offers.length === 0 && <div className="text-[12px] text-muted">Billing options are not configured.</div>}
+        {status && <div className="mt-3 text-[12px] text-[#a32d2d]">{status}</div>}
       </div>
     </Panel>
   );

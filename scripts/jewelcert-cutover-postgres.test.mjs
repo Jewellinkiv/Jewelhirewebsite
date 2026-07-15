@@ -101,6 +101,40 @@ async function main() {
   const contract = runMigration([]);
   assert.equal(contract.status, 0, migrationFailure(contract));
 
+  const postPromotionLedger = await client.query(
+    `select id from schema_migrations
+     where id in (
+       '0024_jewelcert_claim_token_version_fence',
+       '0025_standalone_billing_recovery'
+     )
+     order by id`,
+  );
+  assert.deepEqual(
+    postPromotionLedger.rows.map((row) => row.id),
+    ["0024_jewelcert_claim_token_version_fence", "0025_standalone_billing_recovery"],
+  );
+  const billingBridge = await client.query(
+    `select
+       to_regclass('public.standalone_checkout_requests') is not null as request_table,
+       exists (
+         select 1 from information_schema.columns
+         where table_schema = 'public'
+           and table_name = 'pending_store_signups'
+           and column_name = 'billing_interval'
+       ) as signup_interval,
+       exists (
+         select 1 from information_schema.columns
+         where table_schema = 'public'
+           and table_name = 'pending_store_signups'
+           and column_name = 'provider_checkout_session_id'
+       ) as signup_session`,
+  );
+  assert.deepEqual(billingBridge.rows[0], {
+    request_table: true,
+    signup_interval: true,
+    signup_session: true,
+  });
+
   await assert.rejects(
     client.query(
       `insert into jewelcert_invites (id, application_id, store_id, sent_to_email, status)
@@ -120,7 +154,7 @@ async function main() {
     },
   );
   assert.equal(verify.status, 0, migrationFailure(verify));
-  console.log("PASS rollback-compatible expand, blocking contract precondition, v2 fence, and ledger integrity");
+  console.log("PASS rollback-compatible expand, blocking contract precondition, v2 fence, additive billing bridge, and ledger integrity");
 }
 
 try {

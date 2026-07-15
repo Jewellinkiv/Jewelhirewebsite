@@ -1,6 +1,6 @@
 # JewelHire production rollout checklist
 
-Updated: 2026-07-14
+Updated: 2026-07-15
 
 ## Current release-candidate status
 
@@ -26,8 +26,8 @@ Updated: 2026-07-14
   fails closed on a branded retained-data recovery screen.
 - [x] Public careers, application, résumé, preview-token, SEO, consent, and aggregate-analytics audits pass.
 - [x] Billing, notification wiring, Firebase, legal-source, and invalid-input audits pass. The config-exposure audit passes secret/public-data checks and intentionally holds on explicit live-email acknowledgement.
-- [x] Fresh disposable migration-validation databases have migrations `0012`
-  through `0024` applied.
+- [ ] Fresh disposable migration-validation databases have migrations `0012`
+  through `0025` applied.
 - [x] Production role-readiness audit confirms active users, manager mappings,
   applicants, and at least one active store owner per active store are valid.
 - [x] Temporary applications, résumé files, and synthetic analytics used during QA were removed.
@@ -85,6 +85,13 @@ in `production-launch-control-2026-07-13.md`.
   version-1 JewelCert invite is still `sent` or `started`, then installs a
   validated constraint requiring claim-token version 2 for every active
   invite. Once `0024` commits, do not restore a pre-v2 application revision.
+  Migration `0025` is the additive retained-company billing bridge. The new
+  revision fails its checkout/signup surfaces closed with branded `503`
+  responses until this migration exists; other system surfaces remain usable.
+  Apply it in the same post-promotion migration job immediately after `0024`,
+  before enabling or sending any monthly/annual checkout. It adds the opaque
+  Checkout Session correlation table and pending-signup billing columns; it
+  does not delete or rewrite tenant data.
   Use `npm run db:migrate:verify` before apply; the guarded apply command then
   performs its own pre-apply verification and a
   checksum-aware, zero-pending post-apply verification. The production job sets
@@ -204,6 +211,17 @@ in `production-launch-control-2026-07-13.md`.
   suite, and the required no-traffic workflow probe supplies the controlled
   real provider acceptance check before public use.
 - [ ] Exercise one Stripe test-mode checkout and signed webhook reconciliation against the release candidate. The code/readiness audit is green, but no checkout mutation was performed in this QA pass.
+- [ ] Create exact recurring USD Stripe Prices for `$149/month` and
+  `$1,299/year`, configure their ids as
+  `STRIPE_STORE_OWNER_MONTHLY_PRICE_ID` and
+  `STRIPE_STORE_OWNER_ANNUAL_PRICE_ID`, and retain `STRIPE_SECRET_KEY` plus
+  `STRIPE_WEBHOOK_SECRET` as secret-backed settings. Production currently has
+  only the legacy `STRIPE_STORE_OWNER_PAYMENT_LINK`, which the hardened flow
+  deliberately does not use.
+- [ ] Deactivate the legacy shared Payment Link only after confirming it has no
+  open or unsettled sessions. Let any outstanding session expire or handle it
+  under an explicitly reviewed cutover; do not accept its unbound direct
+  company/store references in the hardened webhook.
 
 ## Deployment order
 
@@ -228,7 +246,8 @@ in `production-launch-control-2026-07-13.md`.
    signup-provider probe, and only then moves traffic. The workflow verifies
    public production routes while rollback to the recorded pre-v2 revision is
    still safe; after that succeeds it applies the `0024` contract fence and
-   runs the full no-write database-readiness check. Once `0024` commits, only a
+   applies additive `0025`, and runs the full no-write database-readiness check.
+   Once `0024` commits, only a
    v2-writing revision is a valid rollback target.
 7. Create a second JewelLink no-traffic candidate with `pilot` mode and one
    approved company ID. Run the full SSO and role smoke against its tagged URL

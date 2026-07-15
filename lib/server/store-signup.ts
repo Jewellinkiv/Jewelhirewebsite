@@ -4,6 +4,7 @@ import { isConfiguredAdminEmail } from "@/lib/server/auth";
 import { getPostgresPool } from "@/lib/server/postgres";
 import { withReplacingActionToken } from "@/lib/server/action-tokens";
 import { notifyStoreOwnerClaim } from "@/lib/server/notifications";
+import { storeOwnerBillingOffer, type StoreOwnerBillingInterval } from "@/lib/server/store-owner-billing";
 
 // Store-owner paid signup: a pending row is created at form submit, and the real
 // company/store/owner is provisioned ONLY after Stripe confirms payment. Owners
@@ -12,14 +13,14 @@ import { notifyStoreOwnerClaim } from "@/lib/server/notifications";
 // their password.
 
 const CLAIM_TTL_MINUTES = 60 * 24 * 3; // 3 days to set the initial password
-const DEFAULT_PLAN = "starter";
+const DEFAULT_PLAN = "growth";
 
 export type PendingStoreSignupInput = {
   companyName: string;
   ownerName?: string | null;
   ownerEmail: string;
-  promoCode?: string | null;
   plan?: string | null;
+  billingInterval: StoreOwnerBillingInterval;
 };
 
 function normalizeEmail(value: string) {
@@ -58,7 +59,7 @@ export async function createPendingStoreSignup(input: PendingStoreSignupInput): 
   const email = input.ownerEmail.trim();
   await getPostgresPool().query(
     `insert into pending_store_signups
-       (id, company_name, owner_name, owner_email, owner_email_normalized, plan, promo_code, status)
+       (id, company_name, owner_name, owner_email, owner_email_normalized, plan, billing_interval, status)
      values ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
     [
       id,
@@ -67,7 +68,7 @@ export async function createPendingStoreSignup(input: PendingStoreSignupInput): 
       email,
       normalizeEmail(email),
       (input.plan?.trim() || DEFAULT_PLAN),
-      input.promoCode?.trim() || null,
+      input.billingInterval,
     ],
   );
   return { id };
@@ -80,6 +81,7 @@ type PendingRow = {
   owner_email: string;
   owner_email_normalized: string;
   plan: string;
+  billing_interval: StoreOwnerBillingInterval;
   status: string;
 };
 
@@ -93,20 +95,30 @@ export type ProvisionResult =
 export async function provisionStoreFromPendingSignup(input: {
   pendingId: string;
   stripeReference?: string | null;
+  checkoutSessionId: string;
+  billingInterval: StoreOwnerBillingInterval;
+  amountCents: number;
   customerEmail?: string | null;
   // internal: set on a self-heal retry to bound recursion to one hop.
   _retry?: boolean;
 }): Promise<ProvisionResult> {
   const pool = getPostgresPool();
+  const verifiedOffer = storeOwnerBillingOffer(input.billingInterval);
+  if (input.amountCents !== verifiedOffer.amountCents) {
+    return { provisioned: false, reason: "billing_offer_mismatch" };
+  }
 
   // Atomically claim the pending row so concurrent webhook deliveries don't
   // double-provision. Only the winner sees status='pending'.
   const claim = await pool.query<PendingRow>(
     `update pending_store_signups
         set status = 'provisioned', stripe_reference = coalesce($2, stripe_reference), provisioned_at = now(), updated_at = now()
-      where id = $1 and status = 'pending'
-      returning id, company_name, owner_name, owner_email, owner_email_normalized, plan, status`,
-    [input.pendingId, input.stripeReference || null],
+      where id = $1
+        and status = 'pending'
+        and provider_checkout_session_id = $3
+        and billing_interval = $4
+      returning id, company_name, owner_name, owner_email, owner_email_normalized, plan, billing_interval, status`,
+    [input.pendingId, input.stripeReference || null, input.checkoutSessionId, input.billingInterval],
   );
 
   const row = claim.rows[0];
@@ -198,12 +210,40 @@ export async function provisionStoreFromPendingSignup(input: {
     );
 
     // Active subscription — the payment that triggered this is already settled.
+    const offerPlanCode = input.billingInterval === "year" ? "store_owner_annual" : "store_owner_monthly";
+    const provisionalDays = input.billingInterval === "year" ? 370 : 32;
     await client.query(
-      `insert into subscriptions (id, company_id, plan_id, status, provider, provider_subscription_id, created_at, updated_at)
-       values ($1, $2, $3, 'active', 'stripe', $4, now(), now())
-       on conflict (company_id) do update set status = 'active', provider = 'stripe',
-         provider_subscription_id = excluded.provider_subscription_id, updated_at = now()`,
-      [`sub-${companyId}`, companyId, `plan-${planDb}`, input.stripeReference || null],
+      `insert into subscriptions (
+         id, company_id, plan_id, status, current_period_start, current_period_end,
+         provider, provider_subscription_id, created_at, updated_at
+       )
+       values (
+         $1, $2, $3, 'active', now(), now() + ($5::text || ' days')::interval,
+         'stripe', $4, now(), now()
+       )
+       on conflict (company_id) do update set
+         plan_id = excluded.plan_id, status = 'active',
+         current_period_start = excluded.current_period_start,
+         current_period_end = excluded.current_period_end,
+         provider = 'stripe', provider_subscription_id = excluded.provider_subscription_id,
+         updated_at = now()`,
+      [`sub-${companyId}`, companyId, `plan-${planDb}`, input.stripeReference || null, provisionalDays],
+    );
+    await client.query(
+      `insert into company_access_entitlements (
+         company_id, source, plan_code, status, billing_interval, amount_cents,
+         provider_subscription_id, starts_at, expires_at, created_at, updated_at
+       )
+       values (
+         $1, 'stripe', $2, 'active', $3, $4, $5,
+         now(), now() + ($6::text || ' days')::interval, now(), now()
+       )
+       on conflict (company_id) do update set
+         source = 'stripe', plan_code = excluded.plan_code, status = 'active',
+         billing_interval = excluded.billing_interval, amount_cents = excluded.amount_cents,
+         provider_subscription_id = excluded.provider_subscription_id,
+         starts_at = now(), expires_at = excluded.expires_at, updated_at = now()`,
+      [companyId, offerPlanCode, input.billingInterval, input.amountCents, input.stripeReference || null, provisionalDays],
     );
 
     await client.query(

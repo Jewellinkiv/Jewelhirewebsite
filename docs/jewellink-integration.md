@@ -91,6 +91,15 @@ Stripe remains the entitlement source for organizations without JewelLink:
 - $1,299 yearly
 - one subscription per organization
 
+The super-admin company screen implements the cancellation recovery sequence:
+select the retained owner, email a one-time Stripe Checkout Session for one of
+the two organization prices, wait for the signature-verified paid webhook, then
+send the separate single-use native account claim. Checkout requests are opaque,
+expire after 24 hours, and do not unlock claims. The webhook must match the
+server-created session id and exact selected offer before it atomically replaces
+the included entitlement with an active Stripe entitlement. See
+`docs/billing-readiness.md` for Stripe setup and release verification.
+
 Future special JewelLink pricing should update the organization entitlement;
 it should not change authentication or individual user roles.
 
@@ -168,10 +177,13 @@ reissued during the production cutover.
    rollback-compatible migrations `0012` through `0023` from the immutable
    no-traffic candidate image before traffic moves. After the hardened revision
    owns traffic and its public production smoke passes, the workflow applies
-   the `0024` JewelCert v2 contract fence and runs full readiness. Readiness
-   must verify the native-session epoch, password-reset delivery-state, and v2
-   claim-token invariants. After `0024` commits, only a v2-writing revision is a
-   valid rollback target. Independently, a rollback target after durable epoch
+   the `0024` JewelCert v2 contract fence, applies additive
+   `0025_standalone_billing_recovery`, and runs full readiness. Readiness must
+   verify the native-session epoch, password-reset delivery-state, v2
+   claim-token invariants, and retained-company checkout bridge. Do not send a
+   standalone checkout before that readiness check passes. After `0024`
+   commits, only a v2-writing revision is a valid rollback target.
+   Independently, a rollback target after durable epoch
    revocation has been exercised must be epoch-aware; pre-0021 code is unsafe.
 5. Test one user for each role and verify replaying an exchanged code fails.
 6. Verify a Manager cannot read another location or access billing/settings.

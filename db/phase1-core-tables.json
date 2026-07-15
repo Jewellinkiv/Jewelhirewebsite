@@ -38,6 +38,7 @@
   "course_credentials",
   "billing_plans",
   "subscriptions",
+  "standalone_checkout_requests",
   "invoices",
   "admin_audit_entries",
   "impersonation_sessions",

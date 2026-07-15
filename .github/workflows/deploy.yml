@@ -81,6 +81,8 @@ jobs:
       - run: npm run test:password-reset-browser
       - run: npm run test:account-claim-hardening
       - run: npm run test:account-claim-browser
+      - run: npm run test:standalone-billing
+      - run: npm run test:standalone-billing-postgres
       - run: npm run test:request-security
       - run: npm run test:hybrid-location-access
       - run: npm run test:hybrid-location-access-postgres
@@ -138,9 +140,22 @@ jobs:
             --region us-central1 \
             --format=json > /tmp/jewelhire-service.json
 
-          for name in DATABASE_URL AUTH_SECRET JEWELLINK_URL JEWELLINK_SSO_SHARED_SECRET JEWELLINK_INTEGRATION_SHARED_SECRET JEWELHIRE_TEAM_INVITES_ENABLED JEWELHIRE_TRUSTED_PROXY_HOPS JEWELHIRE_REQUIRE_AUTH AUTH_MODE JEWELHIRE_STORAGE JEWELHIRE_ENABLE_SESSION_OVERRIDE EMAIL_NOTIFICATIONS_ENABLED POSTMARK_DRY_RUN POSTMARK_SERVER_TOKEN POSTMARK_FROM_EMAIL POSTMARK_MESSAGE_STREAM; do
+          for name in DATABASE_URL AUTH_SECRET JEWELLINK_URL JEWELLINK_SSO_SHARED_SECRET JEWELLINK_INTEGRATION_SHARED_SECRET JEWELHIRE_TEAM_INVITES_ENABLED JEWELHIRE_TRUSTED_PROXY_HOPS JEWELHIRE_REQUIRE_AUTH AUTH_MODE JEWELHIRE_STORAGE JEWELHIRE_ENABLE_SESSION_OVERRIDE EMAIL_NOTIFICATIONS_ENABLED POSTMARK_DRY_RUN POSTMARK_SERVER_TOKEN POSTMARK_FROM_EMAIL POSTMARK_MESSAGE_STREAM STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET STRIPE_STORE_OWNER_MONTHLY_PRICE_ID STRIPE_STORE_OWNER_ANNUAL_PRICE_ID; do
             if ! jq -e --arg name "$name" '.spec.template.spec.containers[0].env[] | select(.name == $name)' /tmp/jewelhire-service.json >/dev/null; then
               echo "Missing required Cloud Run environment setting: $name"
+              exit 1
+            fi
+          done
+
+          MONTHLY_PRICE_ID=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "STRIPE_STORE_OWNER_MONTHLY_PRICE_ID") | .value // ""' /tmp/jewelhire-service.json)
+          ANNUAL_PRICE_ID=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "STRIPE_STORE_OWNER_ANNUAL_PRICE_ID") | .value // ""' /tmp/jewelhire-service.json)
+          if [[ "$MONTHLY_PRICE_ID" != price_* || "$ANNUAL_PRICE_ID" != price_* || "$MONTHLY_PRICE_ID" == "$ANNUAL_PRICE_ID" ]]; then
+            echo "Configure distinct recurring Stripe Price ids for the exact monthly and annual JewelHire offers."
+            exit 1
+          fi
+          for name in STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET; do
+            if ! jq -e --arg name "$name" '.spec.template.spec.containers[0].env[] | select(.name == $name) | (.valueSource.secretKeyRef.secret // .valueFrom.secretKeyRef.name // "") | length > 0' /tmp/jewelhire-service.json >/dev/null; then
+              echo "${name} must be backed by Secret Manager, not a plaintext Cloud Run value."
               exit 1
             fi
           done
@@ -327,12 +342,13 @@ jobs:
             exit 1
           fi
 
-      - name: Apply post-promotion 0024 fence and final readiness
+      - name: Apply post-promotion 0024 fence, additive 0025, and final readiness
         env:
           IMAGE: ${{ steps.candidate.outputs.image }}
         run: |
           set -euo pipefail
           echo "The v2-writing revision owns traffic. After this contract migration, do not restore a pre-v2 revision."
+          echo "The same guarded job also applies additive migration 0025 before final readiness; do not initiate standalone checkout until it passes."
           SERVICE_JSON=$(gcloud run services describe jewelhire --project jewelhire-prod-20260626 --region us-central1 --format=json)
           RUNTIME_SERVICE_ACCOUNT=$(jq -r '.spec.template.spec.serviceAccountName // .spec.template.spec.serviceAccount' <<<"$SERVICE_JSON")
           DATABASE_SECRET=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "DATABASE_URL") | (.valueSource.secretKeyRef.secret // .valueFrom.secretKeyRef.name)' <<<"$SERVICE_JSON")

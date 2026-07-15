@@ -1543,12 +1543,6 @@ function centsToMoney(cents: number) {
   return `$${(Number(cents || 0) / 100).toFixed(2)}`;
 }
 
-function planPriceCents(plan: PlanTier) {
-  if (plan === "Pro") return 34900;
-  if (plan === "Growth") return 14900;
-  return 4900;
-}
-
 function adminMetricsForPostgres(companies: AdminCompany[]) {
   const stores = companies.reduce((sum, company) => sum + company.stores.length, 0);
   const assessmentsSent = companies.reduce((sum, company) => sum + company.assessmentsSent, 0);
@@ -3658,7 +3652,36 @@ export async function getPostgresAdminBilling() {
         limit 20
       `,
     );
-    const mrr = companies.reduce((sum, company) => sum + planPriceCents(company.plan) * (company.status === "Active" ? 1 : 0), 0) / 100;
+    const mrrResult = await client.query<{ mrr_cents: string }>(
+      `select coalesce(sum(
+         case
+           when entitlement.source = 'stripe'
+             and entitlement.status = 'active'
+             and (entitlement.expires_at is null or entitlement.expires_at > now())
+           then
+             case when coalesce(entitlement.billing_interval, plan.billing_interval) = 'year'
+               then coalesce(entitlement.amount_cents, plan.price_cents, 0)::numeric / 12
+               else coalesce(entitlement.amount_cents, plan.price_cents, 0)::numeric
+             end
+           when entitlement.company_id is null
+             and subscription.provider = 'stripe'
+             and subscription.status in ('active', 'trialing')
+             and (subscription.current_period_end is null or subscription.current_period_end > now())
+           then
+             case when plan.billing_interval = 'year'
+               then coalesce(plan.price_cents, 0)::numeric / 12
+               else coalesce(plan.price_cents, 0)::numeric
+             end
+           else 0
+         end
+       ), 0)::text as mrr_cents
+       from companies company
+       left join company_access_entitlements entitlement on entitlement.company_id = company.id
+       left join subscriptions subscription on subscription.company_id = company.id
+       left join billing_plans plan on plan.id = subscription.plan_id
+       where company.status in ('active', 'trialing')`,
+    );
+    const mrr = Number(mrrResult.rows[0]?.mrr_cents || 0) / 100;
     const byPlan = (["Starter", "Growth", "Pro"] as PlanTier[]).map((tier) => ({
       tier,
       count: companies.filter((company) => company.plan === tier).length,

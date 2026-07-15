@@ -9,7 +9,7 @@ export default function StoreSignupPage() {
   const [companyName, setCompanyName] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [email, setEmail] = useState("");
-  const [promoCode, setPromoCode] = useState("");
+  const [billingInterval, setBillingInterval] = useState<"month" | "year">("year");
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -25,7 +25,7 @@ export default function StoreSignupPage() {
       const r = await fetch("/api/auth/store-signup", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ companyName: companyName.trim(), ownerName: ownerName.trim(), email: email.trim(), promoCode: promoCode.trim(), ...currentLegalConsentPayload() }),
+        body: JSON.stringify({ companyName: companyName.trim(), ownerName: ownerName.trim(), email: email.trim(), billingInterval, ...currentLegalConsentPayload() }),
       });
       const body = await r.json().catch(() => null);
       if (!r.ok || !body?.checkoutUrl) {
@@ -49,8 +49,31 @@ export default function StoreSignupPage() {
           <span className="text-[20px] text-head font-medium">Jewel<span className="font-extrabold">Hire</span></span>
         </div>
         <h1 className="text-[24px] leading-tight font-extrabold text-head m-0">Start your store on JewelHire</h1>
-        <p className="text-[14px] text-muted leading-relaxed mt-3 mb-6">Set up hiring, assessments, and JewelCert for your store. You&apos;ll complete payment on the next step, then set your password.</p>
+        <p className="text-[14px] text-muted leading-relaxed mt-3 mb-6">Set up hiring, assessments, and JewelCert for your company. One subscription covers the organization. You&apos;ll complete payment on the next step, then set your password.</p>
         <form onSubmit={submit} className="space-y-3">
+          <fieldset>
+            <legend className="block text-[12px] font-semibold text-muted mb-2">Billing</legend>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                aria-pressed={billingInterval === "month"}
+                onClick={() => setBillingInterval("month")}
+                className={`rounded-md border p-3 text-left ${billingInterval === "month" ? "border-primary bg-[#eef4ff]" : "border-line bg-white"}`}
+              >
+                <span className="block text-[13px] font-semibold text-head">$149/month</span>
+                <span className="block text-[11px] text-muted mt-1">Billed monthly</span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={billingInterval === "year"}
+                onClick={() => setBillingInterval("year")}
+                className={`rounded-md border p-3 text-left ${billingInterval === "year" ? "border-primary bg-[#eef4ff]" : "border-line bg-white"}`}
+              >
+                <span className="block text-[13px] font-semibold text-head">$1,299/year</span>
+                <span className="block text-[11px] text-[#0f6e56] mt-1">Save $489 annually</span>
+              </button>
+            </div>
+          </fieldset>
           <label className="block">
             <span className="block text-[12px] font-semibold text-muted mb-1">Store / company name</span>
             <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} required className="w-full rounded-md border border-line bg-white px-3 py-2.5 text-[14px] text-head outline-none focus:border-brand" placeholder="Acme Fine Jewelry" />
@@ -63,11 +86,7 @@ export default function StoreSignupPage() {
             <span className="block text-[12px] font-semibold text-muted mb-1">Work email</span>
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" required className="w-full rounded-md border border-line bg-white px-3 py-2.5 text-[14px] text-head outline-none focus:border-brand" placeholder="you@store.com" />
           </label>
-          <label className="block">
-            <span className="block text-[12px] font-semibold text-muted mb-1">Promo code <span className="font-normal text-muted">(optional)</span></span>
-            <input value={promoCode} onChange={(e) => setPromoCode(e.target.value)} className="w-full rounded-md border border-line bg-white px-3 py-2.5 text-[14px] text-head outline-none focus:border-brand" placeholder="Apply at checkout" />
-            <span className="block text-[11.5px] text-muted mt-1">You can also enter or change a promo code on the Stripe checkout page.</span>
-          </label>
+          <p className="m-0 text-[11.5px] text-muted">Have a promotion code? Enter it securely on the Stripe checkout page.</p>
           {error ? <p className="m-0 text-[12.5px] text-[#a32d2d]">{error}</p> : null}
           <label className="flex items-start gap-2 text-[11.5px] leading-relaxed text-muted">
             <input type="checkbox" checked={legalAccepted} onChange={(event) => setLegalAccepted(event.target.checked)} required className="mt-0.5 h-4 w-4 accent-primary" />

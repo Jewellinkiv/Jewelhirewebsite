@@ -59,7 +59,7 @@ async function main() {
   record("provider handoff forbids live sends and charges by default", hasAll(providerDoc, ["Do not enable live email sends", "create live checkout sessions", "explicitly approves"]));
   record("Postmark dashboard checklist covers sender domain stream suppressions activity", hasAll(providerDoc, ["Sender signature", "domain", "Message stream", "Suppression", "Recent activity"]));
   record("Postmark checklist keeps live send gate explicit", hasAll(providerDoc, ["EMAIL_NOTIFICATIONS_ENABLED", "POSTMARK_DRY_RUN", "controlled live-send test"]));
-  record("Stripe dashboard checklist covers payment link price discounts webhook", hasAll(providerDoc, ["payment link", "Price amount", "Promotion", "Webhook endpoint", "Webhook signing secret"]));
+  record("Stripe dashboard checklist covers both recurring Prices, Checkout, discounts, and webhook", hasAll(providerDoc, ["$149.00", "$1,299.00", "Checkout Sessions", "Promotion", "Webhook endpoint", "Webhook signing secret"]));
   record("Stripe checklist covers required events and delivery failures", hasAll(providerDoc, ["checkout", "subscription", "invoice", "webhook deliveries"]));
   record("manual evidence guidance forbids secrets and PII", hasAll(providerDoc, ["Never capture API tokens", "webhook secrets", "customer PII"]));
   record("latest Postmark safety report exists", Boolean(postmarkReportPath), { report: postmarkReportPath });

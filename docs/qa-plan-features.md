@@ -140,7 +140,7 @@ Three workflow keys; **default disabled (audit-only)** until `EMAIL_NOTIFICATION
 
 | ID | Scenario | Expected | Layer | Sev |
 |---|---|---|---|---|
-| BIL-01 | Payment Link config | Active, `$99/month`, promo-enabled, expected metadata | provider | P0 |
+| BIL-01 | Checkout Price config | Active recurring USD `$149/month` and `$1,299/year` Prices, promo-enabled | provider | P0 |
 | BIL-02 | Webhook signature | Verifies; rejects unsigned; public-safe response | api/provider | P0 |
 | BIL-03 | Provisioning on paid | Correct owner; no dup on replay | persist | P0 |
 | BIL-04 | Support scenarios | Refund/cancel/wrong-email/paid-not-provisioned runbooks work | human | P1 |

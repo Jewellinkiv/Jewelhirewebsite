@@ -2,7 +2,7 @@
 
 Production app: `https://app.jewelhire.com`
 Cloud Run project: `jewelhire-prod-20260626`
-Updated: 2026-07-01
+Updated: 2026-07-15
 
 This checklist is for dashboard verification only. Do not enable live email sends, create live checkout sessions, create charges, or replay real webhooks unless the product owner explicitly approves the action.
 
@@ -42,8 +42,9 @@ Verify in Postmark without sending live customer email:
 
 Verify in Stripe without making live charges:
 
-- Store-owner payment link points to the intended recurring plan.
-- Price amount, billing interval, currency, and product name match the launch offer.
+- Monthly Stripe Price is recurring USD `$149.00` and its id is configured as `STRIPE_STORE_OWNER_MONTHLY_PRICE_ID`.
+- Annual Stripe Price is recurring USD `$1,299.00` and its id is configured as `STRIPE_STORE_OWNER_ANNUAL_PRICE_ID`.
+- Both Prices belong to the intended JewelHire organization-access product; JewelHire creates one-time Checkout Sessions server-side rather than exposing a shared Payment Link.
 - Promotion/discount settings match launch policy.
 - Webhook endpoint targets the deployed JewelHire webhook URL.
 - Webhook signing secret is configured in Secret Manager, not exposed in source or docs.

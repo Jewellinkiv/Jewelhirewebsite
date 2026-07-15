@@ -23,6 +23,8 @@
     "test:password-reset-postgres": "node --import tsx scripts/password-reset-postgres.test.mjs",
     "test:account-claim-hardening": "node --test scripts/account-claim-hardening.test.mjs",
     "test:account-claim-browser": "node scripts/account-claim-browser.test.mjs",
+    "test:standalone-billing": "node --import tsx --test scripts/standalone-billing-hardening.test.mjs",
+    "test:standalone-billing-postgres": "node --import tsx scripts/standalone-billing-postgres.test.mjs",
     "test:request-security": "node --import tsx --test scripts/request-security.test.mjs",
     "test:hybrid-location-access": "node --test scripts/hybrid-location-access-hardening.test.mjs",
     "test:hybrid-location-access-postgres": "node --import tsx scripts/hybrid-location-access-postgres.test.mjs",

@@ -155,14 +155,16 @@ The readiness check:
 
 - Connects with the same env-only database URL rules.
 - Prints or returns only redacted connection metadata.
-- Verifies the expected 43-table Phase 1 manifest from
-  `db/phase1-core-tables.json`, including `pending_applicant_signups`.
+- Verifies the expected 44-table Phase 1 manifest from
+  `db/phase1-core-tables.json`, including `pending_applicant_signups` and
+  `standalone_checkout_requests`.
 - Reads row counts for existing core tables.
 - Reports applied migration records from `schema_migrations` and fails closed
   unless `0020_verified_applicant_signups`, `0021_native_auth_epoch`,
-  `0022_password_reset_delivery_state`, and
-  `0023_jewelcert_claim_token_version` and
-  `0024_jewelcert_claim_token_version_fence` are present with their expected
+  `0022_password_reset_delivery_state`,
+  `0023_jewelcert_claim_token_version`,
+  `0024_jewelcert_claim_token_version_fence`, and
+  `0025_standalone_billing_recovery` are present with their expected
   filenames. Migration `0021` adds the durable
   per-user native-session epoch used to revoke signed cookies after credential
   replacement; it does not change JewelLink SSO session assurance. Readiness
@@ -178,8 +180,11 @@ The readiness check:
   target during candidate and public-route smoke. Migration `0024` runs only
   after the v2-writing revision owns traffic; it refuses active legacy
   JewelCert rows and installs the version-2-only active-invite constraint.
-  Readiness verifies both the column and constraint. The production workflow
-  runs this no-write readiness check from the same immutable candidate image
+  Migration `0025` additively creates the opaque retained-company checkout
+  correlation table and exact billing-selection columns; checkout surfaces
+  fail closed until it is present. Readiness verifies the new table and ledger
+  entry. The production workflow runs this no-write readiness check from the
+  same immutable candidate image
   immediately after the post-promotion contract migration succeeds.
 - Reports applied seed records from `seed_runs` when present.
 - Performs no writes.

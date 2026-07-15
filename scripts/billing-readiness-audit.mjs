@@ -17,6 +17,7 @@ const OUT = path.resolve(process.cwd(), args.get("artifacts") || `docs/qa-runs/b
 const checks = [];
 const blockers = [];
 const warnings = [];
+const skipLive = args.has("skip-live");
 
 function read(file) {
   return fs.existsSync(path.resolve(process.cwd(), file)) ? fs.readFileSync(path.resolve(process.cwd(), file), "utf8") : "";
@@ -67,7 +68,8 @@ async function main() {
   const packageJson = JSON.parse(read("package.json") || "{}");
   const hasStripeDependency = Boolean(packageJson.dependencies?.stripe || packageJson.devDependencies?.stripe);
   const hasManualWebhookVerifier = sourceContains(/verifyStripeWebhookSignature|createHmac\("sha256"|timingSafeEqual/i, ["lib/server"]);
-  const hasPaymentLinkEnv = sourceContains(/STRIPE_STORE_OWNER_PAYMENT_LINK/, ["app", "lib", "scripts"]);
+  const hasMonthlyPriceEnv = sourceContains(/STRIPE_STORE_OWNER_MONTHLY_PRICE_ID/, ["app", "lib", "scripts"]);
+  const hasAnnualPriceEnv = sourceContains(/STRIPE_STORE_OWNER_ANNUAL_PRICE_ID/, ["app", "lib", "scripts"]);
   const hasSecretEnv = sourceContains(/STRIPE_SECRET_KEY/, ["app", "lib", "scripts"]);
   const hasWebhookSecretEnv = sourceContains(/STRIPE_WEBHOOK_SECRET/, ["app", "lib", "scripts"]);
   const hasWebhookRoute = routeExists(/(?:stripe|webhook).+route\.(?:ts|js)$/i) && sourceContains(/verifyStripeWebhookSignature|constructEvent|STRIPE_WEBHOOK_SECRET|stripe\.webhooks/i, ["app/api", "lib"]);
@@ -80,14 +82,16 @@ async function main() {
   const hasWebhookNotificationDedupe =
     sourceContains(/duplicate_stripe_event/, ["lib/server"]) &&
     sourceContains(/on conflict \(id\) do nothing[\s\S]*returning id/i, ["lib/server"]);
+  const hasPaymentGatedRecovery =
+    routeExists(/admin.+companies.+standalone-access.+route\.(?:ts|js)$/i) &&
+    sourceContains(/standalone_checkout_requests[\s\S]*provider_checkout_session_id/i, ["lib/server", "db/migrations"]) &&
+    sourceContains(/stripeCheckoutMatchesStoreOwnerOffer[\s\S]*company_access_entitlements/i, ["lib/server"]);
 
   record("stripe dependency or manual webhook verifier present", hasStripeDependency || hasManualWebhookVerifier || !hasWebhookRoute, {
     status: hasStripeDependency ? "stripe_sdk_present" : hasManualWebhookVerifier ? "manual_hmac_verifier_present" : "not_required_until_webhook_route_exists",
   });
-  record("stripe payment link env is referenced", hasPaymentLinkEnv, {
-    severity: "warning",
-    requiredForLaunch: false,
-  });
+  record("monthly $149 Stripe Price env is referenced", hasMonthlyPriceEnv, { requiredForLaunch: true });
+  record("annual $1,299 Stripe Price env is referenced", hasAnnualPriceEnv, { requiredForLaunch: true });
   record("stripe secret env is referenced by readiness/security surface", hasSecretEnv);
   record("stripe webhook secret env is referenced by readiness/security surface", hasWebhookSecretEnv);
   record("stripe webhook route implemented", hasWebhookRoute, { requiredForLaunch: true });
@@ -95,35 +99,40 @@ async function main() {
   record("stripe webhook notifications are idempotent", hasWebhookNotificationDedupe, { requiredForLaunch: true });
   record("store-owner billing checkout route implemented", hasStoreCheckoutRoute, { requiredForLaunch: true });
   record("discount or promotion-code support implemented", hasDiscountMarkers, { requiredForLaunch: true });
+  record("retained-company recovery remains payment-gated", hasPaymentGatedRecovery, { requiredForLaunch: true });
 
   if (!hasWebhookRoute) blockers.push("No Stripe webhook route found; billing state cannot be reconciled from Stripe events yet.");
   if (!hasWebhookReconciliation) blockers.push("Stripe webhook route exists but does not reconcile billing and audit records yet.");
   if (!hasWebhookNotificationDedupe) blockers.push("Stripe event redelivery can resend billing notifications.");
   if (!hasStoreCheckoutRoute) blockers.push("No protected store-owner billing checkout route found.");
   if (!hasDiscountMarkers) blockers.push("No Stripe coupon/promotion-code support found; discount codes still need implementation.");
-  if (!hasPaymentLinkEnv) warnings.push("No STRIPE_STORE_OWNER_PAYMENT_LINK reference found.");
+  if (!hasMonthlyPriceEnv) blockers.push("No STRIPE_STORE_OWNER_MONTHLY_PRICE_ID reference found.");
+  if (!hasAnnualPriceEnv) blockers.push("No STRIPE_STORE_OWNER_ANNUAL_PRICE_ID reference found.");
+  if (!hasPaymentGatedRecovery) blockers.push("Retained-company recovery is not durably bound to a verified paid Checkout Session.");
 
-  const billing = await fetch(`${BASE}/api/admin/billing`, { redirect: "manual" });
-  const billingBody = await readBody(billing);
-  record("live admin billing api requires auth", billing.status === 401 && billingBody?.error?.code === "unauthenticated", {
-    status: billing.status,
-  });
+  if (!skipLive) {
+    const billing = await fetch(`${BASE}/api/admin/billing`, { redirect: "manual" });
+    const billingBody = await readBody(billing);
+    record("live admin billing api requires auth", billing.status === 401 && billingBody?.error?.code === "unauthenticated", {
+      status: billing.status,
+    });
 
-  const storeCheckout = await fetch(`${BASE}/api/stores/store-sissys-little-rock/billing/checkout`, { redirect: "manual" });
-  const storeCheckoutBody = await readBody(storeCheckout);
-  record("live store-owner billing checkout api requires auth", storeCheckout.status === 401 && storeCheckoutBody?.error?.code === "unauthenticated", {
-    status: storeCheckout.status,
-  });
+    const storeCheckout = await fetch(`${BASE}/api/stores/store-sissys-little-rock/billing/checkout`, { redirect: "manual" });
+    const storeCheckoutBody = await readBody(storeCheckout);
+    record("live store-owner billing checkout api requires auth", storeCheckout.status === 401 && storeCheckoutBody?.error?.code === "unauthenticated", {
+      status: storeCheckout.status,
+    });
 
-  const webhookProbe = await fetch(`${BASE}/api/stripe/webhook`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: "{}",
-    redirect: "manual",
-  });
-  record("live stripe webhook probe has no unsafe success", webhookProbe.status !== 200 && webhookProbe.status !== 204, {
-    status: webhookProbe.status,
-  });
+    const webhookProbe = await fetch(`${BASE}/api/stripe/webhook`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+      redirect: "manual",
+    });
+    record("live stripe webhook probe has no unsafe success", webhookProbe.status !== 200 && webhookProbe.status !== 204, {
+      status: webhookProbe.status,
+    });
+  }
 
   const failures = checks.filter((check) => !check.pass && check.severity === "blocking");
   fs.mkdirSync(OUT, { recursive: true });
@@ -154,6 +163,7 @@ async function main() {
       "",
       ...(warnings.length ? warnings.map((warning) => `- ${warning}`) : ["- None"]),
       "",
+      `Live checks: ${skipLive ? "skipped by request" : "completed"}.`,
       "Live side effects: none. No checkout sessions, charges, discounts, or webhooks were created.",
     ].join("\n"),
   );

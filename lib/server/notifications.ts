@@ -15,7 +15,8 @@ type NotificationTemplate =
   | "interview_scheduled"
   | "applicant_signup"
   | "password_reset"
-  | "store_owner_claim";
+  | "store_owner_claim"
+  | "standalone_checkout";
 
 type NotificationRecipient = {
   email?: string | null;
@@ -498,6 +499,45 @@ export async function notifyStoreOwnerClaim(input: {
       companyName,
       existingAccount: input.existingAccount || false,
       accessRecovery,
+    },
+  });
+}
+
+export async function notifyStandaloneCheckout(input: {
+  toEmail?: string | null;
+  name?: string | null;
+  companyId: string;
+  companyName?: string | null;
+  checkoutUrl: string;
+  billingInterval: "month" | "year";
+  amountCents: number;
+  requestId: string;
+}) {
+  const name = input.name?.trim() || "there";
+  const companyName = input.companyName?.trim() || "your company";
+  const price = (input.amountCents / 100).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+  const cadence = input.billingInterval === "year" ? "year" : "month";
+  return sendNotification({
+    template: "standalone_checkout",
+    to: { email: input.toEmail, name },
+    subject: `Continue ${companyName} on JewelHire`,
+    textBody: [
+      `Hi ${name},`,
+      `${companyName}'s existing JewelHire data is safely retained. To continue without a JewelLink membership, complete the secure Stripe checkout for ${price} per ${cadence}. One subscription covers the organization.`,
+      input.checkoutUrl,
+      "This checkout session expires in 24 hours. After Stripe confirms payment, a JewelHire administrator can send your separate single-use account claim link. Payment alone does not set or reveal a password.",
+      "If you did not request standalone access, do not use this link and contact JewelHire support.",
+    ].join("\n\n"),
+    tag: "standalone-checkout",
+    metadata: {
+      companyId: input.companyId,
+      requestId: input.requestId,
+      billingInterval: input.billingInterval,
+      amountCents: input.amountCents,
     },
   });
 }
