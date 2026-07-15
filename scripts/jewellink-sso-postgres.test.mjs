@@ -240,6 +240,56 @@ async function main() {
     });
   };
 
+  process.env.JEWELHIRE_ADMIN_EMAILS = [
+    "company-scoped-super-admin@example.test",
+    "company-neutral-super-admin@example.test",
+  ].join(",");
+  const companyScopedSuperAdminClaims = jewelLinkClaims({
+    userId: "company-scoped-super-admin",
+    email: "company-scoped-super-admin@example.test",
+    name: "Company Scoped Super Admin",
+    role: "SUPER_ADMIN",
+  });
+  await assert.rejects(
+    jewelLinkSso.provisionJewelLinkSession(companyScopedSuperAdminClaims),
+    (error) => error instanceof jewelLinkSso.JewelLinkAccessRevokedError,
+  );
+  const blockedSuperAdminState = await pool.query(
+    `select
+       (select count(*)::int from companies where jewellink_company_id = $1) as company_count,
+       (select count(*)::int from users where jewellink_user_id = $2) as user_count`,
+    [companyScopedSuperAdminClaims.company.id, companyScopedSuperAdminClaims.userId],
+  );
+  assert.deepEqual(blockedSuperAdminState.rows[0], { company_count: 0, user_count: 0 });
+
+  const companyNeutralSuperAdminClaims = {
+    ...jewelLinkClaims({
+      userId: "company-neutral-super-admin",
+      email: "company-neutral-super-admin@example.test",
+      name: "Company Neutral Super Admin",
+      role: "SUPER_ADMIN",
+    }),
+    company: null,
+    primaryLocationId: null,
+    locations: [],
+    allLocations: true,
+  };
+  const companyNeutralSuperAdminSession = await jewelLinkSso.provisionJewelLinkSession(
+    companyNeutralSuperAdminClaims,
+  );
+  assert.equal(companyNeutralSuperAdminSession?.role, "admin");
+  const companyNeutralSuperAdminState = await pool.query(
+    `select company_id, native_auth_enabled
+     from users
+     where jewellink_user_id = $1`,
+    [companyNeutralSuperAdminClaims.userId],
+  );
+  assert.deepEqual(companyNeutralSuperAdminState.rows[0], {
+    company_id: null,
+    native_auth_enabled: false,
+  });
+  delete process.env.JEWELHIRE_ADMIN_EMAILS;
+
   const freshStudentClaims = jewelLinkClaims({
     userId: "fresh-student",
     email: "fresh-student@example.test",
@@ -1154,6 +1204,7 @@ async function main() {
   console.log("PASS non-conflict profile SQL failure also durably revokes a demoted manager");
   console.log("PASS early company provisioning failure also durably revokes a demoted manager");
   console.log("PASS only exact Student and Consultant roles receive SSO applicant profiles");
+  console.log("PASS company-scoped SUPER_ADMIN fails before tenant or user provisioning while company-neutral admin succeeds");
   console.log("PASS successful upstream introspection cannot expand signed authority through local rows");
 }
 

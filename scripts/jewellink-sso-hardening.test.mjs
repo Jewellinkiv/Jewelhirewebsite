@@ -396,14 +396,16 @@ test("linked identities and platform admins deny native login while standalone u
   assert.equal(nativeAuthAllowed({ nativeAuthEnabled: true, isPlatformAdmin: true }), false);
 });
 
-test("JewelLink SSO accepts only the exact role contract and independently allowlists SUPER_ADMIN", () => {
-  assert.equal(jewelLinkRoleAllowedForIdentity({ role: "SUPER_ADMIN", isPlatformAdmin: false }), false);
-  assert.equal(jewelLinkRoleAllowedForIdentity({ role: "SUPER_ADMIN", isPlatformAdmin: true }), true);
+test("JewelLink SSO accepts only the exact role contract and company-neutral SUPER_ADMIN", () => {
+  const company = { id: "company-1", name: "Company One" };
+  assert.equal(jewelLinkRoleAllowedForIdentity({ role: "SUPER_ADMIN", isPlatformAdmin: false, company: null }), false);
+  assert.equal(jewelLinkRoleAllowedForIdentity({ role: "SUPER_ADMIN", isPlatformAdmin: true, company: null }), true);
+  assert.equal(jewelLinkRoleAllowedForIdentity({ role: "SUPER_ADMIN", isPlatformAdmin: true, company }), false);
   for (const role of ["ADMIN", "DIRECTOR", "MANAGER", "CONSULTANT", "STUDENT"]) {
-    assert.equal(jewelLinkRoleAllowedForIdentity({ role, isPlatformAdmin: false }), true);
+    assert.equal(jewelLinkRoleAllowedForIdentity({ role, isPlatformAdmin: false, company }), true);
   }
   for (const role of ["TEACHER", "VENDOR", "", "manager", " DIRECTOR"] ) {
-    assert.equal(jewelLinkRoleAllowedForIdentity({ role, isPlatformAdmin: true }), false);
+    assert.equal(jewelLinkRoleAllowedForIdentity({ role, isPlatformAdmin: true, company: null }), false);
   }
 });
 
@@ -640,10 +642,14 @@ test("routes enforce linked-account denial, callback ordering, cookie clearing, 
   assert.match(service, /on conflict \(company_id\) do nothing/);
   assert.match(service, /jewelLinkRoleAllowedForIdentity/);
   const provisioning = service.slice(service.indexOf("export async function provisionJewelLinkSession"));
+  const rolePolicy = provisioning.indexOf("jewelLinkRoleAllowedForIdentity");
+  const databaseConnection = provisioning.indexOf("getPostgresPool().connect()");
   const advisoryLock = provisioning.indexOf("pg_advisory_lock");
   const demotionBarrier = provisioning.indexOf("with linked_applicant as materialized");
   const provisioningTransaction = provisioning.indexOf('client.query("begin")');
   const companyProvisioning = provisioning.indexOf("insert into companies");
+  assert.ok(rolePolicy >= 0 && rolePolicy < databaseConnection);
+  assert.ok(databaseConnection < advisoryLock);
   assert.ok(advisoryLock >= 0 && advisoryLock < demotionBarrier);
   assert.ok(demotionBarrier < provisioningTransaction);
   assert.ok(provisioningTransaction < companyProvisioning);

@@ -65,12 +65,14 @@ value `0` so an accidental service setting cannot enable the unfinished flow.
 | MANAGER | Manager | Primary + `UserLocationAccess` grants | No owner billing/settings |
 | DIRECTOR | Store owner by default; configurable to manager | All company locations | Owner only when mapped to owner |
 | ADMIN | Store owner | All company locations | Owner access |
-| SUPER_ADMIN | No automatic platform-admin grant | JewelHire allowlist only | JewelHire allowlist only |
+| SUPER_ADMIN | No automatic platform-admin grant | Company-neutral identity only | JewelHire allowlist only |
 
 Every other role value, including legacy `TEACHER` and differently-cased or
 whitespace-padded variants, is rejected before JewelHire provisioning begins.
 `SUPER_ADMIN` is accepted only when the normalized email is independently
-present in JewelHire's platform-admin allowlist.
+present in JewelHire's platform-admin allowlist **and** the signed JewelLink
+claim has `company: null`. A company-scoped `SUPER_ADMIN` is rejected before
+JewelHire opens a database connection or provisions tenant data.
 
 Set `JEWELHIRE_JEWELLINK_DIRECTOR_ROLE=manager` when Directors should not have
 owner/billing access. Managers remain selected-location scoped unless

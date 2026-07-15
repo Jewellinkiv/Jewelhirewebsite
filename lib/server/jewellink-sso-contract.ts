@@ -108,14 +108,21 @@ const JEWELLINK_ELIGIBLE_ROLES = new Set([
   "STUDENT",
 ]);
 
-export function jewelLinkRoleAllowedForIdentity(input: { role: string; isPlatformAdmin: boolean }) {
+export function jewelLinkRoleAllowedForIdentity(input: {
+  role: string;
+  isPlatformAdmin: boolean;
+  company: { id: string; name: string } | null;
+}) {
   // Accept only the exact, versioned upstream role contract. SUPER_ADMIN is an
   // authentication eligibility marker, not a local authorization grant, and is
-  // accepted only for an independently configured JewelHire platform-admin
-  // email. No unknown, legacy, differently-cased, or whitespace-padded role is
-  // allowed to fall through as an applicant.
+  // accepted only for an independently configured, company-neutral JewelHire
+  // platform-admin email. No unknown, legacy, differently-cased, or
+  // whitespace-padded role is allowed to fall through as an applicant.
   return JEWELLINK_ELIGIBLE_ROLES.has(input.role)
-    && (input.role !== "SUPER_ADMIN" || input.isPlatformAdmin);
+    && (
+      input.role !== "SUPER_ADMIN"
+      || (input.isPlatformAdmin && input.company === null)
+    );
 }
 
 const APPLICANT_BUNDLE_PATH = /^\/bundle\/([A-Za-z0-9._~-]{1,256})$/;

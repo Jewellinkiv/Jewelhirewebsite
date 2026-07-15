@@ -151,7 +151,11 @@ export async function provisionJewelLinkSession(claims: JewelLinkSsoClaims): Pro
   const applicantRole = isApplicantRole(claims.role);
   const email = claims.email.trim().toLowerCase();
   const isPlatformAdmin = isConfiguredAdminEmail(email);
-  if (!jewelLinkRoleAllowedForIdentity({ role: claims.role, isPlatformAdmin })) {
+  if (!jewelLinkRoleAllowedForIdentity({
+    role: claims.role,
+    isPlatformAdmin,
+    company: claims.company,
+  })) {
     throw new JewelLinkAccessRevokedError();
   }
   const client = await getPostgresPool().connect();
