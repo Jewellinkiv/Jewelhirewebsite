@@ -92,7 +92,9 @@ Stripe remains the entitlement source for organizations without JewelLink:
 - one subscription per organization
 
 The super-admin company screen implements the cancellation recovery sequence:
-select the retained owner, email a one-time Stripe Checkout Session for one of
+select the retained owner, verify current JewelLink company access through the
+dedicated integration-secret endpoint, and only then email a one-time Stripe
+Checkout Session for one of
 the two organization prices, wait for the signature-verified paid webhook, then
 send the separate single-use native account claim. Checkout requests are opaque,
 expire after 24 hours, and do not unlock claims. The webhook must match the

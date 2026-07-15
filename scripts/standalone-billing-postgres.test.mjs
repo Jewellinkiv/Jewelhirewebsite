@@ -55,8 +55,36 @@ async function main() {
 
   const postgres = await import("../lib/server/postgres.ts");
   const access = await import("../lib/server/standalone-access.ts");
+  const jewelLinkAccess = await import("../lib/server/jewellink-company-access.ts");
   const adminBilling = await import("../lib/server/postgres-phase1.ts");
   pool = postgres.getPostgresPool();
+
+  process.env.JEWELLINK_URL = "https://jewellink.example.test";
+  process.env.JEWELLINK_INTEGRATION_SHARED_SECRET = "integration_test_secret";
+  const originalFetch = globalThis.fetch;
+  let upstreamState = "active";
+  let checkoutSequence = 0;
+  globalThis.fetch = async (url, init) => {
+    const requestedUrl = String(url);
+    if (requestedUrl.endsWith("/api/integrations/jewelhire/company-access")) {
+      const request = JSON.parse(String(init?.body || "{}"));
+      return new Response(JSON.stringify({
+        ok: true,
+        companyId: request.companyId,
+        active: upstreamState === "active",
+        state: upstreamState,
+        updatedAt: new Date().toISOString(),
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (requestedUrl === "https://api.stripe.com/v1/checkout/sessions") {
+      checkoutSequence += 1;
+      return new Response(JSON.stringify({
+        id: `cs_test_lifecycle_${checkoutSequence}`,
+        url: `https://checkout.stripe.test/lifecycle/${checkoutSequence}`,
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    throw new Error(`Unexpected test request: ${requestedUrl}`);
+  };
 
   await pool.query(
     `insert into billing_plans (
@@ -64,10 +92,10 @@ async function main() {
      )
      values ('plan-growth', 'growth', 14900, 'month', 'Organization', '[]'::jsonb, 'active');
 
-     insert into companies (id, name, plan_tier, status)
+     insert into companies (id, name, plan_tier, status, jewellink_company_id)
      values
-       ('co-retained', 'Retained Jewelers', 'growth', 'paused'),
-       ('co-included', 'Included Jewelers', 'growth', 'active');
+       ('co-retained', 'Retained Jewelers', 'growth', 'paused', 'jl-retained'),
+       ('co-included', 'Included Jewelers', 'growth', 'active', 'jl-included');
 
      insert into stores (id, company_id, name, slug, status)
      values
@@ -114,6 +142,15 @@ async function main() {
     "select count(*)::int as count from standalone_checkout_requests where company_id = 'co-included'",
   );
   assert.equal(includedRequests.rows[0]?.count, 0);
+  const currentIncluded = await jewelLinkAccess.reconcileCurrentJewelLinkCompanyAccess({
+    companyId: "co-included",
+    actorUserId: "user-included-owner",
+    actorEmail: "included-owner@example.test",
+  });
+  assert.equal(currentIncluded.ok, true);
+  assert.equal(currentIncluded.linked, true);
+  assert.equal(currentIncluded.active, true);
+  assert.equal(currentIncluded.changed, false);
 
   await assert.rejects(
     pool.query(
@@ -268,11 +305,73 @@ async function main() {
   );
   assert.deepEqual(invalidRequest.rows[0], { status: "pending", provider_subscription_id: null });
 
+  upstreamState = "inactive";
+  const cancelledIncluded = await jewelLinkAccess.reconcileCurrentJewelLinkCompanyAccess({
+    companyId: "co-included",
+    actorUserId: "user-included-owner",
+    actorEmail: "included-owner@example.test",
+  });
+  assert.equal(cancelledIncluded.ok, true);
+  assert.equal(cancelledIncluded.linked, true);
+  assert.equal(cancelledIncluded.active, false);
+  assert.equal(cancelledIncluded.state, "inactive");
+  assert.equal(cancelledIncluded.changed, true);
+  const repeatedCancellation = await jewelLinkAccess.reconcileCurrentJewelLinkCompanyAccess({
+    companyId: "co-included",
+    actorUserId: "user-included-owner",
+    actorEmail: "included-owner@example.test",
+  });
+  assert.equal(repeatedCancellation.ok, true);
+  assert.equal(repeatedCancellation.changed, false);
+  const cancelledState = await access.getCompanyStandaloneAccessState("co-included");
+  assert.equal(cancelledState.companyStatus, "paused");
+  assert.equal(cancelledState.jewellinkAccessActive, false);
+  assert.equal(cancelledState.dataRetained, true);
+
+  const replacementCheckout = await access.createStandaloneCheckoutRequest({
+    companyId: "co-included",
+    storeId: "store-included",
+    requestedForUserId: "user-included-owner",
+    createdByUserId: "user-included-owner",
+    billingInterval: "year",
+    customerEmail: "included-owner@example.test",
+  });
+  assert.equal(replacementCheckout.ok, true);
+  const paidReplacement = await access.reconcilePaidStandaloneCheckout({
+    referenceId: replacementCheckout.requestId,
+    checkoutSessionId: replacementCheckout.sessionId,
+    providerSubscriptionId: "sub_test_included_annual",
+    providerCustomerId: "cus_test_included",
+    mode: "subscription",
+    status: "complete",
+    paymentStatus: "paid",
+    currency: "usd",
+    amountSubtotal: 129900,
+  });
+  assert.equal(paidReplacement.reconciled, true);
+  const recoveredIncluded = await pool.query(
+    `select company.status as company_status,
+            entitlement.source,
+            entitlement.status as entitlement_status,
+            (select count(*)::int from stores where company_id = company.id) as stores
+     from companies company
+     join company_access_entitlements entitlement on entitlement.company_id = company.id
+     where company.id = 'co-included'`,
+  );
+  assert.deepEqual(recoveredIncluded.rows[0], {
+    company_status: "active",
+    source: "stripe",
+    entitlement_status: "active",
+    stores: 1,
+  });
+  globalThis.fetch = originalFetch;
+
   console.log("PASS active JewelLink access cannot be charged");
   console.log("PASS retained company data survives exact paid activation and webhook replay");
   console.log("PASS subscription delinquency pauses access and a known active subscription restores it");
   console.log("PASS MRR includes current Stripe access and excludes free JewelLink access");
   console.log("PASS database offer constraints and mismatched webhook evidence cannot activate access");
+  console.log("PASS cancelled JewelLink access reconciles idempotently, retains data, and permits exact paid recovery");
 }
 
 try {

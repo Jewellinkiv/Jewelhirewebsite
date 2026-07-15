@@ -132,6 +132,7 @@ test("signed malformed Stripe JSON fails closed instead of throwing", async () =
 test("retained-company recovery is payment-gated, idempotent, audited, and data-preserving", () => {
   const migration = read("db/migrations/0025_standalone_billing_recovery.sql");
   const access = read("lib/server/standalone-access.ts");
+  const jewelLinkAccess = read("lib/server/jewellink-company-access.ts");
   const webhook = read("lib/server/stripe-billing.ts");
   const adminRoute = read("app/api/admin/companies/[id]/standalone-access/route.ts");
   const claimRoute = read("app/api/admin/companies/[id]/claim-links/route.ts");
@@ -155,6 +156,19 @@ test("retained-company recovery is payment-gated, idempotent, audited, and data-
   assert.match(webhook, /reconcilePaidStandaloneCheckout/);
   assert.match(webhook, /Never turn an unknown state into[\s\S]*return "past_due"/);
   assert.match(adminRoute, /notifyStandaloneCheckout/);
+  assert.match(adminRoute, /reconcileCurrentJewelLinkCompanyAccess/);
+  assert.match(adminRoute, /jewellink_access_unverified/);
+  assert.ok(
+    adminRoute.indexOf("reconcileCurrentJewelLinkCompanyAccess")
+      < adminRoute.indexOf("createStandaloneCheckoutRequest"),
+    "current JewelLink access must be reconciled before checkout creation",
+  );
+  assert.match(jewelLinkAccess, /JEWELLINK_INTEGRATION_SHARED_SECRET/);
+  assert.match(jewelLinkAccess, /\/api\/integrations\/jewelhire\/company-access/);
+  assert.match(jewelLinkAccess, /body\.companyId !== externalCompanyId/);
+  assert.match(jewelLinkAccess, /where company_id = \$1[\s\S]*source = 'jewellink_included'/);
+  assert.match(jewelLinkAccess, /entitlement\.source <> 'jewellink_included'/);
+  assert.doesNotMatch(jewelLinkAccess, /delete from (companies|stores|users|applications)/i);
   assert.match(adminRoute, /Sent standalone checkout/);
   assert.match(claimRoute, /standalone_entitlement_required/);
   assert.match(claimCompletion, /return \{ ok: false, reason: "standalone_entitlement_required" \}/);

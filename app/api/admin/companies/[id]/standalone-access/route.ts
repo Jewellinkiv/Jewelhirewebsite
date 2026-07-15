@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAdminAccess } from "@/lib/server/access-control";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
 import { isConfiguredAdminEmail } from "@/lib/server/auth";
+import { reconcileCurrentJewelLinkCompanyAccess } from "@/lib/server/jewellink-company-access";
 import { notifyStandaloneCheckout } from "@/lib/server/notifications";
 import { getPostgresPool } from "@/lib/server/postgres";
 import {
@@ -60,6 +61,34 @@ export const POST = withApiErrorHandling(async function POST(
     return NextResponse.json(
       { error: { code: "billing_interval_required", message: "Choose monthly or annual billing." } },
       { status: 400 },
+    );
+  }
+
+  const jewelLinkAccess = await reconcileCurrentJewelLinkCompanyAccess({
+    companyId: params.id,
+    actorUserId: admin.userId,
+    actorEmail: admin.email,
+  });
+  if (!jewelLinkAccess.ok) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "jewellink_access_unverified",
+          message: "Current JewelLink membership could not be verified. No checkout was created; retry after the integration is healthy.",
+        },
+      },
+      { status: 503 },
+    );
+  }
+  if (jewelLinkAccess.linked && jewelLinkAccess.active) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "jewellink_access_active",
+          message: "This company's JewelHire access is still included with its active JewelLink membership. Do not send paid standalone checkout.",
+        },
+      },
+      { status: 409 },
     );
   }
 
@@ -183,6 +212,13 @@ export const POST = withApiErrorHandling(async function POST(
           amountCents: offer.amountCents,
           delivery: notification.status,
           reused: checkout.reused,
+          jewelLinkAccess: jewelLinkAccess.linked
+            ? {
+                state: jewelLinkAccess.state,
+                changed: jewelLinkAccess.changed,
+                upstreamUpdatedAt: jewelLinkAccess.upstreamUpdatedAt,
+              }
+            : { linked: false },
         }),
       ],
     );
@@ -198,6 +234,7 @@ export const POST = withApiErrorHandling(async function POST(
     offer,
     checkoutExpiresInHours: 24,
     notification,
+    jewelLinkAccess,
     access: await getCompanyStandaloneAccessState(params.id),
   });
 });

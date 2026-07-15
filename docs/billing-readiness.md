@@ -15,23 +15,35 @@ checkout while a current `jewellink_included` entitlement is active. The paid
 recovery path becomes available only after that included access is no longer
 current.
 
+The super-admin checkout action verifies the linked company directly against
+JewelLink's current database through the bearer-authenticated
+`/api/integrations/jewelhire/company-access` endpoint before it creates or
+emails any Stripe session. An active response keeps paid checkout blocked. A
+paused or inactive response idempotently pauses only the
+`jewellink_included` entitlement and the local company shell; stores, jobs,
+applications, analytics, users, and assessments remain intact. A timeout,
+unknown external company, mismatched identity, or malformed response fails
+closed with no checkout and no email.
+
 ## Payment-gated retained-account workflow
 
 1. A JewelHire super admin opens the retained company and chooses an active store
    owner.
-2. The admin selects monthly or annual billing. JewelHire creates an opaque,
+2. JewelHire verifies the company's current JewelLink membership server to
+   server and records any included-access transition in the admin audit log.
+3. The admin selects monthly or annual billing. JewelHire creates an opaque,
    expiring `standalone_checkout_requests` record and a server-side Stripe
    Checkout Session using the corresponding configured Price id.
-3. JewelHire emails the unique Checkout Session URL to that owner. Retrying an
+4. JewelHire emails the unique Checkout Session URL to that owner. Retrying an
    ambiguous delivery reuses the request and Stripe idempotency key.
-4. The claim-link control remains locked. Creating a request, sending an email,
+5. The claim-link control remains locked. Creating a request, sending an email,
    or returning from Stripe does not grant access.
-5. A signature-verified `checkout.session.completed` webhook must match the
+6. A signature-verified `checkout.session.completed` webhook must match the
    exact server-created session id, opaque request, selected interval, USD
    currency, paid subscription mode, and the expected pre-discount subtotal.
-6. One transaction activates the Stripe subscription and organization
+7. One transaction activates the Stripe subscription and organization
    entitlement, reactivates the retained company, and marks the request used.
-7. The admin refreshes payment status and sends the separate three-day,
+8. The admin refreshes payment status and sends the separate three-day,
    single-use account claim. Issuance and redemption both re-check the active
    non-JewelLink entitlement.
 
