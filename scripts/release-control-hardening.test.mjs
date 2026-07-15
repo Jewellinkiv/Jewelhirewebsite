@@ -142,15 +142,15 @@ test("Cloud Run jobs preserve the buildpack runtime environment", () => {
   assert.doesNotMatch(workflow, /--command npm/);
   assert.match(
     workflow,
-    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:migrate:apply,--,--through=0023_jewelcert_claim_token_version/,
-  );
-  assert.match(
-    workflow,
-    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:migrate:apply \\/,
+    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:migrate:apply,--,--through=0025_standalone_billing_recovery/,
   );
   assert.match(
     workflow,
     /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:readiness \\/,
+  );
+  assert.match(
+    workflow,
+    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,stripe:readiness:production \\/,
   );
   assert.doesNotMatch(workflow, /--args run,/);
 });
@@ -167,19 +167,19 @@ test("JewelCert v2 cutover is operator-confirmed, database-enforced, and written
   const commandReadiness = fs.readFileSync("scripts/check-database-readiness.mjs", "utf8");
   const cutoverPostgresTest = fs.readFileSync("scripts/jewelcert-cutover-postgres.test.mjs", "utf8");
 
-  assert.match(workflow, /legacy_jewelcert_invites_cleared:/);
-  assert.match(workflow, /if \[\[ "\$LEGACY_JEWELCERT_INVITES_CLEARED" != "true" \]\]/);
+  assert.doesNotMatch(workflow, /legacy_jewelcert_invites_cleared:/);
   assert.match(workflow, /--args npm,run,db:readiness/);
-  const expandApply = workflow.indexOf("--through=0023_jewelcert_claim_token_version");
+  const stripeReadiness = workflow.indexOf("Verify live Stripe offers webhook and legacy drain before database changes");
+  const additiveApply = workflow.indexOf("--through=0025_standalone_billing_recovery");
+  const finalReadiness = workflow.indexOf("Verify exact production database invariants before traffic");
   const promotion = workflow.indexOf("Move production traffic to candidate");
   const rollbackCompatibleSmoke = workflow.indexOf("Verify public production routes");
-  const contractApply = workflow.indexOf("jewelhire-migrate-contract");
-  const finalReadiness = workflow.indexOf("jewelhire-readiness", contractApply);
-  assert.ok(expandApply >= 0 && expandApply < promotion);
+  assert.ok(stripeReadiness >= 0 && stripeReadiness < additiveApply);
+  assert.ok(additiveApply < finalReadiness);
+  assert.ok(finalReadiness < promotion);
   assert.ok(promotion < rollbackCompatibleSmoke);
-  assert.ok(rollbackCompatibleSmoke < contractApply);
-  assert.ok(contractApply < finalReadiness);
-  assert.match(workflow, /After this contract migration, do not restore a pre-v2 revision/);
+  assert.doesNotMatch(workflow, /jewelhire-migrate-contract|Apply post-promotion/);
+  assert.match(workflow, /REQUIRE_APPLIED_MIGRATION_ID=0024_jewelcert_claim_token_version_fence/);
   assert.match(workflow, /JEWELHIRE_REQUIRE_AUTH=1 and AUTH_MODE=google/);
   assert.match(workflow, /JEWELHIRE_STORAGE=postgres and JEWELHIRE_ENABLE_SESSION_OVERRIDE=0/);
   assert.match(workflow, /npm run test:jewelcert-cutover-postgres/);

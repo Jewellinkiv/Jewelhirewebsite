@@ -24,7 +24,7 @@ const admin = new Client({ connectionString: adminUrl.toString(), ssl: false });
 let databaseCreated = false;
 let client;
 
-function runMigration(arguments_, { requireExistingLedger = true } = {}) {
+function runMigration(arguments_, { requireExistingLedger = true, requiredAppliedMigrationId } = {}) {
   const env = {
     ...process.env,
     APPLY_DATABASE_MIGRATIONS: "1",
@@ -32,6 +32,8 @@ function runMigration(arguments_, { requireExistingLedger = true } = {}) {
   };
   if (requireExistingLedger) env.REQUIRE_EXISTING_MIGRATION_LEDGER = "1";
   else delete env.REQUIRE_EXISTING_MIGRATION_LEDGER;
+  if (requiredAppliedMigrationId) env.REQUIRE_APPLIED_MIGRATION_ID = requiredAppliedMigrationId;
+  else delete env.REQUIRE_APPLIED_MIGRATION_ID;
   return spawnSync(
     process.execPath,
     [path.join(rootDir, "scripts/run-migrations.mjs"), "apply", ...arguments_],
@@ -61,6 +63,16 @@ async function main() {
      order by id`,
   );
   assert.deepEqual(expandLedger.rows.map((row) => row.id), ["0023_jewelcert_claim_token_version"]);
+
+  const prematureAdditiveRelease = runMigration(
+    ["--through=0025_standalone_billing_recovery"],
+    { requiredAppliedMigrationId: "0024_jewelcert_claim_token_version_fence" },
+  );
+  assert.notEqual(prematureAdditiveRelease.status, 0);
+  assert.match(
+    migrationFailure(prematureAdditiveRelease),
+    /Required migration 0024_jewelcert_claim_token_version_fence is not already applied/,
+  );
 
   await client.query(
     `insert into companies (id, name) values ('cutover-company', 'Cutover Company');
@@ -101,7 +113,7 @@ async function main() {
   const contract = runMigration([]);
   assert.equal(contract.status, 0, migrationFailure(contract));
 
-  const postPromotionLedger = await client.query(
+  const billingLedger = await client.query(
     `select id from schema_migrations
      where id in (
        '0024_jewelcert_claim_token_version_fence',
@@ -110,7 +122,7 @@ async function main() {
      order by id`,
   );
   assert.deepEqual(
-    postPromotionLedger.rows.map((row) => row.id),
+    billingLedger.rows.map((row) => row.id),
     ["0024_jewelcert_claim_token_version_fence", "0025_standalone_billing_recovery"],
   );
   const billingBridge = await client.query(
@@ -154,7 +166,7 @@ async function main() {
     },
   );
   assert.equal(verify.status, 0, migrationFailure(verify));
-  console.log("PASS rollback-compatible expand, blocking contract precondition, v2 fence, additive billing bridge, and ledger integrity");
+  console.log("PASS contract-boundary release guard, blocking fence precondition, v2 fence, additive billing bridge, and ledger integrity");
 }
 
 try {

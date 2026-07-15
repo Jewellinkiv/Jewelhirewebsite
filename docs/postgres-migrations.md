@@ -177,15 +177,16 @@ The readiness check:
   after-response reset flow cannot silently run against an incomplete schema.
   Migration `0023` additively creates the claim-token-version column with a
   version-1 default so the prior production revision remains a safe rollback
-  target during candidate and public-route smoke. Migration `0024` runs only
-  after the v2-writing revision owns traffic; it refuses active legacy
-  JewelCert rows and installs the version-2-only active-invite constraint.
+  target during its original candidate and public-route smoke. Production now
+  has migration `0024`; it refused active legacy JewelCert rows and installed
+  the version-2-only active-invite constraint. New release jobs require that
+  exact applied ledger row and refuse to cross the contract boundary.
   Migration `0025` additively creates the opaque retained-company checkout
-  correlation table and exact billing-selection columns; checkout surfaces
-  fail closed until it is present. Readiness verifies the new table and ledger
-  entry. The production workflow runs this no-write readiness check from the
-  same immutable candidate image
-  immediately after the post-promotion contract migration succeeds.
+  correlation/lifecycle tables and exact billing-selection columns; checkout
+  surfaces fail closed until it is present. The production workflow applies it
+  from the immutable no-traffic candidate while the current revision still owns
+  traffic. Readiness then verifies its ledger row plus every required column,
+  default, constraint, and valid partial/unique index before promotion.
 - Reports applied seed records from `seed_runs` when present.
 - Performs no writes.
 

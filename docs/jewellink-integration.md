@@ -175,16 +175,20 @@ reissued during the production cutover.
    inactive state when a user is reassigned to another tenant; the user must
    reconnect the mailbox inside the current company before it can be used
    again.
-4. Deploy JewelHire through its manual production workflow. It applies the
-   rollback-compatible migrations `0012` through `0023` from the immutable
-   no-traffic candidate image before traffic moves. After the hardened revision
-   owns traffic and its public production smoke passes, the workflow applies
-   the `0024` JewelCert v2 contract fence, applies additive
-   `0025_standalone_billing_recovery`, and runs full readiness. Readiness must
-   verify the native-session epoch, password-reset delivery-state, v2
-   claim-token invariants, and retained-company checkout bridge. Do not send a
-   standalone checkout before that readiness check passes. After `0024`
-   commits, only a v2-writing revision is a valid rollback target.
+4. Deploy JewelHire through its manual production workflow. Production already
+   has the `0024` JewelCert v2 contract fence; the migration job requires that
+   exact ledger row and checksum and refuses to cross the boundary if it is not
+   already applied. Before any database change, a GET-only Stripe provider job
+   requires both exact live Prices, the complete webhook event set, a
+   deactivated/drained legacy Payment Link, and zero current legacy
+   subscriptions. From the immutable no-traffic candidate image the workflow
+   then applies additive `0025_standalone_billing_recovery` while the current
+   revision still owns traffic. Before promotion, readiness verifies the native-
+   session epoch, password-reset delivery state, v2 claim-token invariants, and
+   every retained-company billing column/constraint/index. Do not send a
+   standalone checkout before these gates pass.
+   Because `0025` is additive, the current v2-aware revision remains a valid
+   traffic rollback target.
    Independently, a rollback target after durable epoch
    revocation has been exercised must be epoch-aware; pre-0021 code is unsafe.
 5. Test one user for each role and verify replaying an exchanged code fails.

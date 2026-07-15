@@ -52,6 +52,25 @@ Verify in Stripe without making live charges:
 - Recent webhook deliveries show no unexpected failures or unreviewed live events.
 - Customer portal or billing-management route expectations are clear before customer traffic.
 
+The production workflow runs `npm run stripe:readiness:production` inside a
+short-lived Cloud Run job with Secret Manager mounts. It performs Stripe API
+`GET` requests only and fails promotion unless both exact live Prices share one
+product, the exact production webhook is uniquely enabled with all six required
+events, the legacy shared Payment Link is inactive, and its open/unsettled
+session plus current-subscription counts are zero. Do not run this command with
+secrets copied into a terminal transcript or CI log.
+
+The 2026-07-15 GET-only audit found two remaining provider actions:
+
+- add `invoice.paid` to the production webhook's event selection;
+- deactivate legacy Payment Link `plink_1Tngh8Jcq3gleedT9vWeCQZ2` at controlled
+  cutover (the audit found zero open sessions, zero completed-unsettled sessions,
+  and zero current subscriptions).
+
+Stripe does not expose webhook signing secrets via its read API. After the event
+selection is fixed, capture one recent signature-verified production delivery
+and use that evidence for the workflow's explicit webhook-delivery confirmation.
+
 ## Manual Evidence To Capture
 
 For each dashboard, capture only non-secret evidence:

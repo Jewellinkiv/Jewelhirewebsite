@@ -88,39 +88,63 @@ Server-created Checkout Sessions are intentionally one-time and can be bound to
 the durable recovery request.
 
 Before enabling this revision, deactivate the legacy shared Payment Link and
-verify there are no open or unsettled sessions that depend on it. This revision
-intentionally rejects legacy direct company/store checkout references because
-they do not carry the new durable session binding. If an old session is still
-outstanding, let it expire or reconcile it under an explicitly reviewed
-cutover procedure; do not weaken the new webhook checks.
+verify there are no open or unsettled sessions or current subscriptions that
+depend on it. The production workflow enforces that check with GET-only Stripe
+API calls and refuses to move traffic while the link is active or any legacy
+state still needs migration. This revision intentionally rejects legacy direct
+company/store checkout references because they do not carry the new durable
+session binding. If an old session is still outstanding, let it expire or
+reconcile it under an explicitly reviewed cutover procedure; do not weaken the
+new webhook checks.
+
+The read-only provider gate also retrieves both configured Prices and requires
+live mode, USD, exact amounts, one-month/one-year recurrence, active state, and
+one shared product. It requires exactly one enabled live webhook at
+`https://app.jewelhire.com/api/stripe/webhook` with every billing lifecycle
+event above. Stripe never returns an endpoint signing secret through its API,
+so the manual production dispatch additionally requires confirmation of one
+recent signature-verified delivery using the current secret. The job only uses
+Stripe `GET` requests; it cannot create a Checkout Session, customer, charge,
+subscription, or event.
 
 ## Deployment order
 
 1. Back up production.
 2. Create the two exact recurring Prices, add their Price ids, and retain the
-   existing Stripe secret/webhook secret as secret-backed runtime environment
-   variables. Deactivate the legacy Payment Link only after the outstanding
-   session check above.
-3. Deploy the candidate without initiating a live checkout. The new signup and
-   checkout surfaces return a branded `503` until migration `0025` is ready;
-   unrelated application surfaces remain usable.
-4. After the hardened revision owns traffic and migration `0024` has committed,
-   apply additive migration `0025_standalone_billing_recovery.sql` in the same
-   guarded post-promotion migration job. Do not send a checkout until readiness
-   confirms it.
-5. Run the static/unit verification below.
-6. In Stripe test mode, complete one monthly checkout and one annual checkout for
-   a disposable retained-company fixture. Confirm the claim stays locked before
-   the webhook and unlocks afterward.
-7. Replay each webhook event id and confirm no duplicate entitlement,
+   Stripe API and webhook secrets as Secret Manager-backed runtime variables.
+   Confirm the exact production webhook has every required event and one recent
+   signature-verified delivery. Inventory the legacy Payment Link, allow open
+   sessions to expire, migrate any current subscription, and then deactivate
+   the link.
+3. Dispatch the manual production workflow without initiating a live checkout.
+   It creates an immutable no-traffic candidate first.
+4. Before any database change, the GET-only Stripe gate verifies the exact
+   offers, endpoint events, deactivated legacy link, and zero unresolved legacy
+   sessions/subscriptions.
+5. The migration job requires the already-applied
+   `0024_jewelcert_claim_token_version_fence` ledger row and checksum, then
+   applies only the additive `0025_standalone_billing_recovery` schema while the
+   prior revision still owns all traffic. It refuses to cross the 0024 contract
+   boundary in this job.
+6. Before traffic moves, database readiness verifies every required 0025
+   column, default, check/foreign-key constraint, and valid partial/unique index,
+   including pending-signup serialization and out-of-order subscription state.
+7. Only after those gates and the no-traffic candidate smoke pass may the
+   workflow move traffic. Because 0025 is additive, the previous revision stays
+   a valid traffic rollback target.
+8. Before production dispatch, in Stripe test mode complete one monthly checkout
+   and one annual checkout for a disposable retained-company fixture. Confirm
+   the claim stays locked before the webhook and unlocks afterward.
+9. Replay each webhook event id and confirm no duplicate entitlement,
    subscription, notification, or claim is created.
-8. Only then repeat with the approved pilot company and live Stripe Prices.
+10. Only then repeat with the approved pilot company and live Stripe Prices.
 
 ## Verification
 
 ```bash
 npm run test:standalone-billing
 npm run test:standalone-billing-postgres
+npm run test:deploy-migration-safety
 npm run test:account-claim-hardening
 npm run test:jewellink-sso-hardening
 npm run qa:billing -- --skip-live
@@ -129,6 +153,7 @@ npm run lint
 npm run build
 ```
 
-These checks do not create Checkout Sessions or charges. The test-mode and live
-smokes are explicit operator steps and must never use production customer data
-as a disposable fixture.
+These checks and the production provider gate do not create Checkout Sessions,
+charges, subscriptions, or webhook events. The test-mode and live smokes are
+explicit operator steps and must never use production customer data as a
+disposable fixture.

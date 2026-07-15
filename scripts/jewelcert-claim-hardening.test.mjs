@@ -214,7 +214,7 @@ test("deploy validation runs every JewelCert claim regression and rollout reject
   assert.match(rollout, /sent.*started|started.*sent/i);
   assert.match(rollout, /invalidate/i);
   assert.match(rollout, /resend/i);
-  assert.match(deployWorkflow, /legacy_jewelcert_invites_cleared/);
+  assert.match(deployWorkflow, /REQUIRE_APPLIED_MIGRATION_ID=0024_jewelcert_claim_token_version_fence/);
   assert.match(integrationRoute, /claim_token_version[\s\S]*?2/);
   assert.match(postgresPhase1, /claim_token_version[\s\S]*?2/);
 });

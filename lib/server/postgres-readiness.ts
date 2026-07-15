@@ -1,5 +1,9 @@
 import phase1CoreTables from "@/db/phase1-core-tables.json";
 import { checkPostgresHealth, getPostgresPool } from "@/lib/server/postgres";
+import {
+  readStandaloneBillingSchemaReadiness,
+  type StandaloneBillingSchemaReadiness,
+} from "@/lib/server/standalone-billing-schema-readiness.mjs";
 
 type ReadinessHealth = Awaited<ReturnType<typeof checkPostgresHealth>>;
 
@@ -56,6 +60,7 @@ export interface PostgresSchemaInvariantReadiness {
     defaultOne: boolean;
     activeVersionConstraint: boolean;
   };
+  standaloneBilling: StandaloneBillingSchemaReadiness;
 }
 
 export type PostgresReadinessReport =
@@ -216,6 +221,7 @@ async function readSchemaInvariantReadiness(): Promise<PostgresSchemaInvariantRe
     deliveryIndexResult,
     jewelCertVersionColumnResult,
     jewelCertVersionConstraintResult,
+    standaloneBilling,
   ] = await Promise.all([
     getPostgresPool().query<{
       data_type: string;
@@ -313,6 +319,9 @@ async function readSchemaInvariantReadiness(): Promise<PostgresSchemaInvariantRe
          and constraint_row.convalidated
        limit 1`,
     ),
+    readStandaloneBillingSchemaReadiness(
+      (sql, values) => getPostgresPool().query(sql, values),
+    ),
   ]);
   const column = columnResult.rows[0];
   const defaultExpression = (column?.column_default || "").replace(/\s+/g, "");
@@ -390,7 +399,7 @@ async function readSchemaInvariantReadiness(): Promise<PostgresSchemaInvariantRe
     && jewelCertClaimTokenVersion.notNull
     && jewelCertClaimTokenVersion.defaultOne
     && jewelCertClaimTokenVersion.activeVersionConstraint;
-  return { nativeAuthEpoch, passwordResetDeliveryState, jewelCertClaimTokenVersion };
+  return { nativeAuthEpoch, passwordResetDeliveryState, jewelCertClaimTokenVersion, standaloneBilling };
 }
 
 export async function checkPostgresReadiness(): Promise<PostgresReadinessReport> {
@@ -425,6 +434,7 @@ export async function checkPostgresReadiness(): Promise<PostgresReadinessReport>
     && schemaInvariants.nativeAuthEpoch.ready
     && schemaInvariants.passwordResetDeliveryState.ready
     && schemaInvariants.jewelCertClaimTokenVersion.ready
+    && schemaInvariants.standaloneBilling.ready
     && migrations.missingRequired.length === 0;
 
   return {
