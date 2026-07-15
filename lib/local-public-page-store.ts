@@ -1,6 +1,6 @@
 import { DEFAULT_HOURS, DEFAULT_TESTIMONIALS, PublicPageConfig, TEMPLATES } from "./public-templates";
-import { STORE, STORE_JOBS, STORE_REVIEWS } from "./public-store";
-import { STORE_PUBLIC_PAGES } from "./applicant-lifecycle";
+import { STORE, STORE_REVIEWS, type PublicJob } from "./public-store";
+import { getOpenJobsForStore, STORE_PUBLIC_PAGES } from "./applicant-lifecycle";
 
 export interface PublicPageAsset {
   id: string;
@@ -52,7 +52,6 @@ interface PublicPageState {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var __jewelhirePublicPageStore: PublicPageState | undefined;
 }
 
@@ -125,8 +124,20 @@ function ensurePreviews(storeId: string) {
   return state().previewsByStoreId[storeId];
 }
 
-function defaultConfig(): PublicPageConfig {
+function publicJobs(storeId: string): PublicJob[] {
+  return getOpenJobsForStore(storeId).map((job) => ({
+    id: job.id,
+    title: job.title,
+    type: job.employmentType,
+    location: job.location,
+    salary: job.compensationSummary,
+    blurb: job.description,
+  }));
+}
+
+function defaultConfig(storeId: string): PublicPageConfig {
   const template = TEMPLATES[0];
+  const seededPage = STORE_PUBLIC_PAGES.find((page) => page.storeId === storeId);
   return {
     templateId: template.id,
     logoText: STORE.name,
@@ -137,7 +148,7 @@ function defaultConfig(): PublicPageConfig {
     hours: DEFAULT_HOURS.map((hour) => ({ ...hour })),
     showReviews: true,
     testimonials: normalizeTestimonials(DEFAULT_TESTIMONIALS),
-    status: "draft",
+    status: seededPage?.status || "draft",
   };
 }
 
@@ -151,7 +162,7 @@ function cloneConfig(config: PublicPageConfig): PublicPageConfig {
 }
 
 function ensureConfig(storeId: string) {
-  state().configsByStoreId[storeId] ??= defaultConfig();
+  state().configsByStoreId[storeId] ??= defaultConfig(storeId);
   return state().configsByStoreId[storeId];
 }
 
@@ -164,7 +175,7 @@ export function getStorePublicPage(storeId: string) {
   return {
     page,
     store: STORE,
-    jobs: STORE_JOBS,
+    jobs: publicJobs(storeId),
     config,
     assets,
     logoAsset: assets.find((asset) => asset.id === config.logoAssetId || asset.usageContext === "logo") || null,
@@ -289,7 +300,7 @@ export function createPublicPagePreview(storeId: string) {
       headline: config.headline,
       testimonialCount: config.testimonials.filter((testimonial) => testimonial.status !== "hidden").length,
       reviewCount: listPublicPageReviews(storeId).length,
-      jobCount: STORE_JOBS.length,
+      jobCount: publicJobs(storeId).length,
     },
   };
   ensurePreviews(storeId).unshift(preview);

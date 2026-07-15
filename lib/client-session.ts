@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { SESSION, SessionUser } from "@/lib/session";
+import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from "react";
+import type { SessionUser } from "@/lib/session";
 
 type ApiSession = {
   name?: string;
@@ -11,37 +11,15 @@ type ApiSession = {
   storeIds?: string[];
 };
 
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "JH";
+const CurrentSessionUserContext = createContext<SessionUser | null>(null);
+
+export function CurrentSessionUserProvider({ user, children }: { user: SessionUser; children: ReactNode }) {
+  return createElement(CurrentSessionUserContext.Provider, { value: user }, children);
 }
 
 export function useCurrentSessionUser() {
-  const [user, setUser] = useState<SessionUser>(SESSION);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/me", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((session: ApiSession) => {
-        if (cancelled || !session.name || !session.email || !session.role) return;
-        setUser({
-          name: session.name,
-          email: session.email,
-          role: session.role,
-          initials: initials(session.name),
-        });
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+  const user = useContext(CurrentSessionUserContext);
+  if (!user) throw new Error("CurrentSessionUserProvider is required for applicant portal pages.");
   return user;
 }
 

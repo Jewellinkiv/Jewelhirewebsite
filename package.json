@@ -28,6 +28,7 @@
     "test:hybrid-location-access-postgres": "node --import tsx scripts/hybrid-location-access-postgres.test.mjs",
     "test:jewellink-sso-hardening": "node --import tsx --test scripts/jewellink-sso-hardening.test.mjs",
     "test:jewellink-sso-postgres": "node --import tsx scripts/jewellink-sso-postgres.test.mjs",
+    "test:applicant-profile-truthfulness": "node --import tsx --test scripts/applicant-profile-truthfulness.test.mjs scripts/local-gemmatch-result.test.mjs",
     "db:migrate:status": "node scripts/run-migrations.mjs status",
     "db:migrate:verify": "node scripts/run-migrations.mjs verify",
     "db:migrate:verify:clean": "node scripts/run-migrations.mjs verify --require-zero-pending",

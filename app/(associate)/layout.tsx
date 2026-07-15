@@ -7,5 +7,15 @@ export default async function AssociateLayout({ children }: { children: React.Re
   if (!session) redirect("/login?next=/portal");
   if (session.role === "admin") redirect("/admin");
   if (session.role === "store_owner" || session.role === "manager") redirect("/");
-  return <AssociateShell>{children}</AssociateShell>;
+  const initials = session.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "JH";
+  return (
+    <AssociateShell user={{ name: session.name, email: session.email, role: "associate", initials }}>
+      {children}
+    </AssociateShell>
+  );
 }
