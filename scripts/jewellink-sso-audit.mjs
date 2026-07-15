@@ -63,7 +63,7 @@ check("platform admins are denied every native auth and recovery path", files.co
 check("only MFA-backed JewelLink SSO can mint platform admin", files.auth.includes("export async function findJewelLinkSession") && files.auth.includes("const isConfiguredAdmin = isConfiguredAdminEmail(identity.email)") && files.auth.includes("isPlatformAdmin: isConfiguredAdmin") && files.service.includes("canAdoptAllowlistedAdmin") && files.service.includes("native_auth_enabled = false"));
 const rolePolicy = files.service.indexOf("jewelLinkRoleAllowedForIdentity({");
 const databaseConnection = files.service.indexOf("getPostgresPool().connect()");
-check("upstream roles use an exact allowlist and only company-neutral SUPER_ADMIN receives platform access", rolePolicy >= 0 && rolePolicy < databaseConnection && ["SUPER_ADMIN", "ADMIN", "DIRECTOR", "MANAGER", "CONSULTANT", "STUDENT"].every((role) => files.contract.includes(`"${role}"`)) && files.contract.includes("input.isPlatformAdmin && input.company === null") && files.service.includes("company: claims.company") && !files.contract.includes("trim().toUpperCase()"));
+check("upstream roles use the exact confirmed policy and only independently allowlisted ADMIN/SUPER_ADMIN identities receive platform access", rolePolicy >= 0 && rolePolicy < databaseConnection && files.contract.includes('JEWELLINK_PLATFORM_ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])') && files.contract.includes('JEWELLINK_COMPANY_ROLES = new Set(["DIRECTOR", "MANAGER"])') && files.contract.includes('return input.role === "STUDENT"') && files.contract.includes('CONSULTANT') && files.contract.includes("return input.isPlatformAdmin") && files.service.includes("company: claims.company") && files.service.includes("const provisionedCompany = isPlatformAdmin ? null : claims.company") && files.service.includes("isAllowlistedAdminEmail && !isPlatformAdmin") && !files.contract.includes("trim().toUpperCase()"));
 check("existing native sessions are revoked when an identity becomes SSO-only", files.access.includes("revalidateNativeSession") && files.auth.includes("export async function revalidateNativeSession"));
 check("standalone claim conversion revalidates the token's exact non-JewelLink company entitlement", files.password.includes("completeStandaloneAccountClaim") && files.password.includes("token.company_id") && files.password.includes("where c.id = $2") && files.password.includes("authorizing_store.company_id = $2") && files.password.includes("cae.source <> 'jewellink_included'") && files.password.includes("sub.status in ('active', 'trialing')") && files.claimRoute.includes("cae.source <> 'jewellink_included'"));
 check("standalone conversion is a durable SSO boundary", files.service.includes("linkedNativeAuthEnabled") && files.service.includes("native_auth_enabled = false or $6::boolean") && files.auth.includes("identity.native_auth_enabled && !isConfiguredAdmin"));
@@ -74,13 +74,16 @@ check("native company users require a current paid or contract entitlement", fil
 check("account-claim redemption is atomic, audited, revokes password resets, and leaves denied links unconsumed", files.accountClaim.includes("completeStandaloneAccountClaim") && !files.accountClaim.includes("consumeActionToken") && files.password.includes('isPlausibleActionToken("account_claim"') && files.password.includes("for update of token") && files.password.includes("Claimed retained account access") && files.password.includes("purpose = 'password_reset'") && files.password.includes("update auth_action_tokens") && files.password.indexOf("update auth_action_tokens") < files.password.indexOf('client.query("commit")'));
 check("SSO provisioning rejects unrelated email collisions", files.service.includes("jewelLinkIdentityProvisionAction") && !files.service.includes("on conflict (email_normalized)"));
 check(
-  "Student and Consultant do not receive store membership",
+  "Student receives no store membership while Consultant is denied entirely",
   membershipForRoleSource.includes('if (role === "MANAGER")')
     && !membershipForRoleSource.includes('role === "STUDENT"')
-    && !membershipForRoleSource.includes('role === "CONSULTANT"'),
+    && !membershipForRoleSource.includes('role === "CONSULTANT"')
+    && files.service.includes('return role === "STUDENT";')
+    && files.contract.includes('and CONSULTANT')
+    && files.contract.includes('is denied'),
 );
-check("Manager maps to manager", files.service.includes('if (role === "MANAGER") return "manager"'));
-check("Director mapping is configurable", files.service.includes("JEWELHIRE_JEWELLINK_DIRECTOR_ROLE"));
+check("Manager maps to manager with only signed per-user locations", files.service.includes('if (role === "MANAGER") return "manager"') && files.service.includes('const allLocations = membershipRole === "store_owner" || claims.allLocations') && !files.service.includes("JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS"));
+check("Director always maps to store owner and ADMIN never maps to a store membership", files.service.includes('if (role === "DIRECTOR") return "store_owner"') && !membershipForRoleSource.includes('role === "ADMIN"') && !files.service.includes("JEWELHIRE_JEWELLINK_DIRECTOR_ROLE"));
 check("JewelLink entitlement is organization-level and free", files.service.includes("'jewellink_included', 'jewellink_free', 'active', 0"));
 check("JewelLink user identity is stable and unique", files.migration.includes("users_jewellink_user_id_uidx"));
 check("JewelLink-managed memberships can be revoked on role change", files.migration.includes("source in ('manual', 'jewellink')") && files.service.includes("status = 'inactive'"));

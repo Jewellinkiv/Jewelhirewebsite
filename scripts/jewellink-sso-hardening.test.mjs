@@ -8,6 +8,7 @@ import {
   jewelLinkRoleAllowedForIdentity,
   jewelLinkSessionDestination,
   jewelLinkStateMatches,
+  isJewelLinkPlatformAdminRole,
   nativeAuthAllowed,
   standaloneClaimEntitlementAllowed,
   standaloneCompanyAccessAllowed,
@@ -396,15 +397,23 @@ test("linked identities and platform admins deny native login while standalone u
   assert.equal(nativeAuthAllowed({ nativeAuthEnabled: true, isPlatformAdmin: true }), false);
 });
 
-test("JewelLink SSO accepts only the exact role contract and company-neutral SUPER_ADMIN", () => {
+test("JewelLink SSO accepts only the confirmed role contract and independently allowlisted platform admins", () => {
   const company = { id: "company-1", name: "Company One" };
-  assert.equal(jewelLinkRoleAllowedForIdentity({ role: "SUPER_ADMIN", isPlatformAdmin: false, company: null }), false);
-  assert.equal(jewelLinkRoleAllowedForIdentity({ role: "SUPER_ADMIN", isPlatformAdmin: true, company: null }), true);
-  assert.equal(jewelLinkRoleAllowedForIdentity({ role: "SUPER_ADMIN", isPlatformAdmin: true, company }), false);
-  for (const role of ["ADMIN", "DIRECTOR", "MANAGER", "CONSULTANT", "STUDENT"]) {
-    assert.equal(jewelLinkRoleAllowedForIdentity({ role, isPlatformAdmin: false, company }), true);
+  for (const role of ["SUPER_ADMIN", "ADMIN"]) {
+    assert.equal(isJewelLinkPlatformAdminRole(role), true);
+    assert.equal(jewelLinkRoleAllowedForIdentity({ role, isPlatformAdmin: false, company: null }), false);
+    assert.equal(jewelLinkRoleAllowedForIdentity({ role, isPlatformAdmin: true, company: null }), true);
+    assert.equal(jewelLinkRoleAllowedForIdentity({ role, isPlatformAdmin: false, company }), false);
+    assert.equal(jewelLinkRoleAllowedForIdentity({ role, isPlatformAdmin: true, company }), true);
   }
-  for (const role of ["TEACHER", "VENDOR", "", "manager", " DIRECTOR"] ) {
+  for (const role of ["DIRECTOR", "MANAGER"]) {
+    assert.equal(isJewelLinkPlatformAdminRole(role), false);
+    assert.equal(jewelLinkRoleAllowedForIdentity({ role, isPlatformAdmin: false, company }), true);
+    assert.equal(jewelLinkRoleAllowedForIdentity({ role, isPlatformAdmin: false, company: null }), false);
+  }
+  assert.equal(jewelLinkRoleAllowedForIdentity({ role: "STUDENT", isPlatformAdmin: false, company }), true);
+  assert.equal(jewelLinkRoleAllowedForIdentity({ role: "STUDENT", isPlatformAdmin: false, company: null }), true);
+  for (const role of ["CONSULTANT", "TEACHER", "VENDOR", "", "manager", " DIRECTOR"] ) {
     assert.equal(jewelLinkRoleAllowedForIdentity({ role, isPlatformAdmin: true, company: null }), false);
   }
 });

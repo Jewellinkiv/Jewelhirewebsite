@@ -10,6 +10,7 @@ import { safeSameOriginPath } from "@/lib/server/safe-redirect";
 import {
   jewelLinkIdentityProvisionAction,
   jewelLinkRoleAllowedForIdentity,
+  isJewelLinkPlatformAdminRole,
   validJewelLinkAccessFingerprint,
   validJewelLinkState,
   validateJewelLinkAssurance,
@@ -132,15 +133,12 @@ export async function exchangeJewelLinkCode(code: string) {
 }
 
 function isApplicantRole(role: string) {
-  return role === "STUDENT" || role === "CONSULTANT";
+  return role === "STUDENT";
 }
 
 function membershipForRole(role: string): StoreMembershipRole | undefined {
   if (role === "MANAGER") return "manager";
-  if (role === "DIRECTOR") {
-    return process.env.JEWELHIRE_JEWELLINK_DIRECTOR_ROLE === "manager" ? "manager" : "store_owner";
-  }
-  if (role === "ADMIN") return "store_owner";
+  if (role === "DIRECTOR") return "store_owner";
   return undefined;
 }
 
@@ -150,12 +148,18 @@ export async function provisionJewelLinkSession(claims: JewelLinkSsoClaims): Pro
   const membershipRole = membershipForRole(claims.role);
   const applicantRole = isApplicantRole(claims.role);
   const email = claims.email.trim().toLowerCase();
-  const isPlatformAdmin = isConfiguredAdminEmail(email);
+  const isAllowlistedAdminEmail = isConfiguredAdminEmail(email);
+  const platformAdminRole = isJewelLinkPlatformAdminRole(claims.role);
+  const isPlatformAdmin = platformAdminRole && isAllowlistedAdminEmail;
+  // JewelLink platform administrators may carry a company association in the
+  // upstream CRM. That association is not a JewelHire tenant grant: provision
+  // the local platform identity without a company or store membership.
+  const provisionedCompany = isPlatformAdmin ? null : claims.company;
   if (!jewelLinkRoleAllowedForIdentity({
     role: claims.role,
     isPlatformAdmin,
     company: claims.company,
-  })) {
+  }) || (isAllowlistedAdminEmail && !isPlatformAdmin)) {
     throw new JewelLinkAccessRevokedError();
   }
   const client = await getPostgresPool().connect();
@@ -212,8 +216,8 @@ export async function provisionJewelLinkSession(claims: JewelLinkSsoClaims): Pro
     let companyId: string | null = null;
     let storeId: string | null = null;
 
-    if (claims.company) {
-      const desiredCompanyId = stableId("company", claims.company.id);
+    if (provisionedCompany) {
+      const desiredCompanyId = stableId("company", provisionedCompany.id);
       const companyResult = await client.query<{ id: string; status: string }>(
         `
           insert into companies (id, name, plan_tier, status, jewellink_company_id)
@@ -222,7 +226,7 @@ export async function provisionJewelLinkSession(claims: JewelLinkSsoClaims): Pro
           do update set name = excluded.name, updated_at = now()
           returning id, status
         `,
-        [desiredCompanyId, claims.company.name, claims.company.id],
+        [desiredCompanyId, provisionedCompany.name, provisionedCompany.id],
       );
       companyId = companyResult.rows[0]?.id || desiredCompanyId;
       if (companyResult.rows[0]?.status !== "active") throw new JewelLinkAccessRevokedError();
@@ -231,7 +235,7 @@ export async function provisionJewelLinkSession(claims: JewelLinkSsoClaims): Pro
         "select id, status from stores where company_id = $1 and status <> 'archived' order by created_at asc limit 1",
         [companyId],
       );
-      storeId = existingStore.rows[0]?.id || stableId("store", claims.company.id);
+      storeId = existingStore.rows[0]?.id || stableId("store", provisionedCompany.id);
       if (membershipRole && existingStore.rows[0] && existingStore.rows[0].status !== "active") {
         throw new JewelLinkAccessRevokedError();
       }
@@ -241,7 +245,7 @@ export async function provisionJewelLinkSession(claims: JewelLinkSsoClaims): Pro
             insert into stores (id, company_id, name, slug, location_label, status)
             values ($1, $2, $3, $4, $5, 'active')
           `,
-          [storeId, companyId, claims.company.name, `${slug(claims.company.name)}-${createHash("sha256").update(claims.company.id).digest("hex").slice(0, 8)}`, "JewelLink"],
+          [storeId, companyId, provisionedCompany.name, `${slug(provisionedCompany.name)}-${createHash("sha256").update(provisionedCompany.id).digest("hex").slice(0, 8)}`, "JewelLink"],
         );
       }
 
@@ -365,7 +369,7 @@ export async function provisionJewelLinkSession(claims: JewelLinkSsoClaims): Pro
       [localUserId],
     );
     if (membershipRole && storeId) {
-      const allLocations = membershipRole === "store_owner" || claims.allLocations || process.env.JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS === "1";
+      const allLocations = membershipRole === "store_owner" || claims.allLocations;
       const storeUserId = stableId("store-user", `${storeId}:${localUserId}`);
       await client.query(
         `
@@ -398,9 +402,11 @@ export async function provisionJewelLinkSession(claims: JewelLinkSsoClaims): Pro
     await client.query("commit");
     transactionStarted = false;
 
-    // JewelLink roles never grant platform administration by themselves. This
-    // dedicated resolver deliberately accepts the SSO-only identity while the
-    // native Google/password resolver rejects it.
+    // An upstream ADMIN/SUPER_ADMIN role is necessary but not sufficient for
+    // platform administration. The independent email allowlist was verified
+    // before any database work, and the resulting identity is deliberately
+    // company-neutral locally; native Google/password resolvers continue to
+    // reject it.
     sessionIdentity = { localUserId, upstreamUserId: claims.userId };
   } catch (error) {
     const identityConflict = error instanceof JewelLinkIdentityConflictError

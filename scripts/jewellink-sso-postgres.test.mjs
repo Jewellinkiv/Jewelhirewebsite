@@ -209,7 +209,6 @@ async function main() {
   process.env.POSTGRES_POOL_MAX = "8";
   delete process.env.JEWELHIRE_ADMIN_EMAILS;
   delete process.env.AUTH_ADMIN_EMAILS;
-  delete process.env.JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS;
 
   const actionTokens = await import("../lib/server/action-tokens.ts");
   const passwordAuth = await import("../lib/server/password-auth.ts");
@@ -243,6 +242,9 @@ async function main() {
   process.env.JEWELHIRE_ADMIN_EMAILS = [
     "company-scoped-super-admin@example.test",
     "company-neutral-super-admin@example.test",
+    "company-scoped-admin@example.test",
+    "company-neutral-admin@example.test",
+    "allowlisted-director@example.test",
   ].join(",");
   const companyScopedSuperAdminClaims = jewelLinkClaims({
     userId: "company-scoped-super-admin",
@@ -250,17 +252,26 @@ async function main() {
     name: "Company Scoped Super Admin",
     role: "SUPER_ADMIN",
   });
-  await assert.rejects(
-    jewelLinkSso.provisionJewelLinkSession(companyScopedSuperAdminClaims),
-    (error) => error instanceof jewelLinkSso.JewelLinkAccessRevokedError,
+  const companyScopedSuperAdminSession = await jewelLinkSso.provisionJewelLinkSession(
+    companyScopedSuperAdminClaims,
   );
-  const blockedSuperAdminState = await pool.query(
+  assert.equal(companyScopedSuperAdminSession?.role, "admin");
+  const companyScopedSuperAdminState = await pool.query(
     `select
        (select count(*)::int from companies where jewellink_company_id = $1) as company_count,
-       (select count(*)::int from users where jewellink_user_id = $2) as user_count`,
+       u.company_id,
+       u.native_auth_enabled,
+       (select count(*)::int from store_users where user_id = u.id and status = 'active') as membership_count
+     from users u
+     where u.jewellink_user_id = $2`,
     [companyScopedSuperAdminClaims.company.id, companyScopedSuperAdminClaims.userId],
   );
-  assert.deepEqual(blockedSuperAdminState.rows[0], { company_count: 0, user_count: 0 });
+  assert.deepEqual(companyScopedSuperAdminState.rows[0], {
+    company_count: 0,
+    company_id: null,
+    native_auth_enabled: false,
+    membership_count: 0,
+  });
 
   const companyNeutralSuperAdminClaims = {
     ...jewelLinkClaims({
@@ -287,6 +298,115 @@ async function main() {
   assert.deepEqual(companyNeutralSuperAdminState.rows[0], {
     company_id: null,
     native_auth_enabled: false,
+  });
+
+  const companyScopedAdminClaims = jewelLinkClaims({
+    userId: "company-scoped-admin",
+    email: "company-scoped-admin@example.test",
+    name: "Company Scoped Admin",
+    role: "ADMIN",
+  });
+  const companyScopedAdminSession = await jewelLinkSso.provisionJewelLinkSession(
+    companyScopedAdminClaims,
+  );
+  assert.equal(companyScopedAdminSession?.role, "admin");
+  const companyScopedAdminState = await pool.query(
+    `select
+       (select count(*)::int from companies where jewellink_company_id = $1) as company_count,
+       u.company_id,
+       u.native_auth_enabled,
+       (select count(*)::int from store_users where user_id = u.id and status = 'active') as membership_count
+     from users u
+     where u.jewellink_user_id = $2`,
+    [companyScopedAdminClaims.company.id, companyScopedAdminClaims.userId],
+  );
+  assert.deepEqual(companyScopedAdminState.rows[0], {
+    company_count: 0,
+    company_id: null,
+    native_auth_enabled: false,
+    membership_count: 0,
+  });
+
+  const companyNeutralAdminClaims = {
+    ...jewelLinkClaims({
+      userId: "company-neutral-admin",
+      email: "company-neutral-admin@example.test",
+      name: "Company Neutral Admin",
+      role: "ADMIN",
+    }),
+    company: null,
+    primaryLocationId: null,
+    locations: [],
+    allLocations: true,
+  };
+  const companyNeutralAdminSession = await jewelLinkSso.provisionJewelLinkSession(
+    companyNeutralAdminClaims,
+  );
+  assert.equal(companyNeutralAdminSession?.role, "admin");
+  const companyNeutralAdminState = await pool.query(
+    `select company_id, native_auth_enabled,
+            (select count(*)::int from store_users where user_id = users.id and status = 'active') as membership_count
+     from users
+     where jewellink_user_id = $1`,
+    [companyNeutralAdminClaims.userId],
+  );
+  assert.deepEqual(companyNeutralAdminState.rows[0], {
+    company_id: null,
+    native_auth_enabled: false,
+    membership_count: 0,
+  });
+
+  const allowlistedDirectorClaims = jewelLinkClaims({
+    userId: "allowlisted-director",
+    email: "allowlisted-director@example.test",
+    name: "Allowlisted Director",
+    role: "DIRECTOR",
+  });
+  await assert.rejects(
+    jewelLinkSso.provisionJewelLinkSession(allowlistedDirectorClaims),
+    (error) => error instanceof jewelLinkSso.JewelLinkAccessRevokedError,
+  );
+  assert.equal(
+    (await pool.query(
+      "select count(*)::int as count from users where jewellink_user_id = $1",
+      [allowlistedDirectorClaims.userId],
+    )).rows[0]?.count,
+    0,
+  );
+  delete process.env.JEWELHIRE_ADMIN_EMAILS;
+
+  const promotedAdminDirectorClaims = jewelLinkClaims({
+    userId: "promoted-platform-admin",
+    email: "promoted-platform-admin@example.test",
+    name: "Promoted Platform Admin",
+    role: "DIRECTOR",
+  });
+  const promotedAdminDirectorSession = await jewelLinkSso.provisionJewelLinkSession(
+    promotedAdminDirectorClaims,
+  );
+  assert.equal(promotedAdminDirectorSession?.role, "store_owner");
+  process.env.JEWELHIRE_ADMIN_EMAILS = promotedAdminDirectorClaims.email;
+  const promotedAdminClaims = {
+    ...promotedAdminDirectorClaims,
+    role: "ADMIN",
+    upstreamSessionId: "promoted-platform-admin-admin-session",
+  };
+  const promotedAdminSession = await jewelLinkSso.provisionJewelLinkSession(promotedAdminClaims);
+  assert.equal(promotedAdminSession?.role, "admin");
+  const promotedAdminState = await pool.query(
+    `select u.company_id,
+            count(su.id) filter (where su.status = 'active')::int as active_membership_count,
+            count(su.id) filter (where su.status = 'inactive')::int as inactive_membership_count
+     from users u
+     left join store_users su on su.user_id = u.id and su.source = 'jewellink'
+     where u.jewellink_user_id = $1
+     group by u.company_id`,
+    [promotedAdminClaims.userId],
+  );
+  assert.deepEqual(promotedAdminState.rows[0], {
+    company_id: null,
+    active_membership_count: 0,
+    inactive_membership_count: 1,
   });
   delete process.env.JEWELHIRE_ADMIN_EMAILS;
 
@@ -491,7 +611,7 @@ async function main() {
   );
   assert.equal(rolledBackNoStealIdentity.rows[0]?.count, 0);
 
-  for (const targetRole of ["STUDENT", "CONSULTANT"]) {
+  for (const targetRole of ["STUDENT"]) {
     const suffix = targetRole.toLowerCase();
     const demotionUserId = `demotion-${suffix}`;
     const initialDemotionClaims = jewelLinkClaims({
@@ -668,41 +788,30 @@ async function main() {
     name: "Fresh Consultant",
     role: "CONSULTANT",
   });
-  const consultantSession = await jewelLinkSso.provisionJewelLinkSession(consultantClaims);
-  assert.equal(consultantSession?.role, "associate");
-  const consultantProfile = await pool.query(
-    `select count(*)::int as count
-     from applicant_profiles ap
-     join users u on u.id = ap.owner_user_id
-     where u.jewellink_user_id = $1`,
-    [consultantClaims.userId],
+  await assert.rejects(
+    jewelLinkSso.provisionJewelLinkSession(consultantClaims),
+    (error) => error instanceof jewelLinkSso.JewelLinkAccessRevokedError,
   );
-  assert.equal(consultantProfile.rows[0]?.count, 1);
-  const changedEmailConsultantClaims = jewelLinkClaims({
-    userId: consultantClaims.userId,
-    email: "fresh-consultant-new@example.test",
-    name: consultantClaims.name,
-    role: "CONSULTANT",
-  });
-  const changedEmailConsultantSession = await jewelLinkSso.provisionJewelLinkSession(changedEmailConsultantClaims);
-  assert.equal(changedEmailConsultantSession?.role, "associate");
-  assert.equal(changedEmailConsultantSession?.email, changedEmailConsultantClaims.email);
-  await jewelLinkSso.provisionJewelLinkSession(changedEmailConsultantClaims);
-  const changedEmailConsultantState = await pool.query(
-    `select count(*)::int as profile_count, min(ap.email_normalized) as profile_email,
-            min(u.email_normalized) as user_email
-     from users u
-     join applicant_profiles ap on ap.owner_user_id = u.id
-     where u.jewellink_user_id = $1`,
-    [consultantClaims.userId],
+  const consultantState = await pool.query(
+    `select
+       (select count(*)::int from companies where jewellink_company_id = $1) as company_count,
+       (select count(*)::int from users where jewellink_user_id = $2) as user_count,
+       (select count(*)::int
+          from applicant_profiles ap
+          join users u on u.id = ap.owner_user_id
+         where u.jewellink_user_id = $2) as profile_count`,
+    [consultantClaims.company.id, consultantClaims.userId],
   );
-  assert.deepEqual(changedEmailConsultantState.rows[0], {
-    profile_count: 1,
-    profile_email: changedEmailConsultantClaims.email,
-    user_email: changedEmailConsultantClaims.email,
+  assert.deepEqual(consultantState.rows[0], {
+    company_count: 0,
+    user_count: 0,
+    profile_count: 0,
   });
 
-  for (const [role, suffix] of [["MANAGER", "manager"], ["DIRECTOR", "director"], ["ADMIN", "admin"]]) {
+  for (const [role, suffix, expectedRole] of [
+    ["MANAGER", "manager", "manager"],
+    ["DIRECTOR", "director", "store_owner"],
+  ]) {
     const roleClaims = jewelLinkClaims({
       userId: `role-isolation-${suffix}`,
       email: `role-isolation-${suffix}@example.test`,
@@ -710,15 +819,23 @@ async function main() {
       role,
     });
     const roleSession = await jewelLinkSso.provisionJewelLinkSession(roleClaims);
-    assert.notEqual(roleSession?.role, "associate");
+    assert.equal(roleSession?.role, expectedRole);
     const roleProfile = await pool.query(
-      `select count(*)::int as count
-       from applicant_profiles ap
-       join users u on u.id = ap.owner_user_id
+      `select
+         (select count(*)::int
+            from applicant_profiles ap
+            join users u on u.id = ap.owner_user_id
+           where u.jewellink_user_id = $1) as profile_count,
+         min(su.role::text) as membership_role,
+         bool_and(su.all_locations) as all_locations
+       from users u
+       join store_users su on su.user_id = u.id and su.status = 'active'
        where u.jewellink_user_id = $1`,
       [roleClaims.userId],
     );
-    assert.equal(roleProfile.rows[0]?.count, 0);
+    assert.equal(roleProfile.rows[0]?.profile_count, 0);
+    assert.equal(roleProfile.rows[0]?.membership_role, expectedRole);
+    assert.equal(roleProfile.rows[0]?.all_locations, role === "DIRECTOR");
   }
 
   const boundedClaims = jewelLinkClaims({
@@ -1196,15 +1313,16 @@ async function main() {
   console.log("PASS concurrent successful issuance leaves exactly one valid company-bound link");
   console.log("PASS forced audit failure is savepoint-isolated and aborted COMMIT cannot report success");
   console.log("PASS fresh and repeated Student SSO provisioning establishes one applicant profile");
-  console.log("PASS stable Student and Consultant SSO email changes remain idempotent");
+  console.log("PASS stable Student SSO email changes remain idempotent");
   console.log("PASS duplicate owned profiles use one deterministic resume read and write target");
   console.log("PASS Student SSO adopts unowned applicant data without replacing authored content");
   console.log("PASS Student SSO never steals a profile owned by another user");
-  console.log("PASS conflicting Student and Consultant demotions durably revoke old memberships");
+  console.log("PASS conflicting Student demotions durably revoke old memberships");
   console.log("PASS non-conflict profile SQL failure also durably revokes a demoted manager");
   console.log("PASS early company provisioning failure also durably revokes a demoted manager");
-  console.log("PASS only exact Student and Consultant roles receive SSO applicant profiles");
-  console.log("PASS company-scoped SUPER_ADMIN fails before tenant or user provisioning while company-neutral admin succeeds");
+  console.log("PASS only the exact Student role receives an SSO applicant profile and Consultant is denied before provisioning");
+  console.log("PASS allowlisted ADMIN/SUPER_ADMIN become company-neutral JewelHire platform admins regardless of upstream company association");
+  console.log("PASS Director-to-ADMIN promotion removes tenant scope and revokes the prior JewelLink membership");
   console.log("PASS successful upstream introspection cannot expand signed authority through local rows");
 }
 

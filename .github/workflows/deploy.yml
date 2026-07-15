@@ -138,7 +138,7 @@ jobs:
             --region us-central1 \
             --format=json > /tmp/jewelhire-service.json
 
-          for name in DATABASE_URL AUTH_SECRET JEWELLINK_URL JEWELLINK_SSO_SHARED_SECRET JEWELLINK_INTEGRATION_SHARED_SECRET JEWELHIRE_JEWELLINK_DIRECTOR_ROLE JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS JEWELHIRE_TEAM_INVITES_ENABLED JEWELHIRE_TRUSTED_PROXY_HOPS JEWELHIRE_REQUIRE_AUTH AUTH_MODE JEWELHIRE_STORAGE JEWELHIRE_ENABLE_SESSION_OVERRIDE EMAIL_NOTIFICATIONS_ENABLED POSTMARK_DRY_RUN POSTMARK_SERVER_TOKEN POSTMARK_FROM_EMAIL POSTMARK_MESSAGE_STREAM; do
+          for name in DATABASE_URL AUTH_SECRET JEWELLINK_URL JEWELLINK_SSO_SHARED_SECRET JEWELLINK_INTEGRATION_SHARED_SECRET JEWELHIRE_TEAM_INVITES_ENABLED JEWELHIRE_TRUSTED_PROXY_HOPS JEWELHIRE_REQUIRE_AUTH AUTH_MODE JEWELHIRE_STORAGE JEWELHIRE_ENABLE_SESSION_OVERRIDE EMAIL_NOTIFICATIONS_ENABLED POSTMARK_DRY_RUN POSTMARK_SERVER_TOKEN POSTMARK_FROM_EMAIL POSTMARK_MESSAGE_STREAM; do
             if ! jq -e --arg name "$name" '.spec.template.spec.containers[0].env[] | select(.name == $name)' /tmp/jewelhire-service.json >/dev/null; then
               echo "Missing required Cloud Run environment setting: $name"
               exit 1
@@ -148,17 +148,6 @@ jobs:
           JEWELLINK_URL=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELLINK_URL") | .value // ""' /tmp/jewelhire-service.json)
           if [[ "$JEWELLINK_URL" != https://* ]]; then
             echo "JEWELLINK_URL must use HTTPS in production."
-            exit 1
-          fi
-
-          DIRECTOR_ROLE=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELHIRE_JEWELLINK_DIRECTOR_ROLE") | .value // ""' /tmp/jewelhire-service.json)
-          MANAGER_ALL_LOCATIONS=$(jq -r '.spec.template.spec.containers[0].env[] | select(.name == "JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS") | .value // ""' /tmp/jewelhire-service.json)
-          if [[ "$DIRECTOR_ROLE" != "store_owner" ]]; then
-            echo "Directors must map to store_owner for this launch."
-            exit 1
-          fi
-          if [[ "$MANAGER_ALL_LOCATIONS" != "0" ]]; then
-            echo "Managers must remain location-scoped for this launch."
             exit 1
           fi
 

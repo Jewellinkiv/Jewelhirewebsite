@@ -49,9 +49,10 @@ const fixtures = {
     { id: "fixture-director", jewelLinkRole: "DIRECTOR", expectedJewelHireRole: "store_owner", scope: "all company locations" },
     { id: "fixture-manager", jewelLinkRole: "MANAGER", expectedJewelHireRole: "manager", scope: "assigned locations only" },
     { id: "fixture-student", jewelLinkRole: "STUDENT", expectedJewelHireRole: "applicant", scope: "personal portal" },
-    { id: "fixture-consultant", jewelLinkRole: "CONSULTANT", expectedJewelHireRole: "applicant", scope: "personal portal" },
-    { id: "fixture-platform-admin", jewelLinkRole: "SUPER_ADMIN", company: null, jewelHireAllowlisted: true, expectedJewelHireRole: "admin", scope: "company-neutral identity with explicit JewelHire allowlist after MFA-backed JewelLink SSO" },
-    { id: "fixture-company-scoped-super-admin", jewelLinkRole: "SUPER_ADMIN", company: "fixture-company-alpha", jewelHireAllowlisted: true, expectedJewelHireRole: null, scope: "denied before JewelHire tenant provisioning" },
+    { id: "fixture-consultant", jewelLinkRole: "CONSULTANT", expectedJewelHireRole: null, scope: "no JewelHire access" },
+    { id: "fixture-platform-admin", jewelLinkRole: "ADMIN", company: "fixture-company-alpha", jewelHireAllowlisted: true, expectedJewelHireRole: "admin", scope: "platform admin with no JewelHire tenant membership after MFA-backed JewelLink SSO" },
+    { id: "fixture-platform-super-admin", jewelLinkRole: "SUPER_ADMIN", company: "fixture-company-alpha", jewelHireAllowlisted: true, expectedJewelHireRole: "admin", scope: "platform admin with no JewelHire tenant membership after MFA-backed JewelLink SSO" },
+    { id: "fixture-allowlisted-director", jewelLinkRole: "DIRECTOR", company: "fixture-company-alpha", jewelHireAllowlisted: true, expectedJewelHireRole: null, scope: "denied because an allowlist entry cannot elevate a non-admin role" },
   ],
 };
 
@@ -74,8 +75,8 @@ const environmentContract = {
     "JewelHire: JEWELLINK_URL=<JewelLink origin>",
   ],
   jewelHirePolicy: [
-    "JEWELHIRE_JEWELLINK_DIRECTOR_ROLE=store_owner",
-    "JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS=0",
+    "DIRECTOR=store_owner (fixed code policy)",
+    "MANAGER=primary plus explicit JewelLink location grants (fixed code policy)",
     "EMAIL_NOTIFICATIONS_ENABLED=false",
   ],
 };
