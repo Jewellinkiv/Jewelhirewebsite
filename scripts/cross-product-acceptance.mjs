@@ -50,7 +50,8 @@ const fixtures = {
     { id: "fixture-manager", jewelLinkRole: "MANAGER", expectedJewelHireRole: "manager", scope: "assigned locations only" },
     { id: "fixture-student", jewelLinkRole: "STUDENT", expectedJewelHireRole: "applicant", scope: "personal portal" },
     { id: "fixture-consultant", jewelLinkRole: "CONSULTANT", expectedJewelHireRole: "applicant", scope: "personal portal" },
-    { id: "fixture-platform-admin", jewelLinkRole: "SUPER_ADMIN", expectedJewelHireRole: "admin", scope: "explicit JewelHire allowlist after MFA-backed JewelLink SSO only" },
+    { id: "fixture-platform-admin", jewelLinkRole: "SUPER_ADMIN", company: null, jewelHireAllowlisted: true, expectedJewelHireRole: "admin", scope: "company-neutral identity with explicit JewelHire allowlist after MFA-backed JewelLink SSO" },
+    { id: "fixture-company-scoped-super-admin", jewelLinkRole: "SUPER_ADMIN", company: "fixture-company-alpha", jewelHireAllowlisted: true, expectedJewelHireRole: null, scope: "denied before JewelHire tenant provisioning" },
   ],
 };
 
