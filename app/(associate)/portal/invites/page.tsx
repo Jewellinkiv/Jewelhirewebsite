@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Panel } from "@/components/ui";
 import { ErrorState, SkeletonCard } from "@/components/states";
 import { AssociateInvite } from "@/lib/associate-portal";
+import { applicantInvitesForDisplay } from "@/lib/applicant-invite-display";
 import { IconClipboardList, IconCheck, IconDiamond, IconChevronRight } from "@/components/icons";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -22,6 +23,7 @@ interface ApiInvite {
   createdAt?: string;
   store?: { id: string; name: string; location?: string };
   job?: { title: string };
+  application?: { id: string };
 }
 
 type PortalInvite = AssociateInvite & {
@@ -80,7 +82,7 @@ export default function InvitesPage() {
         // that expired or was never sent. Keep sent/started/completed only.
         if (!cancelled) {
           setSeed(
-            ((body.items || []) as ApiInvite[])
+            applicantInvitesForDisplay((body.items || []) as ApiInvite[])
               .filter(
                 (item) =>
                   item.status === "sent" || item.status === "started" || item.status === "completed",
