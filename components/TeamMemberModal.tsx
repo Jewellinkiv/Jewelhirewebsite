@@ -2,7 +2,6 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { IconX } from "@/components/icons";
-import { ProfileCode, PROFILES } from "@/lib/gemmatch";
 import { Location, TeamMemberLoc } from "@/lib/team-locations";
 
 type CreatedTeamMember = TeamMemberLoc & {
@@ -33,7 +32,6 @@ export function TeamMemberModal({
   const fallbackLocationId = useMemo(() => defaultLocationId || locations[0]?.id || "", [defaultLocationId, locations]);
   const [name, setName] = useState("");
   const [role, setRole] = useState("Sales Associate");
-  const [primary, setPrimary] = useState<ProfileCode>("C");
   const [locationId, setLocationId] = useState(fallbackLocationId);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -56,7 +54,6 @@ export function TeamMemberModal({
         body: JSON.stringify({
           name: trimmedName,
           role: role.trim() || "Team member",
-          primary,
           locationId: locationId || fallbackLocationId,
         }),
       });
@@ -65,7 +62,6 @@ export function TeamMemberModal({
       onCreated(data.member);
       setName("");
       setRole("Sales Associate");
-      setPrimary("C");
       setLocationId(fallbackLocationId);
       onClose();
     } catch (err) {
@@ -96,14 +92,10 @@ export function TeamMemberModal({
             <input value={role} onChange={(event) => setRole(event.target.value)} className="w-full rounded-md border border-line px-3 py-2 text-[13px] outline-none focus:border-primary" />
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="block">
+            <div className="block">
               <span className="block text-[12px] font-medium text-muted mb-1.5">JewelCert</span>
-              <select value={primary} onChange={(event) => setPrimary(event.target.value as ProfileCode)} className="w-full rounded-md border border-line bg-panel px-3 py-2 text-[13px] outline-none focus:border-primary">
-                {(["C", "F", "D", "V"] as ProfileCode[]).map((code) => (
-                  <option key={code} value={code}>{code} - {PROFILES[code].name}</option>
-                ))}
-              </select>
-            </label>
+              <div className="w-full rounded-md border border-line bg-[#f7f9fc] px-3 py-2 text-[13px] text-muted">Not assessed</div>
+            </div>
             <label className="block">
               <span className="block text-[12px] font-medium text-muted mb-1.5">Location</span>
               <select value={locationId || fallbackLocationId} onChange={(event) => setLocationId(event.target.value)} className="w-full rounded-md border border-line bg-panel px-3 py-2 text-[13px] outline-none focus:border-primary">

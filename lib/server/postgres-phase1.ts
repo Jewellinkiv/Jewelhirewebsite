@@ -1054,13 +1054,6 @@ function inviteStatusLabel(status: JewelCertInviteRecord["status"]) {
   return "Sent";
 }
 
-function gemmatchFitScore(fit?: string): number | undefined {
-  if (fit === "Strong fit") return 88;
-  if (fit === "Good fit") return 74;
-  if (fit === "Poor fit") return 32;
-  return undefined;
-}
-
 function packageLabels(
   assessmentPackageId: string,
   customAssessments = new Map<string, string>(),
@@ -1195,13 +1188,15 @@ function teamStatusToDb(status?: string | null) {
 }
 
 function mapTeamMember(row: TeamMemberRow) {
+  const assessed = Boolean(row.primary_profile_code);
   return {
     id: row.id,
     name: row.name,
     initials: row.initials || initials(row.name),
     role: row.role || "Team member",
-    type: row.gemmatch_type || typeForPrimary(row.primary_profile_code || undefined),
+    type: assessed ? (row.gemmatch_type || typeForPrimary(row.primary_profile_code || undefined)) : "Not assessed",
     primary: row.primary_profile_code || "C",
+    assessed,
     locationId: row.location_id || undefined,
     jewellinkTeamMemberId: row.jewellink_team_member_id || undefined,
     sourceApplicationId: row.source_application_id || undefined,
@@ -1842,9 +1837,9 @@ function mapApplicationSummary(row: ApplicationSummaryRow): PostgresApplicationS
     screening: {
       jewelcertStatus: row.jewelcert_status || "not_sent",
       gemmatchStatus: row.gemmatch_status || "not_sent",
-      gemmatchProfile: optional(row.gemmatch_profile),
-      gemmatchFit: optional(row.gemmatch_fit),
-      gemmatchFitScore: row.gemmatch_fit_score ?? gemmatchFitScore(optional(row.gemmatch_fit)),
+      gemmatchProfile: row.gemmatch_status === "completed" ? optional(row.gemmatch_profile) : undefined,
+      gemmatchFit: row.gemmatch_status === "completed" ? optional(row.gemmatch_fit) : undefined,
+      gemmatchFitScore: row.gemmatch_status === "completed" ? row.gemmatch_fit_score ?? undefined : undefined,
     },
     nextInterview: row.next_interview_at
       ? {
@@ -1869,12 +1864,6 @@ function gemMatchLabel(profile?: string) {
   if (profile === "D") return "Sales Strategist";
   if (profile === "V") return "Trailblazer";
   return "Luxury Advisor";
-}
-
-function gemMatchFitScore(fit?: string) {
-  if (fit === "Strong fit") return 88;
-  if (fit === "Poor fit") return 32;
-  return 74;
 }
 
 function mapApplication(row: ApplicationDetailRow): ApplicationRecord {
@@ -2207,10 +2196,10 @@ function mapGemMatchInviteListItem(row: GemMatchInviteListRow) {
       : null,
     sentDate: shortDate(invite.createdAt),
     status: invite.status === "completed" ? "Completed" : invite.status === "started" ? "Started" : "Sent",
-    type: typeForPrimary(invite.resultProfileCode),
-    primary: invite.resultProfileCode,
-    fitScore: gemmatchFitScore(invite.fitRating),
-    fitTier: invite.fitRating,
+    type: invite.status === "completed" && invite.resultProfileCode ? typeForPrimary(invite.resultProfileCode) : undefined,
+    primary: invite.status === "completed" ? invite.resultProfileCode : undefined,
+    fitScore: invite.status === "completed" ? invite.fitScore : undefined,
+    fitTier: invite.status === "completed" ? invite.fitRating : undefined,
   };
 }
 
@@ -2850,7 +2839,7 @@ export async function getPostgresStoreDashboard(storeId: string, locationId?: st
     const applications = locationId
       ? applicationSummaries.items.filter((item) => locationFilterMatches(item.job?.location || item.applicant.location, locationId))
       : applicationSummaries.items;
-    const composition = await getPostgresTeamComposition(client, storeId);
+    const composition = await getPostgresTeamComposition(client, storeId, locationId);
     const locations = await getPostgresDashboardLocationsWithClient(client, storeId);
     const selectedLocation = locationId
       ? locations.find((location) => locationFilterMatches(location.name, locationId) || location.id === locationId)
@@ -2858,11 +2847,16 @@ export async function getPostgresStoreDashboard(storeId: string, locationId?: st
     const applicants = applications.length;
     const hired = applications.filter((item) => item.application.stage === "hired").length;
     const completed = applications.filter((item) => item.screening.gemmatchStatus === "completed");
-    const fitScores = completed.map((item) => gemmatchFitScore(item.screening.gemmatchFit)).filter((score): score is number => score !== undefined);
+    const fitScores = completed
+      .map((item) => item.screening.gemmatchFitScore)
+      .filter((score): score is number => score !== undefined);
     const activeJobs = jobs.filter((item) => item.job.status === "open").length;
-    const floor = selectedLocation
-      ? floorRead(composition.mix, selectedLocation.archetype, selectedLocation.count, selectedLocation.count)
-      : floorRead(composition.mix, composition.floorType, composition.tested, Math.max(composition.total, composition.tested));
+    const floor = floorRead(
+      composition.mix,
+      selectedLocation?.archetype || composition.floorType,
+      composition.tested,
+      composition.total,
+    );
     const careers = await getPostgresCareersAnalyticsWithClient(client, storeId, 30);
     const activity = await getPostgresDashboardActivityWithClient(client, storeId);
 
@@ -6528,9 +6522,9 @@ export async function getPostgresStoreApplicantDetail(identifier: string, storeI
   });
   if (!detail) return undefined;
 
-  const latestGemMatch =
-    detail.gemmatchInvites.find((invite) => invite.status === "completed") ||
-    detail.gemmatchInvites.at(0);
+  const latestGemMatch = detail.gemmatchInvites
+    .filter((invite) => invite.status === "completed" && Boolean(invite.resultProfileCode))
+    .sort((a, b) => (b.completedAt || b.createdAt).localeCompare(a.completedAt || a.createdAt))[0];
   const resultProfile = latestGemMatch?.resultProfileCode;
   return {
     id: slugify(detail.profile.fullName) || detail.profile.id,
@@ -6543,15 +6537,15 @@ export async function getPostgresStoreApplicantDetail(identifier: string, storeI
     job: detail.job,
     status: statusFromStage(detail.application.stage),
     applications: await listPostgresApplicantHistory(detail.profile.id, scope.storeId),
-    gemmatch: latestGemMatch
+    gemmatch: latestGemMatch?.resultProfileCode
       ? {
           type: gemMatchLabel(resultProfile),
-          primary: (resultProfile || "C") as ProfileCode,
+          primary: resultProfile as ProfileCode,
           // The candidate's REAL trait distribution when we have it; older
           // pre-migration rows fall back to the approximate profileMix.
           mix: latestGemMatch.resultMix ?? profileMix(resultProfile),
-          fitScore: latestGemMatch.fitScore ?? gemMatchFitScore(latestGemMatch.fitRating),
-          tier: latestGemMatch.fitRating || "Good fit",
+          fitScore: latestGemMatch.fitScore,
+          tier: latestGemMatch.fitRating,
         }
       : undefined,
     tests: detail.assessmentAttempts.map((attempt) => {
@@ -7767,8 +7761,19 @@ export async function listPostgresStoreTeamMembers(input: ListPostgresStoreTeamM
           tm.name,
           tm.initials,
           tm.role,
-          tm.gemmatch_type,
-          tm.primary_profile_code,
+          case when tm.source_application_id is null then tm.gemmatch_type else null end as gemmatch_type,
+          case
+            when tm.source_application_id is null then tm.primary_profile_code
+            else (
+              select gi.result_profile_code
+              from gemmatch_invites gi
+              where gi.application_id = tm.source_application_id
+                and gi.status = 'completed'
+                and gi.result_profile_code in ('V', 'C', 'F', 'D')
+              order by gi.completed_at desc nulls last, gi.created_at desc
+              limit 1
+            )
+          end as primary_profile_code,
           tm.status,
           tm.next_action,
           tm.created_at::text,
@@ -7812,7 +7817,7 @@ export async function getPostgresTeamMemberStoreId(memberId: string) {
 export async function createPostgresTeamMember(input: CreatePostgresTeamMemberInput) {
   const name = input.name.trim();
   if (!name) return undefined;
-  const primary = input.primary && PROFILE_ORDER.includes(input.primary) ? input.primary : "C";
+  const primary = input.primary && PROFILE_ORDER.includes(input.primary) ? input.primary : undefined;
   const client = await getPostgresPool().connect();
   try {
     await client.query("begin");
@@ -7853,8 +7858,8 @@ export async function createPostgresTeamMember(input: CreatePostgresTeamMemberIn
         name,
         initials(name),
         input.role?.trim() || "Team member",
-        input.type?.trim() || typeForPrimary(primary),
-        primary,
+        primary ? input.type?.trim() || typeForPrimary(primary) : null,
+        primary || null,
         timestamp,
       ],
     );
@@ -7889,8 +7894,19 @@ async function getPostgresTeamMember(client: PoolClient, memberId: string) {
         tm.name,
         tm.initials,
         tm.role,
-        tm.gemmatch_type,
-        tm.primary_profile_code,
+        case when tm.source_application_id is null then tm.gemmatch_type else null end as gemmatch_type,
+        case
+          when tm.source_application_id is null then tm.primary_profile_code
+          else (
+            select gi.result_profile_code
+            from gemmatch_invites gi
+            where gi.application_id = tm.source_application_id
+              and gi.status = 'completed'
+              and gi.result_profile_code in ('V', 'C', 'F', 'D')
+            order by gi.completed_at desc nulls last, gi.created_at desc
+            limit 1
+          )
+        end as primary_profile_code,
         tm.status,
         tm.next_action,
         tm.created_at::text,
@@ -7947,8 +7963,9 @@ export async function updatePostgresTeamMember(input: UpdatePostgresTeamMemberIn
       `,
       [input.memberId, resolved.locationId, status, input.nextAction, new Date().toISOString()],
     );
+    const refreshed = result.rows[0] ? await getPostgresTeamMember(client, input.memberId) : undefined;
     await client.query("commit");
-    const member = result.rows[0] ? mapTeamMember(result.rows[0]) : undefined;
+    const member = refreshed ? mapTeamMember(refreshed) : undefined;
     return member ? { member } : undefined;
   } catch (error) {
     await client.query("rollback");
@@ -7986,8 +8003,19 @@ export async function removePostgresTeamMember(memberId: string) {
           tm.name,
           tm.initials,
           tm.role,
-          tm.gemmatch_type,
-          tm.primary_profile_code,
+          case when tm.source_application_id is null then tm.gemmatch_type else null end as gemmatch_type,
+          case
+            when tm.source_application_id is null then tm.primary_profile_code
+            else (
+              select gi.result_profile_code
+              from gemmatch_invites gi
+              where gi.application_id = tm.source_application_id
+                and gi.status = 'completed'
+                and gi.result_profile_code in ('V', 'C', 'F', 'D')
+              order by gi.completed_at desc nulls last, gi.created_at desc
+              limit 1
+            )
+          end as primary_profile_code,
           tm.status,
           tm.next_action,
           tm.created_at::text,
@@ -8031,8 +8059,19 @@ async function getPostgresTeamComposition(client: PoolClient, storeId: string, l
         tm.name,
         tm.initials,
         tm.role,
-        tm.gemmatch_type,
-        tm.primary_profile_code,
+        case when tm.source_application_id is null then tm.gemmatch_type else null end as gemmatch_type,
+        case
+          when tm.source_application_id is null then tm.primary_profile_code
+          else (
+            select gi.result_profile_code
+            from gemmatch_invites gi
+            where gi.application_id = tm.source_application_id
+              and gi.status = 'completed'
+              and gi.result_profile_code in ('V', 'C', 'F', 'D')
+            order by gi.completed_at desc nulls last, gi.created_at desc
+            limit 1
+          )
+        end as primary_profile_code,
         tm.status,
         tm.next_action,
         tm.created_at::text,
@@ -8049,14 +8088,15 @@ async function getPostgresTeamComposition(client: PoolClient, storeId: string, l
     [storeId, resolved.locationId],
   );
   const members = membersResult.rows.map(mapTeamMember);
-  const counts = members.reduce<Record<ProfileCode, number>>(
+  const assessedMembers = members.filter((member) => member.assessed);
+  const counts = assessedMembers.reduce<Record<ProfileCode, number>>(
     (acc, member) => {
       acc[member.primary] += 1;
       return acc;
     },
     { V: 0, C: 0, F: 0, D: 0 },
   );
-  const denominator = Math.max(members.length, 1);
+  const denominator = Math.max(assessedMembers.length, 1);
   const mix = Object.fromEntries(
     PROFILE_ORDER.map((profile) => [profile, Math.round((counts[profile] / denominator) * 100)]),
   ) as Mix;
@@ -8065,7 +8105,7 @@ async function getPostgresTeamComposition(client: PoolClient, storeId: string, l
     floorType: resolved.location?.floor_type || membersResult.rows[0]?.floor_type || "Powerhouse",
     mix,
     counts,
-    tested: members.length,
+    tested: assessedMembers.length,
     total: members.length,
     members,
   };
@@ -8082,11 +8122,13 @@ async function getPostgresHirePreviewWithClient(client: PoolClient, input: Postg
   }
   const composition = await getPostgresTeamComposition(client, input.storeId, requestedLocationId);
   if (requestedLocationId && composition.locationId !== requestedLocationId) return undefined;
-  const latestGemMatch = detail.gemmatchInvites.find((invite) => invite.resultProfileCode) || detail.gemmatchInvites.at(0);
+  const latestGemMatch = detail.gemmatchInvites
+    .filter((invite) => invite.status === "completed" && Boolean(invite.resultProfileCode))
+    .sort((a, b) => (b.completedAt || b.createdAt).localeCompare(a.completedAt || a.createdAt))[0];
   const primary = latestGemMatch?.resultProfileCode;
   const incomingMix = profileMix(primary);
   const before = composition.mix;
-  const after = blendMix(before, incomingMix, composition.total);
+  const after = primary ? blendMix(before, incomingMix, composition.tested) : before;
   const role = input.role || detail.job?.title || detail.profile.resumeHeadline || "Associate";
   const courseCredentialIds = detail.resume?.courseCredentialIds || [];
   const teamMemberId = `jl-team-${slugify(detail.profile.fullName)}`;
@@ -8291,8 +8333,8 @@ export async function hirePostgresApplication(input: HirePostgresApplicationInpu
         preview.applicant.fullName,
         initials(preview.applicant.fullName),
         preview.role,
-        preview.gemmatch.type,
-        primary || "C",
+        primary ? preview.gemmatch.type : null,
+        primary || null,
         timestamp,
       ],
     );

@@ -40,7 +40,7 @@ export default async function TeamMapPage() {
   ]);
 
   const mix: Mix = composition.mix;
-  const assessed = members.length;
+  const assessed = composition.tested;
   const ranked = [...PROFILE_ORDER].sort((a, b) => mix[b] - mix[a]);
   const rich = ranked.filter((p) => mix[p] > EVEN_SHARE);
   const short = [...ranked].reverse().filter((p) => mix[p] < EVEN_SHARE * 0.6);
@@ -60,7 +60,9 @@ export default async function TeamMapPage() {
             </div>
           ) : (
             <div className="p-6 text-[13px] text-muted">
-              No team members yet. Hired applicants show up here with their JewelCert mix.
+              {members.length
+                ? `${members.length} team member${members.length === 1 ? " is" : "s are"} waiting on a completed JewelCert result.`
+                : "No team members yet. Hired applicants show up here with their JewelCert mix."}
             </div>
           )}
         </Panel>
@@ -121,13 +123,13 @@ export default async function TeamMapPage() {
                     <tr key={m.id} className="hover:bg-rowhover">
                       <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
                         <div className="flex items-center gap-2.5">
-                          <span className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold text-white" style={{ background: m.primary ? PROFILES[m.primary].color : "#b4bdcb" }}>{m.initials}</span>
+                          <span className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold text-white" style={{ background: m.assessed !== false ? PROFILES[m.primary].color : "#b4bdcb" }}>{m.initials}</span>
                           <span className="font-medium text-head whitespace-nowrap">{m.name}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px] whitespace-nowrap">{m.role}</td>
                       <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px] whitespace-nowrap">
-                        {m.primary ? <TypeLabel primary={m.primary} type={m.type} /> : <span className="text-muted">Not assessed</span>}
+                        {m.assessed !== false ? <TypeLabel primary={m.primary} type={m.type} /> : <span className="text-muted">Not assessed</span>}
                       </td>
                       <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
                         <span className={`text-[11px] font-medium px-2 py-1 rounded-full whitespace-nowrap ${STATUS_STYLE[m.status ?? ""] || "bg-[#eef1f6] text-muted"}`}>{m.status ?? "Active"}</span>

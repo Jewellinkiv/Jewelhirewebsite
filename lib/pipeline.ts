@@ -16,7 +16,7 @@ export interface PipelineApplicant {
   location: string;
   stage: Stage;
   jewelcert: { status: JewelCertStatus; score?: number };
-  gemmatch?: { type: string; primary: ProfileCode; fitScore: number; tier: FitTier };
+  gemmatch?: { type: string; primary: ProfileCode; fitScore?: number; tier?: FitTier };
   notes: number;
   lastActivity: string;
   interviewAt?: string;

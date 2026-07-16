@@ -101,7 +101,7 @@ export default function TeamPage() {
                   </div>
                 </td>
                 <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">{m.role}</td>
-                <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]"><TypeLabel primary={m.primary} type={m.type} /></td>
+                <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">{m.assessed !== false ? <TypeLabel primary={m.primary} type={m.type} /> : <span className="text-muted">Not assessed</span>}</td>
                 <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
                   <select value={m.locationId} onChange={(e) => reassign(m.id, e.target.value)} className="border border-line rounded-md bg-panel text-[12.5px] text-body px-2 py-1.5 outline-none focus:border-primary">
                     {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}

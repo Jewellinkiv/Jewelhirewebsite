@@ -30,6 +30,7 @@ type TeamMemberView = {
   role: string;
   type: string;
   primary: ProfileCode;
+  assessed?: boolean;
   locationId?: string;
   status?: string;
   location?: string;
@@ -92,18 +93,19 @@ function localInitials(name: string) {
 }
 
 function compositionFromMembers(members: TeamMemberView[], locationId?: string | null, floorType = "Scoped team"): TeamCompositionView {
-  const counts = members.reduce<Record<ProfileCode, number>>(
+  const assessedMembers = members.filter((member) => member.assessed !== false);
+  const counts = assessedMembers.reduce<Record<ProfileCode, number>>(
     (acc, member) => {
       acc[member.primary] += 1;
       return acc;
     },
     { V: 0, C: 0, F: 0, D: 0 },
   );
-  const denominator = Math.max(members.length, 1);
+  const denominator = Math.max(assessedMembers.length, 1);
   const mix = Object.fromEntries(
     PROFILE_ORDER.map((profile) => [profile, Math.round((counts[profile] / denominator) * 100)]),
   ) as Mix;
-  return { locationId, floorType, mix, counts, tested: members.length, total: members.length, members };
+  return { locationId, floorType, mix, counts, tested: assessedMembers.length, total: members.length, members };
 }
 
 function scopedMembers(members: TeamMemberView[], locationIds?: string[]) {
@@ -132,14 +134,15 @@ const localTeamStore: TeamStore = {
     const access = await requireLocationScopedStoreAccess(input.storeId, "team.members.create");
     requireLocationInScope(input.locationId, access.locationIds, "team.members.create");
     const storeId = access.storeId;
-    const primary = input.primary || "C";
+    const primary = input.primary;
     const created = addTeamMember(storeId, {
       id: localTeamId(input.name),
       name: input.name,
       initials: localInitials(input.name),
       role: input.role?.trim() || "Team member",
-      type: input.type?.trim() || "Balanced Associate",
-      primary,
+      type: primary ? input.type?.trim() || "Balanced Associate" : "Not assessed",
+      primary: primary || "C",
+      assessed: Boolean(primary),
       locationId: input.locationId || undefined,
     });
     const [member] = listStoreTeamMembers(storeId).filter((item) => item.id === created.member.id);

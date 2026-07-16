@@ -11,13 +11,6 @@ export const GET = withApiErrorHandling(async function GET(request: Request, pro
   const locationId = url.searchParams.get("locationId");
   const teamStore = getTeamStore();
   const members = await teamStore.listStoreTeamMembers({ storeId, locationId });
-  const counts = members.reduce<Record<ProfileCode, number>>(
-    (acc, member) => {
-      acc[member.primary] += 1;
-      return acc;
-    },
-    { V: 0, C: 0, F: 0, D: 0 },
-  );
   const composition = await teamStore.getTeamComposition({ storeId, locationId });
 
   return NextResponse.json({
@@ -25,7 +18,9 @@ export const GET = withApiErrorHandling(async function GET(request: Request, pro
     floorType: composition.floorType,
     mix: composition.mix,
     members,
-    counts,
+    counts: composition.counts,
+    tested: composition.tested,
+    total: composition.total,
     labels: PROFILES,
   });
 });
@@ -38,7 +33,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
 
   const rawPrimary = typeof body?.primary === "string" ? body.primary : "";
-  const primary = (["V", "C", "F", "D"].includes(rawPrimary) ? rawPrimary : "C") as ProfileCode;
+  const primary = (["V", "C", "F", "D"].includes(rawPrimary) ? rawPrimary : undefined) as ProfileCode | undefined;
   const result = await getTeamStore().createTeamMember({
     storeId,
     name,
