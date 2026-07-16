@@ -1939,11 +1939,11 @@ function mapApplicationAttachment(row: ApplicationAttachmentRow): ApplicationAtt
 }
 
 function mapApplicationJob(row: ApplicationDetailRow): PublicJobRecord | undefined {
-  if (!row.job_id || !row.public_page_id || !row.job_status) return undefined;
+  if (!row.job_id || !row.job_status) return undefined;
   return mapPublicJob({
     id: row.job_id,
     store_id: row.store_id,
-    public_page_id: row.public_page_id,
+    public_page_id: row.public_page_id || "",
     title: row.job_title || "",
     location: row.job_location,
     employment_type: row.employment_type,
@@ -8075,7 +8075,13 @@ async function getPostgresHirePreviewWithClient(client: PoolClient, input: Postg
   const detail = await getPostgresApplicationDetailWithClient(client, { applicationId: input.applicationId, storeId: input.storeId });
   if (!detail?.application || !detail.profile) return undefined;
 
-  const composition = await getPostgresTeamComposition(client, input.storeId, input.locationId);
+  const requestedLocationId = input.locationId?.trim();
+  if (requestedLocationId) {
+    const resolvedLocation = await resolvePostgresLocationId(client, input.storeId, requestedLocationId);
+    if (resolvedLocation.locationId !== requestedLocationId) return undefined;
+  }
+  const composition = await getPostgresTeamComposition(client, input.storeId, requestedLocationId);
+  if (requestedLocationId && composition.locationId !== requestedLocationId) return undefined;
   const latestGemMatch = detail.gemmatchInvites.find((invite) => invite.resultProfileCode) || detail.gemmatchInvites.at(0);
   const primary = latestGemMatch?.resultProfileCode;
   const incomingMix = profileMix(primary);
@@ -8229,6 +8235,10 @@ export async function hirePostgresApplication(input: HirePostgresApplicationInpu
 
     const timestamp = new Date().toISOString();
     const resolved = await resolvePostgresLocationId(client, input.storeId, preview.jewelLinkPayload.locationId);
+    if (!resolved.locationId || resolved.locationId !== preview.jewelLinkPayload.locationId) {
+      await client.query("rollback");
+      return undefined;
+    }
     const primary = preview.gemmatch.primary || undefined;
     const teamMemberDbId = `team-${input.applicationId}`;
     const syncId = id("hire-sync");

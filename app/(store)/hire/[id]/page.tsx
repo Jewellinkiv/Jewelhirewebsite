@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useMemo, useRef, useState, use } from "react";
 import Link from "next/link";
 import { Panel, Radar, MixBars, FitBadge, TypeLabel } from "@/components/ui";
 import { clarityLabel, PROFILES, PROFILE_ORDER, Mix, ProfileCode, FitTier } from "@/lib/gemmatch";
@@ -33,11 +33,16 @@ interface HireCandidate {
   initials: string;
   role: string;
   location: string;
+  jobLocation: string;
   gemmatch?: { type: string; primary: ProfileCode; mix: Mix; fitScore?: number; tier?: FitTier };
 }
 
 function initialsOf(name: string) {
   return name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "AP";
+}
+
+function locationKey(value: string) {
+  return value.trim().toLowerCase().replace(/^location-/, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
 export default function HirePage(props: { params: Promise<{ id: string }> }) {
@@ -48,22 +53,35 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
   const [error, setError] = useState("");
   const [c, setC] = useState<HireCandidate | null>(null);
   const [missing, setMissing] = useState(false);
-  const [team, setTeam] = useState<{ mix: Mix; floorType: string; size: number } | null>(null);
-  const [location, setLocation] = useState<{ id: string; name: string } | null>(null);
+  const [team, setTeam] = useState<{ locationId: string; mix: Mix; floorType: string; size: number } | null>(null);
+  const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
+  const [locationsLoaded, setLocationsLoaded] = useState(false);
+  const [selectedLocationId, setSelectedLocationId] = useState("");
+  const activeApplicationId = useRef("");
 
   useEffect(() => {
     let cancelled = false;
+    activeApplicationId.current = "";
+    setC(null);
+    setMissing(false);
+    setHired(false);
+    setHiring(false);
+    setError("");
+    setTeam(null);
+    setSelectedLocationId("");
     fetch(`/api/applicants/${params.id}`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((body) => {
         if (cancelled) return;
         const name = body.profile?.fullName || "Applicant";
+        activeApplicationId.current = body.applicationId || "";
         setC({
           applicationId: body.applicationId || "",
           name,
           initials: initialsOf(name),
           role: body.job?.title || body.profile?.resumeHeadline || "Jewelry role",
-          location: body.profile?.location || "—",
+          location: body.job?.location || body.profile?.location || "—",
+          jobLocation: body.job?.location || "",
           gemmatch: body.gemmatch,
         });
       })
@@ -73,36 +91,73 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
     return () => {
       cancelled = true;
     };
-  }, [params.id]);
+  }, [params.id, STORE_ID]);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/stores/${STORE_ID}/team`)
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((body) => {
-        if (cancelled) return;
-        setTeam({ mix: body.mix, floorType: body.floorType || "—", size: (body.members || []).length });
-      })
-      .catch(() => undefined);
+    setLocations([]);
+    setLocationsLoaded(false);
+    setSelectedLocationId("");
     fetch(`/api/stores/${STORE_ID}/locations`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((body) => {
         if (cancelled) return;
-        const first = (body.items || [])[0];
-        if (first) setLocation({ id: first.id, name: first.name || first.label || "" });
+        setLocations((body.items || []).map((item: { id: string; name?: string; label?: string }) => ({
+          id: item.id,
+          name: item.name || item.label || "",
+        })));
+        setLocationsLoaded(true);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setLocationsLoaded(true);
+      });
     return () => {
       cancelled = true;
     };
   }, [STORE_ID]);
 
+  const location = useMemo(() => {
+    if (locations.length === 0) return null;
+    const target = locationKey(c?.jobLocation || "");
+    if (!target) {
+      if (selectedLocationId) return locations.find((item) => item.id === selectedLocationId) || null;
+      return locations.length === 1 ? locations[0] : null;
+    }
+    const exact = locations.filter((item) => locationKey(item.id) === target || locationKey(item.name) === target);
+    if (exact.length === 1) return exact[0];
+    const compatible = locations.filter((item) => {
+      const key = locationKey(item.name);
+      return Boolean(key) && (key.includes(target) || target.includes(key));
+    });
+    return compatible.length === 1 ? compatible[0] : null;
+  }, [c?.jobLocation, locations, selectedLocationId]);
+
+  useEffect(() => {
+    if (!location?.id) {
+      setTeam(null);
+      return;
+    }
+    let cancelled = false;
+    setTeam(null);
+    fetch(`/api/stores/${STORE_ID}/team?locationId=${encodeURIComponent(location.id)}`)
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((body) => {
+        if (cancelled) return;
+        setTeam({ locationId: location.id, mix: body.mix, floorType: body.floorType || "—", size: (body.members || []).length });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [STORE_ID, location?.id]);
+
   const confirmHire = async () => {
-    if (!c?.applicationId || hiring) return;
+    if (!c?.applicationId || !location || team?.locationId !== location.id || hiring) return;
+    const applicationId = c.applicationId;
     setError("");
     setHiring(true);
     try {
-      const response = await fetch(`/api/applications/${c.applicationId}/hire`, {
+      const response = await fetch(`/api/applications/${applicationId}/hire`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ role: c.role, locationId: location?.id }),
@@ -111,11 +166,13 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
         const body = await response.json().catch(() => ({}));
         throw new Error(typeof body.error === "string" ? body.error : "Unable to confirm hire");
       }
-      setHired(true);
+      if (activeApplicationId.current === applicationId) setHired(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to confirm hire");
+      if (activeApplicationId.current === applicationId) {
+        setError(err instanceof Error ? err.message : "Unable to confirm hire");
+      }
     } finally {
-      setHiring(false);
+      if (activeApplicationId.current === applicationId) setHiring(false);
     }
   };
 
@@ -179,7 +236,19 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
                   <span className="text-muted inline-flex items-center gap-1.5"><IconBriefcase size={14} /> Role</span>
                   <span className="text-head font-medium">{c.role}</span>
                   <span className="text-muted inline-flex items-center gap-1.5"><IconMapPin size={14} /> Location</span>
-                  <span className="text-head font-medium">{location?.name || "—"}</span>
+                  {c.jobLocation || locations.length <= 1 ? (
+                    <span className="text-head font-medium">{location?.name || (locationsLoaded ? "Job location unavailable" : "Loading…")}</span>
+                  ) : (
+                    <select
+                      value={selectedLocationId}
+                      onChange={(event) => setSelectedLocationId(event.target.value)}
+                      disabled={hiring}
+                      className="w-full max-w-[260px] rounded-md border border-line bg-panel px-2.5 py-1.5 text-[13px] text-head outline-none focus:border-primary"
+                    >
+                      <option value="">Choose a location</option>
+                      {locations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </select>
+                  )}
                   <span className="text-muted inline-flex items-center gap-1.5"><IconDiamond size={14} /> JewelCert type</span>
                   <span className="text-head font-medium">{c.gemmatch ? `${c.gemmatch.type} · ${clarity}` : "Not completed"}</span>
                 </div>
@@ -248,7 +317,14 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
                 <p className="m-0 text-[12.5px] text-body leading-relaxed">
                   Confirm to sync {c.name.split(" ")[0]} into {PRODUCT} as a team member.
                 </p>
-                <button onClick={confirmHire} disabled={hiring || !c.applicationId} className={`w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-[13px] ${hiring ? "bg-[#c2cbe0] text-white rounded-full font-bold cursor-not-allowed" : "btn-grad"}`}>
+                {locationsLoaded && !location && (
+                  <div className="rounded-md border border-[#f2c2c2] bg-[#fff4f4] px-3 py-2 text-[12.5px] text-[#a32d2d]">
+                    {c.jobLocation
+                      ? "This job’s location is not available to your account. Update the job or your location access before hiring."
+                      : "Choose the location where this person will work before hiring."}
+                  </div>
+                )}
+                <button onClick={confirmHire} disabled={hiring || !c.applicationId || !location || team?.locationId !== location.id} className={`w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-[13px] ${hiring || !location || team?.locationId !== location.id ? "bg-[#c2cbe0] text-white rounded-full font-bold cursor-not-allowed" : "btn-grad"}`}>
                   <IconUserPlus size={16} /> {hiring ? "Hiring…" : `Confirm hire → ${PRODUCT}`}
                 </button>
                 {error && <div className="rounded-md border border-[#f2c2c2] bg-[#fff4f4] px-3 py-2 text-[12.5px] text-[#a32d2d]">{error}</div>}
