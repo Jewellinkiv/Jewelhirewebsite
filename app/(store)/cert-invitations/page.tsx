@@ -63,6 +63,7 @@ type QueueCandidate = {
 };
 
 type QueueInvite = {
+  inviteId: string;
   candidateId: string;
   candidate?: QueueCandidate | null;
   package: string;
@@ -129,6 +130,8 @@ export default function CertInvitationsPage() {
   // data; real invites for THIS store load below.
   const [invites, setInvites] = useState<QueueInvite[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
+  const [resendNotice, setResendNotice] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const pending = invites.filter((invite) => invite.status !== "Completed" && invite.status !== "Expired").length;
   const completed = invites.filter((invite) => invite.status === "Completed").length;
   const candidateMap = new Map(CANDIDATES.map((candidate) => [candidate.id, candidate]));
@@ -140,6 +143,7 @@ export default function CertInvitationsPage() {
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: {
         items: {
+          invite: { id: string };
           candidate: QueueCandidate | null;
           package: string;
           contents: string;
@@ -150,6 +154,7 @@ export default function CertInvitationsPage() {
       }) => {
         if (!cancelled) {
           setInvites(data.items.map((item) => ({
+            inviteId: item.invite.id,
             candidateId: item.candidate?.id || "unknown",
             candidate: item.candidate,
             package: item.package,
@@ -168,6 +173,30 @@ export default function CertInvitationsPage() {
       cancelled = true;
     };
   }, [STORE_ID]);
+
+  async function resendInvite(invite: QueueInvite) {
+    setResendingInviteId(invite.inviteId);
+    setResendNotice(null);
+    try {
+      const response = await fetch(
+        `/api/stores/${STORE_ID}/jewelcert-invites/${invite.inviteId}/resend`,
+        { method: "POST" },
+      );
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Unable to resend this invitation.");
+      setResendNotice({
+        kind: "success",
+        message: `JewelCert invitation resent to ${invite.candidate?.name || "the applicant"}.`,
+      });
+    } catch (error) {
+      setResendNotice({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Unable to resend this invitation.",
+      });
+    } finally {
+      setResendingInviteId(null);
+    }
+  }
 
   return (
     <div>
@@ -188,12 +217,26 @@ export default function CertInvitationsPage() {
         <Stat label="Training courses" value={LEGACY_COURSE_TOTALS.total} sub={`${LEGACY_COURSE_TOTALS.published} published`} />
       </div>
 
+      {resendNotice && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`mb-4 rounded-md border px-4 py-3 text-[13px] ${
+            resendNotice.kind === "success"
+              ? "border-[#b8dfcf] bg-[#eef9f4] text-[#0f6e56]"
+              : "border-[#efc1c1] bg-[#fff4f4] text-[#a32d2d]"
+          }`}
+        >
+          {resendNotice.message}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-[18px] items-start">
         <Panel title="Invitation queue" action={<Link href="/applicants" className="text-[12.5px] text-primary no-underline">Review candidates</Link>}>
           <div className="overflow-x-auto"><table className="w-full border-collapse">
             <thead>
               <tr>
-                {["Candidate", "Package", "Contents", "Status", "Sent", "Due"].map((h) => (
+                {["Candidate", "Package", "Contents", "Status", "Sent", "Due", "Actions"].map((h) => (
                   <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted px-4 py-2.5 border-b border-line">{h}</th>
                 ))}
               </tr>
@@ -202,7 +245,7 @@ export default function CertInvitationsPage() {
               {invites.map((invite) => {
                 const candidate = invite.candidate || candidateMap.get(invite.candidateId);
                 return (
-                  <tr key={`${invite.candidateId}-${invite.package}`} className="hover:bg-rowhover align-top">
+                  <tr key={invite.inviteId} className="hover:bg-rowhover align-top">
                     <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
                       {candidate ? (
                         <Link href={`/applicants/${(candidate as { profileId?: string }).profileId || candidate.id}`} className="flex items-center gap-2.5 no-underline">
@@ -221,11 +264,25 @@ export default function CertInvitationsPage() {
                     <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]"><InviteStatusChip status={invite.status} /></td>
                     <td className="px-4 py-3 border-b border-[#eef1f6] text-[12.5px] text-muted">{invite.sent}</td>
                     <td className="px-4 py-3 border-b border-[#eef1f6] text-[12.5px] text-muted">{invite.due}</td>
+                    <td className="px-4 py-3 border-b border-[#eef1f6] text-[12.5px]">
+                      {invite.status === "Sent" || invite.status === "Started" ? (
+                        <button
+                          type="button"
+                          onClick={() => void resendInvite(invite)}
+                          disabled={resendingInviteId !== null}
+                          className="text-primary font-medium hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {resendingInviteId === invite.inviteId ? "Resending…" : "Resend email"}
+                        </button>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
-              {!loaded && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted text-[13px]">Loading invitations…</td></tr>}
-              {loaded && invites.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted text-[13px]">No invitations yet.</td></tr>}
+              {!loaded && <tr><td colSpan={7} className="px-4 py-10 text-center text-muted text-[13px]">Loading invitations…</td></tr>}
+              {loaded && invites.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-muted text-[13px]">No invitations yet.</td></tr>}
             </tbody>
           </table></div>
         </Panel>

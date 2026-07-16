@@ -41,6 +41,14 @@ const EXPECTED_TRIGGERS = [
     requiredForLaunch: true,
   },
   {
+    id: "jewelcert_invite_resent",
+    label: "Pending JewelCert invite resent without creating a duplicate",
+    recipients: "candidate",
+    markers: ["jewelcert-invites/[inviteId]/resend", "jewelcert-resend:"],
+    wiredMarkers: ["notifyJewelCertInviteCreated"],
+    requiredForLaunch: true,
+  },
+  {
     id: "assessment_completed",
     label: "Candidate completes JewelCert or assessment",
     recipients: "store hiring manager, candidate confirmation",
