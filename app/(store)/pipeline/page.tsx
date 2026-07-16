@@ -7,6 +7,7 @@ import { Panel, FitBadge, TypeLabel } from "@/components/ui";
 import { STAGES, Stage, JewelCertStatus, PipelineApplicant } from "@/lib/pipeline";
 import { IconSend, IconCalendar, IconUserPlus, IconFileText, IconSearch, IconChevronRight } from "@/components/icons";
 import { FitTier, ProfileCode } from "@/lib/gemmatch";
+import { useActiveStoreId } from "@/lib/client-session";
 
 const STAGE_STYLE: Record<Stage, string> = {
   Applied: "bg-[#eef2f7] text-[#5b6472]",
@@ -109,6 +110,7 @@ function toPipelineApplicant(item: ApiApplicationItem): PipelineApplicant {
 }
 
 export default function PipelinePage() {
+  const storeId = useActiveStoreId("");
   // Start empty (never seed demo rows — a slow fetch showed fake applicants).
   const [apiRows, setApiRows] = useState<PipelineApplicant[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -121,8 +123,9 @@ export default function PipelinePage() {
   const [fit, setFit] = useState<string>("All");
 
   const loadApplications = useCallback((offset: number, signal?: AbortSignal) => {
+    if (!storeId) return Promise.resolve();
     if (offset > 0) setLoadingMore(true);
-    return fetch(`/api/store/applications?limit=50&offset=${offset}`, { signal })
+    return fetch(`/api/store/applications?storeId=${encodeURIComponent(storeId)}&limit=50&offset=${offset}`, { signal })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Unable to load pipeline"))))
       .then((body) => {
         const incoming = (body.items || []).map(toPipelineApplicant);
@@ -143,7 +146,7 @@ export default function PipelinePage() {
       .finally(() => {
         if (!signal?.aborted) setLoadingMore(false);
       });
-  }, []);
+  }, [storeId]);
 
   useEffect(() => {
     const controller = new AbortController();

@@ -51,7 +51,9 @@ export function JewelLinkIntegrationHealth({ storeId }: { storeId: string }) {
     const response = await fetch(`/api/stores/${storeId}/integrations/jewellink/health`, { cache: "no-store" });
     const data = await response.json().catch(() => null);
     setHealth(response.ok ? data : null);
-    if (!response.ok) setNotice("Unable to load JewelLink integration health.");
+    setNotice((current) => response.ok
+      ? (current === "Unable to load JewelLink integration health." ? "" : current)
+      : "Unable to load JewelLink integration health.");
     setLoading(false);
   }, [storeId]);
 
