@@ -240,9 +240,9 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-            <div className="mt-3">
+            {floor.tested > 0 && <div className="mt-3">
               <span className="text-[11px] bg-[#e8f1ff] text-primary px-2 py-1 rounded-md">Hire next: {PROFILES[floor.hireNext].name}-type</span>
-            </div>
+            </div>}
           </div>
         </Link>
 
