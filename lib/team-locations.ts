@@ -16,6 +16,7 @@ export interface TeamMemberLoc {
   role: string;
   type: string;
   primary: ProfileCode;
+  assessed?: boolean;
   locationId: string;
 }
 

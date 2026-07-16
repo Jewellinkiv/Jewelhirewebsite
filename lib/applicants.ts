@@ -110,8 +110,8 @@ export interface ApplicantProfile {
     type: string;
     primary: import("./gemmatch").ProfileCode;
     mix: import("./gemmatch").Mix;
-    fitScore: number;
-    tier: import("./gemmatch").FitTier;
+    fitScore?: number;
+    tier?: import("./gemmatch").FitTier;
   };
   tests: TestScore[];
 }

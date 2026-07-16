@@ -185,7 +185,7 @@ export default function ApplicantProfilePage(props: { params: Promise<{ id: stri
           <div className="text-[13px] text-muted mt-[3px] flex gap-2 items-center flex-wrap">
             {rec.role} · {rec.email}
             {applyCount > 0 && <span className="inline-flex text-[11.5px] font-medium px-2 py-0.5 rounded-full bg-[#eef2f7] text-[#5b6472]">Applied {applyCount}×</span>}
-            {gm && <FitBadge score={gm.fitScore} tier={gm.tier} />}
+            {gm?.tier && typeof gm.fitScore === "number" && <FitBadge score={gm.fitScore} tier={gm.tier} />}
           </div>
         </div>
       </div>
@@ -260,7 +260,10 @@ export default function ApplicantProfilePage(props: { params: Promise<{ id: stri
                 <div className="max-w-[200px] mx-auto"><Radar mix={gm.mix} size={200} /></div>
                 <div>
                   <div className="text-[15px] font-bold text-head">{gm.type}</div>
-                  <div className="text-[12.5px] text-muted mb-2">JewelCert · {PROFILES[gm.primary].name}-led · <b style={{ color: barColor(gm.fitScore) }}>{gm.fitScore} {gm.tier}</b></div>
+                  <div className="text-[12.5px] text-muted mb-2">
+                    JewelCert · {PROFILES[gm.primary].name}-led
+                    {gm.tier && typeof gm.fitScore === "number" ? <> · <b style={{ color: barColor(gm.fitScore) }}>{gm.fitScore} {gm.tier}</b></> : null}
+                  </div>
                   <MixBars mix={gm.mix} />
                 </div>
               </div>

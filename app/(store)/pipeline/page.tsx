@@ -97,10 +97,8 @@ function toPipelineApplicant(item: ApiApplicationItem): PipelineApplicant {
       ? {
           type: profile === "C" ? "Luxury Advisor" : profile === "F" ? "Master Craftsman" : profile === "D" ? "Sales Strategist" : "Trailblazer",
           primary: profile,
-          // Real persisted score; the tier-derived numbers are only a fallback
-          // for pre-migration rows.
-          fitScore: item.screening.gemmatchFitScore ?? (item.screening.gemmatchFit === "Strong fit" ? 88 : item.screening.gemmatchFit === "Poor fit" ? 32 : 74),
-          tier: (item.screening.gemmatchFit as FitTier) || "Good fit",
+          fitScore: item.screening.gemmatchFitScore,
+          tier: item.screening.gemmatchFit as FitTier | undefined,
         }
       : undefined,
     notes: item.noteCount,
@@ -286,7 +284,7 @@ function Row({ a }: { a: PipelineApplicant }) {
         {a.gemmatch ? <TypeLabel primary={a.gemmatch.primary} type={a.gemmatch.type} /> : <span className="text-muted">—</span>}
       </td>
       <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
-        {a.gemmatch ? <FitBadge score={a.gemmatch.fitScore} tier={a.gemmatch.tier} /> : <span className="text-muted">—</span>}
+        {a.gemmatch?.tier && typeof a.gemmatch.fitScore === "number" ? <FitBadge score={a.gemmatch.fitScore} tier={a.gemmatch.tier} /> : <span className="text-muted">—</span>}
       </td>
       <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
         <span className="inline-flex items-center gap-1 text-muted"><IconFileText size={14} /> {a.notes}</span>
@@ -336,7 +334,7 @@ function MobileRow({ a }: { a: PipelineApplicant }) {
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <span className="text-[10.5px] font-semibold uppercase tracking-wide text-muted">JewelCert</span>
         <JewelCert status={a.jewelcert.status} score={a.jewelcert.score} />
-        {a.gemmatch && <FitBadge score={a.gemmatch.fitScore} tier={a.gemmatch.tier} />}
+        {a.gemmatch?.tier && typeof a.gemmatch.fitScore === "number" && <FitBadge score={a.gemmatch.fitScore} tier={a.gemmatch.tier} />}
       </div>
       {a.gemmatch && (
         <div className="mt-2 text-[12.5px]"><TypeLabel primary={a.gemmatch.primary} type={a.gemmatch.type} /></div>

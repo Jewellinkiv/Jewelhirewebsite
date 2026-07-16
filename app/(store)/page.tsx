@@ -164,7 +164,9 @@ export default function Dashboard() {
             <div>
               <div className="text-[13px] text-muted">Where your floor is now</div>
               <div className="text-2xl font-semibold text-head mt-0.5">
-                A <span className="text-primary">{floor.archetype}</span> floor
+                {floor.tested > 0
+                  ? <>A <span className="text-primary">{floor.archetype}</span> floor</>
+                  : <span className="text-primary">Waiting for JewelCert results</span>}
               </div>
             </div>
             <span className="inline-flex items-center gap-1.5 text-[11.5px] text-muted bg-[#f1f4f9] px-2.5 py-1 rounded-md whitespace-nowrap">
@@ -172,7 +174,7 @@ export default function Dashboard() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-5 mt-3 items-center">
+          {floor.tested > 0 ? <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-5 mt-3 items-center">
             <div>
               <p
                 className="text-[13px] leading-relaxed text-head m-0 mb-3"
@@ -194,11 +196,17 @@ export default function Dashboard() {
               {/* same real data as the bars — this rendered a static demo mix */}
               <Radar mix={Object.fromEntries(["V", "C", "F", "D"].map((code) => [code, floor.bars.find((b) => b.code === code)?.pct ?? 0])) as Mix} />
             </div>
-          </div>
+          </div> : (
+            <div className="mt-3 rounded-md border border-[#d9e2f2] bg-[#f5f8fd] px-4 py-3 text-[13px] text-body">
+              The sales-floor mix will appear after a team member completes JewelCert.
+            </div>
+          )}
 
           <div className="mt-3 pt-2.5 border-t border-line flex gap-1.5 flex-wrap">
-            <span className="text-[11px] bg-[#e1f5ee] text-[#0f6e56] px-2 py-1 rounded-md">Strength: {floor.strength}</span>
-            <span className="text-[11px] bg-[#fdf0e2] text-[#9a5a12] px-2 py-1 rounded-md">Watch: {floor.watch}</span>
+            {floor.tested > 0 && <>
+              <span className="text-[11px] bg-[#e1f5ee] text-[#0f6e56] px-2 py-1 rounded-md">Strength: {floor.strength}</span>
+              <span className="text-[11px] bg-[#fdf0e2] text-[#9a5a12] px-2 py-1 rounded-md">Watch: {floor.watch}</span>
+            </>}
             {untested > 0 && (
               <span className="text-[11px] bg-[#e8f1ff] text-primary px-2 py-1 rounded-md">{untested} associate{untested === 1 ? "" : "s"} not yet tested</span>
             )}

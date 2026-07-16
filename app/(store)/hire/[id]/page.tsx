@@ -53,7 +53,7 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
   const [error, setError] = useState("");
   const [c, setC] = useState<HireCandidate | null>(null);
   const [missing, setMissing] = useState(false);
-  const [team, setTeam] = useState<{ locationId: string; mix: Mix; floorType: string; size: number } | null>(null);
+  const [team, setTeam] = useState<{ locationId: string; mix: Mix; floorType: string; size: number; tested: number } | null>(null);
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
   const [locationsLoaded, setLocationsLoaded] = useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState("");
@@ -143,7 +143,13 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((body) => {
         if (cancelled) return;
-        setTeam({ locationId: location.id, mix: body.mix, floorType: body.floorType || "—", size: (body.members || []).length });
+        setTeam({
+          locationId: location.id,
+          mix: body.mix,
+          floorType: body.floorType || "—",
+          size: Number(body.total) || (body.members || []).length,
+          tested: Number(body.tested) || 0,
+        });
       })
       .catch(() => undefined);
     return () => {
@@ -199,7 +205,8 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
   const incoming: Mix = c.gemmatch?.mix ?? EVEN_MIX;
   const before = team?.mix ?? EVEN_MIX;
   const teamSize = team?.size ?? 0;
-  const after = recomputeFloor(before, incoming, Math.max(teamSize, 1));
+  const teamTested = team?.tested ?? 0;
+  const after = c.gemmatch ? recomputeFloor(before, incoming, teamTested) : before;
   const delta = mixDelta(before, after);
   const clarity = c.gemmatch ? clarityLabel(c.gemmatch.mix[c.gemmatch.primary] ?? 0, PROFILES[c.gemmatch.primary].name) : "";
 
@@ -253,8 +260,9 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
                   <span className="text-head font-medium">{c.gemmatch ? `${c.gemmatch.type} · ${clarity}` : "Not completed"}</span>
                 </div>
                 <p className="mt-3.5 mb-0 text-[12.5px] text-muted leading-relaxed">
-                  Hiring adds {c.name.split(" ")[0]} to your {PRODUCT} team with their profile,
-                  role, and JewelCert fit. The sales-floor mix recomputes below.
+                  {c.gemmatch
+                    ? `Hiring adds ${c.name.split(" ")[0]} to your ${PRODUCT} team with their role and completed JewelCert profile. The sales-floor mix recomputes below.`
+                    : `Hiring adds ${c.name.split(" ")[0]} to your ${PRODUCT} team with their role. Their JewelCert profile will appear after they complete it.`}
                 </p>
               </div>
             </Panel>
@@ -263,7 +271,7 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
               <div className="p-4">
                 {!hasGemMatch && (
                   <div className="mb-3 text-[12.5px] text-[#9a6a12] bg-[#fff4e2] border border-[#f0dcb4] rounded-md px-3 py-2">
-                    JewelCert isn&rsquo;t complete — preview uses a balanced placeholder mix.
+                    JewelCert isn&rsquo;t complete — the team mix stays unchanged until a real result is available.
                   </div>
                 )}
                 <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
@@ -273,8 +281,8 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
                     </div>
                     <Radar mix={before} overlay={after} size={220} />
                     <div className="mt-2 flex items-center justify-center gap-4 text-[11.5px]">
-                      <span className="inline-flex items-center gap-1.5 text-muted"><span className="w-3 h-[3px] rounded-full bg-primary" /> Now ({teamSize})</span>
-                      <span className="inline-flex items-center gap-1.5 text-muted"><span className="w-3 h-[3px] rounded-full bg-[#e2683c]" /> After ({teamSize + 1})</span>
+                      <span className="inline-flex items-center gap-1.5 text-muted"><span className="w-3 h-[3px] rounded-full bg-primary" /> Now ({teamTested} assessed)</span>
+                      <span className="inline-flex items-center gap-1.5 text-muted"><span className="w-3 h-[3px] rounded-full bg-[#e2683c]" /> After ({teamTested + (c.gemmatch ? 1 : 0)} assessed)</span>
                     </div>
                   </div>
 
@@ -344,8 +352,9 @@ export default function HirePage(props: { params: Promise<{ id: string }> }) {
             </div>
             <h2 className="m-0 text-[19px] font-semibold text-head">Added to {PRODUCT}</h2>
             <p className="mt-2 mb-0 text-[13px] text-muted leading-relaxed">
-              {c.name} is now on the team as a {c.role}. Their JewelCert profile and
-              fit synced — the sales floor now reflects {teamSize + 1} members.
+              {c.name} is now on the team as a {c.role}. {c.gemmatch
+                ? `Their JewelCert profile and fit synced — the sales floor now reflects ${teamSize + 1} members.`
+                : "Their JewelCert is still pending, so the sales-floor mix will update after they complete it."}
             </p>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
               <Link href="/team-map" className="btn-grad inline-flex items-center gap-1.5 px-4 py-2.5 text-[13px] no-underline">

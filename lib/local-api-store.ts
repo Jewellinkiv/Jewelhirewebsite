@@ -252,6 +252,7 @@ export function summarizeApplication(application: ApplicationRecord) {
   const job = PUBLIC_JOBS.find((item) => item.id === application.jobId);
   const jewelcert = store.jewelcertInvites.find((invite) => invite.applicationId === application.id);
   const gemmatch = store.gemmatchInvites.find((invite) => invite.applicationId === application.id);
+  const completedGemmatch = gemmatch?.status === "completed" ? gemmatch : undefined;
   const nextInterview = store.interviews.find(
     (interview) => interview.applicationId === application.id && interview.status === "scheduled",
   );
@@ -265,8 +266,9 @@ export function summarizeApplication(application: ApplicationRecord) {
     screening: {
       jewelcertStatus: jewelcert?.status || "not_sent",
       gemmatchStatus: gemmatch?.status || "not_sent",
-      gemmatchProfile: gemmatch?.resultProfileCode,
-      gemmatchFit: gemmatch?.fitRating,
+      gemmatchProfile: completedGemmatch?.resultProfileCode,
+      gemmatchFit: completedGemmatch?.fitRating,
+      gemmatchFitScore: completedGemmatch?.fitScore,
     },
     nextInterview,
     noteCount,
@@ -372,7 +374,9 @@ export function getStoreApplicantDetail(identifier: string) {
   const allApplications = state().applications.filter(
     (item) => item.applicantProfileId === profile.id,
   );
-  const latestGemMatch = detail.gemmatchInvites.find((invite) => invite.status === "completed") || detail.gemmatchInvites.at(0);
+  const latestGemMatch = detail.gemmatchInvites
+    .filter((invite) => invite.status === "completed" && Boolean(invite.resultProfileCode))
+    .sort((a, b) => (b.completedAt || b.createdAt).localeCompare(a.completedAt || a.createdAt))[0];
 
   return {
     id: publicApplicantId(profile.fullName),
@@ -390,7 +394,7 @@ export function getStoreApplicantDetail(identifier: string) {
       outcome: item.stage === "hired" ? "Hired" : item.stage === "rejected" ? "Rejected" : item.stage === "withdrawn" ? "Withdrawn" : "In progress",
       note: item.statusReason,
     })),
-    gemmatch: latestGemMatch
+    gemmatch: latestGemMatch?.resultProfileCode
       ? {
           type:
             latestGemMatch.resultProfileCode === "C"
@@ -400,10 +404,10 @@ export function getStoreApplicantDetail(identifier: string) {
                 : latestGemMatch.resultProfileCode === "D"
                   ? "Sales Strategist"
                   : "Trailblazer",
-          primary: latestGemMatch.resultProfileCode || "C",
+          primary: latestGemMatch.resultProfileCode,
           mix: { V: 20, C: latestGemMatch.resultProfileCode === "C" ? 55 : 20, F: latestGemMatch.resultProfileCode === "F" ? 55 : 20, D: latestGemMatch.resultProfileCode === "D" ? 40 : 20 },
-          fitScore: latestGemMatch.fitRating === "Strong fit" ? 88 : latestGemMatch.fitRating === "Poor fit" ? 32 : 74,
-          tier: latestGemMatch.fitRating || "Good fit",
+          fitScore: latestGemMatch.fitScore,
+          tier: latestGemMatch.fitRating,
         }
       : undefined,
     tests: detail.assessmentAttempts.map((attempt) => {
@@ -1268,13 +1272,6 @@ function gemmatchType(primary?: ProfileCode) {
   return undefined;
 }
 
-function fitScore(fit?: string) {
-  if (fit === "Strong fit") return 88;
-  if (fit === "Poor fit") return 32;
-  if (fit === "Good fit") return 74;
-  return undefined;
-}
-
 function shortDate(value?: string) {
   if (!value) return "";
   const date = new Date(value);
@@ -1329,10 +1326,10 @@ export function listStoreGemMatchInvites(storeId: string, status?: string | null
           : null,
         sentDate: shortDate(invite.createdAt),
         status: invite.status === "completed" ? "Completed" : invite.status === "started" ? "Started" : "Sent",
-        type: gemmatchType(invite.resultProfileCode),
-        primary: invite.resultProfileCode,
-        fitScore: fitScore(invite.fitRating),
-        fitTier: invite.fitRating,
+        type: invite.status === "completed" && invite.resultProfileCode ? gemmatchType(invite.resultProfileCode) : undefined,
+        primary: invite.status === "completed" ? invite.resultProfileCode : undefined,
+        fitScore: invite.status === "completed" ? invite.fitScore : undefined,
+        fitTier: invite.status === "completed" ? invite.fitRating : undefined,
       };
     })
     .sort((a, b) => (b.invite.createdAt || "").localeCompare(a.invite.createdAt || ""));
@@ -1530,11 +1527,13 @@ export function getHirePreview(input: { applicationId: string; role?: string; lo
   const storeId = detail.application.storeId;
   const locationId = input.locationId || "little-rock";
   const composition = getTeamComposition(storeId, locationId);
-  const latestGemMatch = detail.gemmatchInvites.find((invite) => invite.resultProfileCode) || detail.gemmatchInvites.at(0);
+  const latestGemMatch = detail.gemmatchInvites
+    .filter((invite) => invite.status === "completed" && Boolean(invite.resultProfileCode))
+    .sort((a, b) => (b.completedAt || b.createdAt).localeCompare(a.completedAt || a.createdAt))[0];
   const primary = latestGemMatch?.resultProfileCode;
   const incomingMix = profileMix(primary);
   const before = composition.mix;
-  const after = blendMix(before, incomingMix, composition.total);
+  const after = primary ? blendMix(before, incomingMix, composition.tested) : before;
   const role = input.role || detail.job?.title || detail.profile.resumeHeadline || "Associate";
   const courseCredentialIds = detail.resume?.courseCredentialIds || [];
   const teamMemberId = `jl-team-${publicApplicantId(detail.profile.fullName)}`;
@@ -1617,6 +1616,7 @@ export function hireApplication(input: { applicationId: string; role?: string; l
     role: preview.role,
     type: preview.gemmatch.type,
     primary: primary || "C",
+    assessed: Boolean(primary),
     locationId: preview.locationId,
   });
   const sync: HireToJewelLinkSyncRecord = {

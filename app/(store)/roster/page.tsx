@@ -30,7 +30,7 @@ const ROSTER = TEAM.map((member, index) => {
   };
 });
 
-type RosterMember = (typeof ROSTER)[number];
+type RosterMember = (typeof ROSTER)[number] & { assessed?: boolean };
 
 const FALLBACK_STORE_ID = "store-sissys-little-rock";
 
@@ -73,7 +73,8 @@ export default function RosterPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [adding, setAdding] = useState(false);
-  const counts = roster.reduce<Record<ProfileCode, number>>(
+  const assessed = roster.filter((member) => member.assessed !== false);
+  const counts = assessed.reduce<Record<ProfileCode, number>>(
     (acc, member) => {
       acc[member.primary] += 1;
       return acc;
@@ -154,7 +155,7 @@ export default function RosterPage() {
                   </td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">{member.role}</td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
-                    <TypeLabel primary={member.primary} type={member.type} />
+                    {member.assessed !== false ? <TypeLabel primary={member.primary} type={member.type} /> : <span className="text-muted">Not assessed</span>}
                   </td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]">
                     <span className={`inline-flex px-2.5 py-1 rounded-full text-[11.5px] font-medium ${STATUS_STYLE[member.status] ?? "bg-[#eef1f7] text-muted"}`}>{member.status}</span>
@@ -187,7 +188,7 @@ export default function RosterPage() {
                     <span className="text-muted">{counts[code]}</span>
                   </div>
                   <span className="block h-2 rounded-full bg-[#eef1f7] overflow-hidden">
-                    <span className="block h-full" style={{ width: `${roster.length ? (counts[code] / roster.length) * 100 : 0}%`, background: PROFILES[code].color }} />
+                    <span className="block h-full" style={{ width: `${assessed.length ? (counts[code] / assessed.length) * 100 : 0}%`, background: PROFILES[code].color }} />
                   </span>
                 </div>
               ))}

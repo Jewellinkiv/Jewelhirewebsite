@@ -63,6 +63,7 @@ export function addTeamMember(
     role: string;
     type: string;
     primary: ProfileCode;
+    assessed?: boolean;
     locationId?: string;
   },
 ) {
@@ -77,6 +78,7 @@ export function addTeamMember(
     role: input.role,
     type: input.type,
     primary: input.primary,
+    assessed: input.assessed,
     locationId: input.locationId || "little-rock",
   };
   members.unshift(member);
@@ -126,14 +128,15 @@ export function removeTeamMember(memberId: string) {
 
 export function getTeamComposition(storeId: string, locationId?: string | null) {
   const members = listStoreTeamMembers(storeId, locationId);
-  const counts = members.reduce<Record<ProfileCode, number>>(
+  const assessedMembers = members.filter((member) => member.assessed !== false);
+  const counts = assessedMembers.reduce<Record<ProfileCode, number>>(
     (acc, member) => {
       acc[member.primary] += 1;
       return acc;
     },
     { V: 0, C: 0, F: 0, D: 0 },
   );
-  const total = Math.max(members.length, 1);
+  const total = Math.max(assessedMembers.length, 1);
   const mix = Object.fromEntries(
     Object.entries(counts).map(([key, count]) => [key, Math.round((count / total) * 100)]),
   ) as Mix;
@@ -142,7 +145,7 @@ export function getTeamComposition(storeId: string, locationId?: string | null) 
     floorType: location?.floorType || "Powerhouse",
     mix,
     counts,
-    tested: members.length,
+    tested: assessedMembers.length,
     total: members.length,
     members,
   };
