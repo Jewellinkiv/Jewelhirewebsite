@@ -6,11 +6,15 @@ This dossier is the current working record for getting JewelHire and the
 JewelLink integration to a controlled live pilot. It does not authorize a
 production cutover by itself.
 
-## Current heads
+## Validated heads
+
+These are the heads used for the live-readiness evidence below. Later
+documentation-only JewelHire commits may supersede the JewelHire SHA without
+changing runtime behavior.
 
 | Product | Repository | Current head | Build/status |
 | --- | --- | --- | --- |
-| JewelHire | `Jewellinkiv/Jewelhire` | `f7a0d92df394874f74e209828f0211e7b94c5b13` | Latest `main` GitHub workflow passed on 2026-07-16 |
+| JewelHire | `Jewellinkiv/Jewelhire` | `de1d5096b286e4275283191ce587d1e003676cbd` | GitHub workflow `29775882206` passed on 2026-07-20; deploy job skipped by workflow conditions |
 | JewelLink | `Jewellinkiv/jewellink-app` | `bd1f344699e97ed968a6c272277dffeaf0975479` | `cloudrun-jewellink-dev-main-safe` passed on 2026-07-20 |
 
 The latest JewelLink move from `ed225ce6` to `bd1f3446` changed only UP System
@@ -26,16 +30,20 @@ package, or Prisma migration paths.
 | JewelHire JewelCert handoff source audit | Pass | `scripts/jewellink-jewelcert-audit.mjs` |
 | JewelLink JewelHire integration source audit | Pass | `scripts/audit-jewelhire-sso.mjs`, 90 controls |
 | Cross-product source acceptance | Pass | Current runner separates source audits from live-server audits |
+| JewelHire local server access control | Pass | `scripts/access-control-audit.mjs --base=http://127.0.0.1:3004`; 0 issues and 0 known gaps |
+| Cross-product acceptance with local JewelHire server | Pass | Included source audits, local tenant/location access-control, and live JewelLink fail-closed probes |
 | Live public pages | Pass | `app.jewelhire.com/login`, `/privacy`, `/terms`, and `ai.jewellink.com/login` return `200` |
 | Live unauthenticated endpoint posture | Pass | JewelLink SSO exchange/introspection, hire provisioning, JewelCert results, and JewelHire inbound JewelCert invite all reject without bearer auth |
 
-Safe cross-product command used for this snapshot:
+Full safe cross-product command used for this snapshot:
 
 ```bash
 node scripts/cross-product-acceptance.mjs \
   --jewellink-repo=/Users/sterling/.codex/tmp/jewellink-app-research-20260720 \
   --jewellink-base=https://ai.jewellink.com \
-  --require-endpoint-probes
+  --require-endpoint-probes \
+  --include-server-audits \
+  --jewelhire-base=http://127.0.0.1:3004
 ```
 
 ## Readiness gates still open
@@ -50,7 +58,6 @@ node scripts/cross-product-acceptance.mjs \
 | End-to-end SSO smoke | Not run | Director, Manager, Student, Consultant denial, platform-admin allowlist, allowlisted non-admin denial |
 | End-to-end hire smoke | Not run | Hire in JewelHire provisions/reactivates the correct JewelLink user and stays idempotent |
 | End-to-end JewelCert smoke | Not run | JewelLink sends invite, JewelHire records result, JewelLink receives scoped aggregation |
-| Live-server JewelHire access-control audit | Not run | Requires a running JewelHire server and seeded/mock sessions; use `--include-server-audits --jewelhire-base=<origin>` |
 | Rollback and monitoring evidence | Not recorded | Record prior revisions, rollback command, health scheduler/alert status, and handoff retry procedure |
 
 ## JewelLink approval boundary
@@ -75,8 +82,6 @@ the Cloud Run service image directly. Before a live pilot, decide whether to:
    without reading secret values.
 2. Prepare a no-push JewelLink release-process diff or written patch plan for
    the Cloud Build/candidate mismatch.
-3. Run the live-server JewelHire access-control audit once a local or tagged
-   candidate server is available.
-4. Fill the pilot roster and run the authenticated end-to-end smoke matrix.
-5. Produce a final go/no-go record with exact commits, build IDs, migration
+3. Fill the pilot roster and run the authenticated end-to-end smoke matrix.
+4. Produce a final go/no-go record with exact commits, build IDs, migration
    ledger evidence, config evidence, smoke results, and rollback owner.
