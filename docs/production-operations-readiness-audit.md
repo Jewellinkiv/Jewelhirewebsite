@@ -51,6 +51,10 @@ The report is written under `docs/qa-runs/operations-readiness-*` unless
 - Rollback owners, monitoring channel, observation window, and rollback
   thresholds are recorded.
 
+`docs/pilot-rollback-window-proposal-2026-07-20.md` contains a proposed
+observation window and threshold set. Passing this audit still requires the
+approved final values to be supplied on the command line.
+
 ## Secret Handling
 
 The audit reads database URL secrets only to parse host names in memory. It

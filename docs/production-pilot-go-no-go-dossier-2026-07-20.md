@@ -16,7 +16,7 @@ names, nonsecret IDs, and pass/fail decisions only.
 
 | Product | State | Evidence |
 | --- | --- | --- |
-| JewelHire | Source-ready at the current evidence change set | Latest pushed evidence base `1b0c2e9` passed GitHub validation run `29785528988`; local release-control tests passed after the monitoring-audit update |
+| JewelHire | Source-ready at the current evidence change set | Previous pushed evidence base `3eb150c` passed GitHub validation run `29786193346`; roster-audit tooling in this change set has local test evidence |
 | JewelLink main | Current live baseline `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have open findings |
 | JewelLink release/profile patch | Prepared locally, not pushed | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`, commit `f12e67d7202a6a567007605f7164d141638b5dbc`; patch artifact `docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch` |
 
@@ -33,7 +33,7 @@ config-only pilot flag update recorded below.
 
 | Gate | Current status | Evidence required for GO |
 | --- | --- | --- |
-| JewelHire CI | PASS | GitHub validation run `29785528988` passed for `1b0c2e9`; local release-control tests passed after the monitoring-audit update |
+| JewelHire CI | PASS | GitHub validation run `29786193346` passed for `3eb150c`; current local roster-audit tests pass |
 | JewelLink CI/build | PARTIAL / NO-GO | Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded for commit `55032dbb`, but unpatched main fails 1 profile 2FA-phone guard; local combined patch `f12e67d7` makes JewelHire SSO source audit and profile/release tests pass, but it is not pushed |
 | JewelLink release-path safety | PARTIAL / NO-GO | Config-only Cloud Run update was explicitly approved and completed; current `cloudbuild.jewellink.yaml` still direct-deploys live service and `tests/deploy-release-safety.test.ts` fails 1/8 against unpatched `55032dbb`; combined candidate-release/profile patch remains local/unpushed |
 | Production integration secrets | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
@@ -44,12 +44,12 @@ config-only pilot flag update recorded below.
 | Database backups | MISSING | `docs/qa-runs/operations-readiness-2026-07-20T23-05-00-020Z/operations-readiness-report.md` confirms both database hosts are external `pg.psdb.cloud` Postgres hosts and no provider backup IDs or verification timestamps are recorded |
 | JewelHire admin allowlist | PASS | `docs/qa-runs/admin-allowlist-2026-07-20T22-22-44-403Z/admin-allowlist-report.md` passes after rotating `jewelhire-admin-emails-v2` to version `2`; 9 active JewelLink admin-role users, 0 missing, 0 extra, 0 allowlisted active non-admins |
 | Rollback owners | MISSING | `docs/qa-runs/operations-readiness-2026-07-20T23-05-00-020Z/operations-readiness-report.md` confirms named operators are still missing for JewelHire traffic rollback, JewelLink traffic rollback, JewelLink IAM rollback, and database recovery |
-| Pilot roster | PARTIAL | Diamond Exchange `comp_1` and locations `loc_1`-`loc_6` are verified; role/test aliases remain `TBD` below |
+| Pilot roster | PARTIAL / NO-GO | `docs/qa-runs/pilot-roster-2026-07-20T23-18-09-063Z/pilot-roster-report.md` verifies Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, Director/Manager/Student SSO candidates, a platform-admin candidate, clean admin allowlist, and JewelHire smoke credential roles; Consultant-denial and paused-company denial accounts are missing |
 | Authenticated SSO smoke | NOT RUN | Role matrix below completed against candidate/live URLs |
 | Hire handoff smoke | NOT RUN | Hire creates or links the expected JewelLink user and remains idempotent |
 | JewelCert smoke | NOT RUN | Invite/result flow completes and retry evidence is recorded |
 | Public and fail-closed smoke | PARTIAL | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/report.md` passes public/login/apply/auth-boundary checks; team-invite mutation, resume download, and authenticated same-store checks still need controlled smoke accounts |
-| Observation window | NOT SET | Cloud Monitoring alert policies/channels, log metrics, and the JewelLink JewelHire health scheduler are installed; start/end time and rollback thresholds are still missing |
+| Observation window | PROPOSED / NO-GO | Cloud Monitoring alert policies/channels, log metrics, and the JewelLink JewelHire health scheduler are installed; `docs/pilot-rollback-window-proposal-2026-07-20.md` proposes a 60-minute staffed window and rollback thresholds, but owner approval and exact UTC start/end remain missing |
 
 ## Pilot roster
 
@@ -58,26 +58,26 @@ config-only pilot flag update recorded below.
 | Pilot company ID | `comp_1` |
 | Pilot company name | Diamond Exchange |
 | Pilot location IDs | `loc_1`, `loc_2`, `loc_3`, `loc_4`, `loc_5`, `loc_6` |
-| JewelLink Director alias | `TBD` |
-| JewelLink Manager alias | `TBD` |
-| JewelLink Student alias | `TBD` |
-| JewelLink Consultant-denial alias | `TBD` |
-| JewelLink platform-admin alias | `TBD` |
-| JewelHire admin allowlist alias | `TBD` |
-| Controlled applicant/signup mailbox | `TBD` |
-| Controlled hire/JewelCert mailbox | `TBD` |
+| JewelLink Director alias | `cmnjh2zrj0000p6y8axdo1608` (`a***@jewellink.com`, `loc_1`) |
+| JewelLink Manager alias | `cmnjh2zw40002p6y81ytmlxqb` (`m***@jewellink.com`, `loc_1`) |
+| JewelLink Student alias | `cmqekv8h700017ey8jwsme7kg` (`n***@jewellink.com`, `loc_1`) |
+| JewelLink Consultant-denial alias | Missing: no active JewelLink `CONSULTANT` users were found |
+| JewelLink platform-admin alias | `cmp7ggpps000201s6kd8zn4no` (`c***@jewelrysalesacademy.com`, `SUPER_ADMIN`, allowlisted) |
+| JewelHire admin allowlist alias | `jewelhire-admin-emails-v2:2`; 9 active JewelLink admin-role users, 0 missing, 0 extra, 0 active non-admins |
+| Controlled applicant/signup mailbox | `jewelhire-smoke-test-credentials:applicant` (`m***@email.com`) |
+| Controlled hire/JewelCert mailbox | `jewelhire-smoke-test-credentials:applicant` (`m***@email.com`) unless a separate controlled mailbox is approved |
 
 ## Authenticated SSO smoke matrix
 
 | Persona | Expected result | Evidence |
 | --- | --- | --- |
-| Director | Opens JewelHire from JewelLink and lands as JewelHire `store_owner` for all approved pilot locations | `TBD` |
-| Manager | Lands as JewelHire `manager`, can access scoped hiring pages, cannot access billing, ownership, integrations, or user administration | `TBD` |
-| Student | Lands in applicant portal, cannot access store or admin routes | `TBD` |
-| Consultant | Denied JewelHire access with branded fail-closed state | `TBD` |
-| Platform admin allowlisted in JewelHire | Lands as JewelHire platform admin only after MFA-backed JewelLink SSO | `TBD` |
-| Allowlisted non-admin JewelLink user | Denied platform-admin elevation | `TBD` |
-| Paused JewelLink company | Launchers removed or SSO denied without granting stale JewelHire access | `TBD` |
+| Director | Opens JewelHire from JewelLink and lands as JewelHire `store_owner` for all approved pilot locations | Candidate selected by `qa:pilot-roster`; authenticated smoke not run |
+| Manager | Lands as JewelHire `manager`, can access scoped hiring pages, cannot access billing, ownership, integrations, or user administration | Candidate selected by `qa:pilot-roster`; authenticated smoke not run |
+| Student | Lands in applicant portal, cannot access store or admin routes | Candidate selected by `qa:pilot-roster`; authenticated smoke not run |
+| Consultant | Denied JewelHire access with branded fail-closed state | Missing controlled `CONSULTANT` account |
+| Platform admin allowlisted in JewelHire | Lands as JewelHire platform admin only after MFA-backed JewelLink SSO | Candidate selected by `qa:pilot-roster`; authenticated smoke not run |
+| Allowlisted non-admin JewelLink user | Denied platform-admin elevation | Live allowlist is clean; this denial needs a controlled temporary config window or explicit acceptance of source-test plus clean-allowlist evidence |
+| Paused JewelLink company | Launchers removed or SSO denied without granting stale JewelHire access | Missing controlled active user in a paused JewelLink company |
 
 ## Hire handoff smoke
 
@@ -118,7 +118,7 @@ config-only pilot flag update recorded below.
 | JewelLink rollback owner | Name and contact channel | `TBD` |
 | Database recovery owner | Name and contact channel | `TBD` |
 | Monitoring channel | Link or channel name | GCP alert policies `JewelHire pilot Cloud Run 5xx responses` and `JewelLink pilot Cloud Run 5xx responses` are enabled and attached to notification channels `10170517523806111204` and `6069355864943001083`; see `docs/qa-runs/operations-readiness-2026-07-20T23-05-00-020Z/operations-readiness-report.md` |
-| Immediate rollback thresholds | Error rate, auth failure, data isolation, provider delivery, or integration failure thresholds | `TBD` |
+| Immediate rollback thresholds | Error rate, auth failure, data isolation, provider delivery, or integration failure thresholds | Proposed only in `docs/pilot-rollback-window-proposal-2026-07-20.md`; not approved as GO evidence |
 
 ## GO rule
 

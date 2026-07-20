@@ -14,7 +14,7 @@ JewelHire SHA without changing runtime behavior.
 
 | Product | Repository | Current head | Build/status |
 | --- | --- | --- | --- |
-| JewelHire | `Jewellinkiv/Jewelhire` | Current evidence change set | Latest pushed evidence base `1b0c2e9` passed GitHub validation run `29785528988`; local release-control tests passed after the monitoring-audit update |
+| JewelHire | `Jewellinkiv/Jewelhire` | Current evidence change set | Previous pushed evidence base `3eb150c` passed GitHub validation run `29786193346`; roster-audit tooling in this change set has local test evidence |
 | JewelLink | `Jewellinkiv/jewellink-app` | `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` passed and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have NO-GO findings below |
 | JewelLink local no-push patch | research checkout only | `f12e67d7202a6a567007605f7164d141638b5dbc` | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`; combines candidate-only Cloud Build and profile MFA audit refresh; not pushed |
 
@@ -63,6 +63,7 @@ still requires explicit approval before it can be pushed to
 | JewelLink JewelHire migration rows | Pass | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/` reviews JewelLink commit `55032dbb` and shows all seven JewelHire integration/auth migrations active with matching checksums |
 | JewelLink full migration checksum audit | Fail | The same report shows 25 older non-integration active Prisma rows whose checksums drift from the reviewed repo; `docs/jewellink-migration-drift-review-2026-07-20.md` found only 1 exact match in fetched git history, so this remains a GO blocker until applied SQL is recovered, repaired, or explicitly accepted by a named database owner |
 | Operations readiness audit | Partial / Fail | `docs/qa-runs/operations-readiness-2026-07-20T23-05-00-020Z/` confirms alert policies, notification channels, log metrics, and the JewelLink health scheduler are installed; backups, rollback owners, observation window, and thresholds remain missing |
+| Production pilot roster audit | Partial / Fail | `docs/qa-runs/pilot-roster-2026-07-20T23-18-09-063Z/` confirms Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, Director/Manager/Student SSO candidates, a platform-admin candidate, clean admin allowlist, and JewelHire smoke credential roles; Consultant-denial and paused-company denial accounts are missing |
 | Live public and fail-closed QA | Pass | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/` passes public login/signup/forgot/verify/legal/careers/apply checks, logged-out API denials, and desktop/mobile browser smoke with no warnings |
 | Go/no-go dossier | No-go recorded | `docs/production-pilot-go-no-go-dossier-2026-07-20.md` captures required evidence rows, pilot smoke matrix, rollback evidence, and stop conditions |
 
@@ -85,13 +86,13 @@ node scripts/cross-product-acceptance.mjs \
 | JewelHire integration env | Closed | `qa:config` passed after explicit live-email acknowledgement |
 | JewelLink integration env | Closed | `qa:pilot-readiness` passed after approved pilot rollout config update for Diamond Exchange `comp_1` |
 | Migration ledger state | Partial | JewelHire is closed; JewelLink integration/auth rows are closed; 25 older JewelLink full-ledger checksum drifts remain open |
-| Authenticated pilot roster | Partial | Diamond Exchange `comp_1` and locations `loc_1`-`loc_6` are recorded; role/test aliases remain unselected |
+| Authenticated pilot roster | Partial | `qa:pilot-roster` verifies Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, and Director/Manager/Student/platform-admin candidates; Consultant-denial and paused-company denial aliases remain missing |
 | Admin allowlist and role cleanup | Closed | `qa:admin-allowlist` passes with `jewelhire-admin-emails-v2:2`; no active JewelLink non-admin remains allowlisted |
 | End-to-end SSO smoke | Not run | Director, Manager, Student, Consultant denial, platform-admin allowlist, allowlisted non-admin denial |
 | End-to-end hire smoke | Not run | Hire in JewelHire provisions/reactivates the correct JewelLink user and stays idempotent |
 | End-to-end JewelCert smoke | Not run | JewelLink sends invite, JewelHire records result, JewelLink receives scoped aggregation |
 | JewelLink release-path patch approval | Open for future code/image deploys | Config-only pilot flag update was approved and completed; the Cloud Build candidate-release patch remains local and unpushed |
-| Rollback and monitoring evidence | Partial | Current revisions and admin-secret version are recorded; monitoring resources are now installed and attached; backups, owners, thresholds, and observation window remain open |
+| Rollback and monitoring evidence | Partial | Current revisions and admin-secret version are recorded; monitoring resources are now installed and attached; `docs/pilot-rollback-window-proposal-2026-07-20.md` proposes the window/thresholds, but backups and named owner approvals remain open |
 
 ## JewelLink approval boundary
 
@@ -118,10 +119,12 @@ without explicit approval.
 4. Push/open a JewelLink PR only after explicit approval; the combined patch is
    staged locally and also preserved at
    `docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch`.
-5. Record rollback owners, observation window, rollback thresholds, and verify
-   the Cloud Monitoring email channels if Google requires recipient
+5. Record rollback owners, approve or revise the proposed observation
+   window/thresholds in `docs/pilot-rollback-window-proposal-2026-07-20.md`,
+   and verify the Cloud Monitoring email channels if Google requires recipient
    confirmation.
-6. Fill the pilot roster and run the authenticated end-to-end smoke matrix in
+6. Create or approve controlled Consultant-denial and paused-company denial
+   JewelLink accounts, then run the authenticated end-to-end smoke matrix in
    `docs/production-pilot-go-no-go-dossier-2026-07-20.md`.
 7. Move the go/no-go record to GO only after exact commits, build IDs,
    migration ledger evidence, config evidence, smoke results, and rollback

@@ -26,6 +26,11 @@ projects. JewelLink also has an enabled Cloud Scheduler job named
 `/api/cron/jewelhire-integration-health`. Evidence is recorded in
 `docs/qa-runs/operations-readiness-2026-07-20T23-05-00-020Z/`.
 
+2026-07-20 rollback-window proposal: `docs/pilot-rollback-window-proposal-2026-07-20.md`
+now proposes named owner slots, a 60-minute staffed observation window, and
+immediate rollback thresholds. It is not GO evidence until the named owners and
+window are approved.
+
 | Evidence | JewelHire | JewelLink |
 | --- | --- | --- |
 | Named operator |  |  |
