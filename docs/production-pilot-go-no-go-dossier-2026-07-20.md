@@ -18,7 +18,7 @@ names, nonsecret IDs, and pass/fail decisions only.
 | --- | --- | --- |
 | JewelHire | Source-ready at the current evidence change set | Local release-control tests and live readiness audits passed on 2026-07-20; GitHub validation pending for this evidence commit |
 | JewelLink main | Current live baseline `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have open findings |
-| JewelLink release-path patch | Prepared locally, not pushed | Local branch `codex/jewellink-cloudbuild-candidate-gate-20260720`, commit `da53e2ab7eac45c93285c91492903aeb7c1ed52d` |
+| JewelLink release/profile patch | Prepared locally, not pushed | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`, commit `f12e67d7202a6a567007605f7164d141638b5dbc`; patch artifact `docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch` |
 
 ## Approval boundary
 
@@ -34,8 +34,8 @@ config-only pilot flag update recorded below.
 | Gate | Current status | Evidence required for GO |
 | --- | --- | --- |
 | JewelHire CI | LOCAL PASS / GITHUB PENDING | Local release-control tests passed on 2026-07-20; GitHub validation pending for this evidence commit |
-| JewelLink CI/build | PARTIAL / NO-GO | Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded for commit `55032dbb`, but `scripts/audit-jewelhire-sso.mjs` fails 1 profile 2FA-phone guard and `tests/profile-mfa-factor-protection.test.ts` fails the same literal-label check |
-| JewelLink release-path safety | PARTIAL / NO-GO | Config-only Cloud Run update was explicitly approved and completed; current `cloudbuild.jewellink.yaml` still direct-deploys live service and `tests/deploy-release-safety.test.ts` fails 1/8 against unpatched `55032dbb`; candidate-release patch remains local/unpushed |
+| JewelLink CI/build | PARTIAL / NO-GO | Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded for commit `55032dbb`, but unpatched main fails 1 profile 2FA-phone guard; local combined patch `f12e67d7` makes JewelHire SSO source audit and profile/release tests pass, but it is not pushed |
+| JewelLink release-path safety | PARTIAL / NO-GO | Config-only Cloud Run update was explicitly approved and completed; current `cloudbuild.jewellink.yaml` still direct-deploys live service and `tests/deploy-release-safety.test.ts` fails 1/8 against unpatched `55032dbb`; combined candidate-release/profile patch remains local/unpushed |
 | Production integration secrets | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
 | JewelHire production config | PASS | `docs/qa-runs/config-exposure-2026-07-20T22-25-23-830Z/`, `docs/qa-runs/postmark-safety-2026-07-20T22-25-23-839Z/`, `docs/qa-runs/auth-readiness-2026-07-20T21-41-42-178Z/`, and `docs/qa-runs/role-readiness-2026-07-20T22-25-24-584Z/` pass |
 | JewelLink production config | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` passes against current live revision `jewellink-dev-01154-xpx` with pilot company `comp_1` |

@@ -16,7 +16,7 @@ JewelHire SHA without changing runtime behavior.
 | --- | --- | --- | --- |
 | JewelHire | `Jewellinkiv/Jewelhire` | Current evidence change set | Local release-control tests and live readiness audits passed on 2026-07-20; GitHub validation pending for this evidence commit |
 | JewelLink | `Jewellinkiv/jewellink-app` | `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` passed and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have NO-GO findings below |
-| JewelLink local no-push patch | research checkout only | `da53e2ab7eac45c93285c91492903aeb7c1ed52d` | Local branch `codex/jewellink-cloudbuild-candidate-gate-20260720`; not pushed |
+| JewelLink local no-push patch | research checkout only | `f12e67d7202a6a567007605f7164d141638b5dbc` | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`; combines candidate-only Cloud Build and profile MFA audit refresh; not pushed |
 
 The latest JewelLink main used for evidence is no longer the earlier
 `bd1f3446` baseline. The `bd1f3446..55032dbb` delta includes auth, layout,
@@ -28,8 +28,10 @@ The JewelLink Cloud Build release-path mismatch now has a prepared local patch
 in the research checkout. It changes `cloudbuild.jewellink.yaml` to validate the
 repo, build/push an immutable image, deploy a tagged `candidate-<12-sha>`
 revision with `--no-traffic`, and smoke `/login`. The patch artifact still
-applies cleanly to current `origin/main` `55032dbb`. This patch still requires
-explicit approval before it can be pushed to `Jewellinkiv/jewellink-app`.
+applies cleanly to current `origin/main` `55032dbb`. A combined local patch now
+also refreshes the profile MFA audit/test for translated labels. This patch
+still requires explicit approval before it can be pushed to
+`Jewellinkiv/jewellink-app`.
 
 ## Green evidence
 
@@ -46,6 +48,7 @@ explicit approval before it can be pushed to `Jewellinkiv/jewellink-app`.
 | Live unauthenticated endpoint posture | Pass | JewelLink SSO exchange/introspection, hire provisioning, JewelCert results, and JewelHire inbound JewelCert invite all reject without bearer auth |
 | JewelLink no-push release-path patch | Pass | Local commit `da53e2ab`; `node --test tests/deploy-release-safety.test.ts` passed 8/8 on the prepared patch branch; secret scan passed 2,505 files; Cloud Build embedded bash syntax checked |
 | JewelLink durable approval packet | Pass | Patch artifact applies cleanly to JewelLink bases `bd1f3446` and `55032dbb`; packet audit preserves no-push boundary and candidate-only controls |
+| JewelLink combined no-push pilot patch | Pass | Local commit `f12e67d7`; release/profile tests passed 11/11, secret scan passed 2,515 files, JewelHire SSO source audit passed, and `git diff --check` passed; not pushed |
 | Current JewelLink source audit | Fail | Against `55032dbb`, `scripts/audit-jewelhire-sso.mjs` fails 1 control for the translated profile 2FA-phone label/read-only guard, and `tests/profile-mfa-factor-protection.test.ts` fails the same literal-label check |
 | Current JewelLink release-path safety | Fail | Against unpatched `55032dbb`, `node --test tests/deploy-release-safety.test.ts` passes 7/8 and fails because `cloudbuild.jewellink.yaml` still updates the live service directly |
 | Production pilot readiness audit tooling | Pass | `scripts/production-pilot-readiness-audit.mjs` added with fixture coverage for matching and mismatched shared secrets without value leakage |
@@ -106,13 +109,14 @@ without explicit approval.
 
 1. Review or repair the 25 older JewelLink active migration checksum drifts
    before treating the full JewelLink ledger as GO-ready.
-2. Review the current JewelLink source-audit/profile 2FA guard failure and the
-   unpatched Cloud Build direct-deploy failure before treating current
-   `55032dbb` as source/release GO-ready.
+2. Review and explicitly approve the combined local JewelLink patch
+   `f12e67d7` if we want to close the source-audit/profile 2FA guard failure
+   and unpatched Cloud Build direct-deploy failure through a JewelLink PR.
 3. Capture provider-native backup IDs or explicitly approve an encrypted
    logical backup flow for both external Postgres databases.
-4. Review and approve the local no-push JewelLink Cloud Build candidate patch,
-   then push/open a PR only after explicit approval.
+4. Push/open a JewelLink PR only after explicit approval; the combined patch is
+   staged locally and also preserved at
+   `docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch`.
 5. Install monitoring: JewelLink integration health scheduler, alert policies,
    monitoring channel, observation window, and rollback thresholds.
 6. Fill the pilot roster and run the authenticated end-to-end smoke matrix in

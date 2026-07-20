@@ -10,10 +10,10 @@ unpushed.
 
 - Current `main`: `55032dbbebc519d1718aa14871da2048f60d9487`
 - Prepared local no-push patch:
-  `da53e2ab7eac45c93285c91492903aeb7c1ed52d` on branch
-  `codex/jewellink-cloudbuild-candidate-gate-20260720`
+  `f12e67d7202a6a567007605f7164d141638b5dbc` on branch
+  `codex/jewellink-profile-mfa-audit-refresh-20260720`
 - Durable review artifact:
-  `docs/jewellink-cloudbuild-candidate-approval-packet-2026-07-20.md`
+  `docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md`
 - Latest Cloud Build: regional build `ae63d668-2ad0-435d-805f-0290460ebdb6`
   completed successfully on 2026-07-20 for branch `main`, commit
   `55032dbbebc519d1718aa14871da2048f60d9487`, and produced live revision
@@ -27,7 +27,8 @@ unpushed.
   `tests/profile-mfa-factor-protection.test.ts` fails the same literal-label
   check. The page and route still show a read-only phone input and omit phone
   from the self-profile save payload, so this needs JewelLink review rather
-  than being treated as closed.
+  than being treated as closed. The local no-push patch refreshes this guard
+  and makes both checks pass.
 - Approved config-only production update: Cloud Run service `jewellink-dev`
   served `jewellink-dev-01153-dqz` at 100% traffic, using the existing image
   `1c313cc00fd172ffa4a9903578afacf66dcfc67f`, with
@@ -39,13 +40,16 @@ unpushed.
   embedded Cloud Build bash blocks passed syntax checks after simulated
   substitutions on the prepared patch branch. Against current unpatched
   `origin/main`, `tests/deploy-release-safety.test.ts` fails 1/8 because
-  `cloudbuild.jewellink.yaml` still updates the live service directly.
+  `cloudbuild.jewellink.yaml` still updates the live service directly. On the
+  combined local branch, release/profile tests pass 11/11, secret scan passes
+  2,515 files, JewelHire SSO source audit passes, and `git diff --check`
+  passes.
 
 ## Recommended JewelLink actions before pilot
 
 | Item | Recommendation | Reason |
 | --- | --- | --- |
-| Cloud Build release path | Review the prepared local patch and push/open a PR only after explicit approval | The runbook says Cloud Build should not move production traffic, and current JewelLink `main` still runs `gcloud run services update` |
+| Cloud Build release path and profile MFA audit | Review the prepared combined local patch and push/open a PR only after explicit approval | The runbook says Cloud Build should not move production traffic, current JewelLink `main` still runs `gcloud run services update`, and the profile MFA audit needs to understand translation-backed labels |
 | Open PR `#182` | Do not merge as-is; close as superseded or rebase into a fresh reviewed PR only if its remaining changes are still needed | It targets another integration branch, has no checks, and includes a workflow-deletion commit |
 | Integration rollout env | Done for the approved pilot flag set; keep verifying without printing values before GO | `qa:pilot-readiness` passes after setting the pilot rollout to Diamond Exchange `comp_1` |
 | Migration operator path | Verify the dedicated migration identity and `MIGRATION_DATABASE_URL` before any production migration run | The normal web runtime must not receive privileged migration credentials |

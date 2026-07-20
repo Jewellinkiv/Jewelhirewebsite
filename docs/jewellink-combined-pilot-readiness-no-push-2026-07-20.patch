@@ -1,0 +1,192 @@
+From f12e67d7202a6a567007605f7164d141638b5dbc Mon Sep 17 00:00:00 2001
+From: Sterling <sterling@Sterlings-MacBook-Pro.local>
+Date: Mon, 20 Jul 2026 17:52:50 -0500
+Subject: [PATCH] Gate Cloud Build and refresh profile MFA audit
+
+---
+ cloudbuild.jewellink.yaml                   | 99 +++++++++++++++++----
+ scripts/audit-jewelhire-sso.mjs             |  3 +-
+ tests/profile-mfa-factor-protection.test.ts | 15 +++-
+ 3 files changed, 97 insertions(+), 20 deletions(-)
+
+diff --git a/cloudbuild.jewellink.yaml b/cloudbuild.jewellink.yaml
+index c0a99989..b4ad87a6 100644
+--- a/cloudbuild.jewellink.yaml
++++ b/cloudbuild.jewellink.yaml
+@@ -1,12 +1,26 @@
+ steps:
+-  - id: Pull
++  - id: Validate source
++    name: node:22-bookworm
++    entrypoint: /bin/bash
++    args:
++      - -ec
++      - |
++        npm ci --ignore-scripts
++        npx prisma generate
++        npm run security:secrets
++        npm run lint:jewelhire-integration
++        npm run audit:jewelhire-sso
++        npm test
++        npm run type-check
++
++  - id: Pull image cache
+     name: gcr.io/cloud-builders/docker
+     entrypoint: /bin/bash
+     args:
+       - -c
+       - docker pull $_IMAGE_REPO:latest || exit 0
+ 
+-  - id: Build
++  - id: Build image
+     name: gcr.io/cloud-builders/docker
+     args:
+       - build
+@@ -20,29 +34,80 @@ steps:
+       - -f
+       - Dockerfile
+ 
+-  - id: Push
++  - id: Push image
+     name: gcr.io/cloud-builders/docker
++    entrypoint: /bin/bash
+     args:
+-      - push
+-      - --all-tags
+-      - $_IMAGE_REPO
++      - -ec
++      - |
++        docker push $_IMAGE_REPO:$COMMIT_SHA
++        docker push $_IMAGE_REPO:latest
++
++  - id: Deploy candidate
++    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
++    entrypoint: /bin/bash
++    args:
++      - -ec
++      - |
++        candidate_sha="$COMMIT_SHA"
++        candidate_tag="candidate-$${candidate_sha:0:12}"
++        image_ref="$_IMAGE_REPO:$COMMIT_SHA"
++
++        gcloud run deploy "$_SERVICE_NAME" \
++          --image="$${image_ref}" \
++          --region="$_DEPLOY_REGION" \
++          --no-traffic \
++          --tag="$${candidate_tag}" \
++          --update-labels="managed-by=gcp-cloud-build-deploy-cloud-run,gcb-trigger-id=$_GCB_TRIGGER_ID,gcb-trigger-region=$_GCB_TRIGGER_REGION,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID" \
++          --quiet
+ 
+-  - id: Deploy
++  - id: Smoke candidate login
+     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
++    entrypoint: /bin/bash
+     args:
+-      - gcloud
+-      - run
+-      - services
+-      - update
+-      - $_SERVICE_NAME
+-      - --image=$_IMAGE_REPO:$COMMIT_SHA
+-      - --update-labels=managed-by=gcp-cloud-build-deploy-cloud-run,gcb-trigger-id=$_GCB_TRIGGER_ID,gcb-trigger-region=$_GCB_TRIGGER_REGION,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID
+-      - --region=$_DEPLOY_REGION
+-      - --quiet
++      - -ec
++      - |
++        candidate_sha="$COMMIT_SHA"
++        candidate_tag="candidate-$${candidate_sha:0:12}"
++        service_json_path="/workspace/jewellink-candidate-service.json"
++
++        gcloud run services describe "$_SERVICE_NAME" \
++          --region="$_DEPLOY_REGION" \
++          --format=json > "$${service_json_path}"
++
++        candidate_url="$$(python3 - "$${candidate_tag}" "$${service_json_path}" <<'PY'
++        import json
++        import sys
++
++        tag = sys.argv[1]
++        path = sys.argv[2]
++
++        with open(path, encoding="utf-8") as handle:
++            service = json.load(handle)
++
++        for item in service.get("status", {}).get("traffic", []):
++            if item.get("tag") == tag and item.get("url"):
++                print(item["url"])
++                break
++        else:
++            raise SystemExit(f"candidate tag {tag} was not found on the Cloud Run service")
++        PY
++        )"
++
++        python3 - "$${candidate_url}/login" <<'PY'
++        import sys
++        import urllib.request
++
++        url = sys.argv[1]
++        request = urllib.request.Request(url, headers={"User-Agent": "jewellink-cloudbuild-smoke/1.0"})
++
++        with urllib.request.urlopen(request, timeout=30) as response:
++            if response.status >= 500:
++                raise SystemExit(f"{url} returned HTTP {response.status}")
++        PY
+ 
+ images:
+   - $_IMAGE_REPO:$COMMIT_SHA
+-  - $_IMAGE_REPO:latest
+ 
+ options:
+   logging: CLOUD_LOGGING_ONLY
+diff --git a/scripts/audit-jewelhire-sso.mjs b/scripts/audit-jewelhire-sso.mjs
+index 334a3186..6f4b2ef9 100644
+--- a/scripts/audit-jewelhire-sso.mjs
++++ b/scripts/audit-jewelhire-sso.mjs
+@@ -42,6 +42,7 @@ const settingsUserUpdate = fs.readFileSync(new URL('../src/app/api/settings/user
+ const adminUserUpdate = fs.readFileSync(new URL('../src/app/api/users/[userId]/route.ts', import.meta.url), 'utf8');
+ const profileUpdate = fs.readFileSync(new URL('../src/app/api/settings/profile/route.ts', import.meta.url), 'utf8');
+ const profilePage = fs.readFileSync(new URL('../src/app/(dashboard)/settings/profile/page.tsx', import.meta.url), 'utf8');
++const translations = fs.readFileSync(new URL('../src/lib/i18n/translations.ts', import.meta.url), 'utf8');
+ const teamUserUpdate = fs.readFileSync(new URL('../src/app/api/academy/locations/[locationId]/team/[userId]/route.ts', import.meta.url), 'utf8');
+ const authPolicyMigration = fs.readFileSync(new URL('../prisma/migrations/20260713130000_add_auth_session_policy/migration.sql', import.meta.url), 'utf8');
+ const companyStateMigration = fs.readFileSync(new URL('../prisma/migrations/20260714100000_invalidate_company_auth_sessions/migration.sql', import.meta.url), 'utf8');
+@@ -110,7 +111,7 @@ check('protected mobile requests compare the signed epoch with the current datab
+ check('mobile eligibility uses current effective roles after password verification and at every pending, refresh, and protected-request boundary', mobileLogin.indexOf('await bcrypt.compare(password, user.hashedPassword!)') < mobileLogin.indexOf('isMobileAppEligibleRole(effectiveRole)') && [mobileLogin, mobileTwoFactor, mobileSession, routeGuard].every((source) => source.includes('resolveEffectiveRole') && source.includes('isMobileAppEligibleRole')));
+ check('database credential epoch invalidates password, factor replacement, and deactivation while preserving first enrollment', prismaSchema.includes('authVersion') && authPolicyMigration.includes('password_changed') && authPolicyMigration.includes('factor_changed AND old_factor IS NOT NULL') && authPolicyMigration.includes('deactivated') && authPolicyMigration.includes('NEW."authVersion" := OLD."authVersion" + 1') && authPolicyMigration.includes('UPDATE "two_factor_trusted_device"'));
+ check('admin and team factor recovery explicitly revoke replaced-factor trust', [teamUserUpdate, settingsUserUpdate, adminUserUpdate].every((source) => source.includes('twoFactorTrustedDevice.updateMany') && source.includes('revokedAt: null')));
+-check('self-service profile keeps the MFA phone read-only while audited administrator recovery remains available', profilePage.includes('Security phone (2FA)') && profilePage.includes('value={formData.phone} readOnly') && !profilePage.slice(profilePage.indexOf('body: JSON.stringify({'), profilePage.indexOf('const data = await res.json')).includes('phone:') && profileUpdate.includes('cannot be changed from Profile Settings') && !profileUpdate.slice(profileUpdate.indexOf('data: {'), profileUpdate.indexOf('select: {', profileUpdate.indexOf('data: {'))).includes('phone:') && settingsUserUpdate.includes('logPermissionAudit') && settingsUserUpdate.includes('changedFields: Object.keys(updateData)'));
++check('self-service profile keeps the MFA phone read-only while audited administrator recovery remains available', (profilePage.includes('Security phone (2FA)') || (profilePage.includes("t(companyLanguage, 'profile.securityPhone')") && translations.includes("'profile.securityPhone': 'Security phone (2FA)'"))) && profilePage.includes('value={formData.phone} readOnly') && !profilePage.slice(profilePage.indexOf('body: JSON.stringify({'), profilePage.indexOf('const data = await res.json')).includes('phone:') && profileUpdate.includes('cannot be changed from Profile Settings') && !profileUpdate.slice(profileUpdate.indexOf('data: {'), profileUpdate.indexOf('select: {', profileUpdate.indexOf('data: {'))).includes('phone:') && settingsUserUpdate.includes('logPermissionAudit') && settingsUserUpdate.includes('changedFields: Object.keys(updateData)'));
+ check('company pause, unpause, deactivate, and reactivate transitions advance every member epoch and revoke remembered devices', companyStateMigration.includes('AFTER UPDATE OF "isActive", "isPaused"') && companyStateMigration.includes('OLD."isActive" IS DISTINCT FROM NEW."isActive"') && companyStateMigration.includes('OLD."isPaused" IS DISTINCT FROM NEW."isPaused"') && companyStateMigration.includes('SET "authVersion" = "authVersion" + 1') && companyStateMigration.includes('UPDATE "two_factor_trusted_device"') && companyStateMigration.includes('WHERE "companyId" = OLD."id"'));
+ check('SSO start and exchange enforce current active server-side company access', start.includes('evaluateActiveJewelHireCompanyAccess(user.companyId)') && exchange.includes('row.companyIsActive === true') && exchange.includes('row.companyIsPaused === false') && exchange.includes('evaluateJewelHireRollout(row.companyId).enabled'));
+ check('SSO exchange atomically recomputes and exactly compares current primary and location scope before releasing claims', exchange.includes('current_identity as (') && exchange.includes('current_scope as (') && exchange.includes('"validFrom" <= now()') && exchange.includes("current_scope.\"claims\" ? 'primaryLocationId'") && exchange.includes("current_scope.\"claims\" ? 'allLocations'") && exchange.includes("current_scope.\"claims\" ? 'locations'") && exchange.includes('row.scopeMatches !== true'));
+diff --git a/tests/profile-mfa-factor-protection.test.ts b/tests/profile-mfa-factor-protection.test.ts
+index a2e8d8e1..4f72236a 100644
+--- a/tests/profile-mfa-factor-protection.test.ts
++++ b/tests/profile-mfa-factor-protection.test.ts
+@@ -5,10 +5,21 @@ import test from 'node:test';
+ test('self profile exposes the security phone read-only and never submits it', () => {
+   const page = readFileSync('src/app/(dashboard)/settings/profile/page.tsx', 'utf8');
+   const route = readFileSync('src/app/api/settings/profile/route.ts', 'utf8');
++  const translations = readFileSync('src/lib/i18n/translations.ts', 'utf8');
+ 
+-  assert.match(page, /Security phone \(2FA\)/);
++  assert.equal(
++    /Security phone \(2FA\)/.test(page) ||
++      (page.includes("t(companyLanguage, 'profile.securityPhone')") &&
++        translations.includes("'profile.securityPhone': 'Security phone (2FA)'")),
++    true,
++  );
+   assert.match(page, /value=\{formData\.phone\} readOnly/);
+-  assert.match(page, /verified 2FA setup/);
++  assert.equal(
++    /verified 2FA setup/.test(page) ||
++      (page.includes("t(companyLanguage, 'profile.securityPhoneEditHelp')") &&
++        translations.includes('verified 2FA setup')),
++    true,
++  );
+   const saveBody = page.slice(page.indexOf('body: JSON.stringify({'), page.indexOf('const data = await res.json', page.indexOf('body: JSON.stringify({')));
+   assert.doesNotMatch(saveBody, /phone:/);
+ 
+-- 
+2.50.1 (Apple Git-155)
+
