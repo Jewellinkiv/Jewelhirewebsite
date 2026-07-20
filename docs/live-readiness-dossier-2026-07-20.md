@@ -42,6 +42,7 @@ explicit approval before it can be pushed to `Jewellinkiv/jewellink-app`.
 | Live public pages | Pass | `app.jewelhire.com/login`, `/privacy`, `/terms`, and `ai.jewellink.com/login` return `200` |
 | Live unauthenticated endpoint posture | Pass | JewelLink SSO exchange/introspection, hire provisioning, JewelCert results, and JewelHire inbound JewelCert invite all reject without bearer auth |
 | JewelLink no-push release-path patch | Pass | Local commit `da53e2ab`; `node --test tests/deploy-release-safety.test.ts` passed 8/8; secret scan passed 2,505 files; Cloud Build embedded bash syntax checked |
+| Production pilot readiness audit tooling | Pass | `scripts/production-pilot-readiness-audit.mjs` added with fixture coverage for matching and mismatched shared secrets without value leakage |
 
 Full safe cross-product command used for this snapshot:
 
@@ -58,9 +59,9 @@ node scripts/cross-product-acceptance.mjs \
 
 | Gate | Status | Needed before live pilot |
 | --- | --- | --- |
-| Production integration secrets | Unknown | Verify matching high-entropy SSO and integration secrets on both Cloud Run services without printing values |
-| JewelHire integration env | Unknown | Run the strengthened `scripts/config-exposure-audit.mjs` from a machine with `gcloud`; verify `JEWELLINK_URL`, SSO/integration secrets, `JEWELHIRE_TEAM_INVITES_ENABLED=0`, trusted proxy hops, admin allowlist, email posture, Stripe env, and secret-backed mounts |
-| JewelLink integration env | Unknown | Verify `JEWELHIRE_URL`, SSO/integration secrets, rollout mode, pilot company IDs, and hire email mode |
+| Production integration secrets | Unknown | Run `npm run qa:pilot-readiness` from a machine with `gcloud`; it compares matching high-entropy SSO and integration secrets in memory without printing values |
+| JewelHire integration env | Unknown | Run `npm run qa:pilot-readiness` and `npm run qa:config` from a machine with `gcloud`; verify `JEWELLINK_URL`, SSO/integration secrets, `JEWELHIRE_TEAM_INVITES_ENABLED=0`, trusted proxy hops, admin allowlist, email posture, Stripe env, and secret-backed mounts |
+| JewelLink integration env | Unknown | Run `npm run qa:pilot-readiness`; verify `JEWELHIRE_URL`, SSO/integration secrets, rollout mode, pilot company IDs, and hire email mode |
 | Migration ledger state | Unknown | Confirm JewelHire and JewelLink production ledgers match reviewed pending migration lists; stop on drift |
 | Authenticated pilot roster | Not selected | Record Diamond Exchange company/location IDs and role test aliases |
 | End-to-end SSO smoke | Not run | Director, Manager, Student, Consultant denial, platform-admin allowlist, allowlisted non-admin denial |
@@ -83,10 +84,9 @@ without explicit approval.
 
 ## Next work order
 
-1. Run the strengthened JewelHire-side production configuration audit from a
-   machine with `gcloud` access; it checks required environment names,
-   expected fail-closed defaults, email/Stripe posture, integration settings,
-   and admin allowlist mounts without reading secret values.
+1. Run the production pilot readiness audit from a machine with `gcloud`
+   access; it checks both Cloud Run services, confirms integration secrets
+   match without printing values, and records traffic/revision posture.
 2. Review and approve the local no-push JewelLink Cloud Build candidate patch,
    then push/open a PR only after explicit approval.
 3. Fill the pilot roster and run the authenticated end-to-end smoke matrix.
