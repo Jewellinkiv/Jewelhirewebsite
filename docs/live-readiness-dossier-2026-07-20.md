@@ -14,7 +14,7 @@ JewelHire SHA without changing runtime behavior.
 
 | Product | Repository | Current head | Build/status |
 | --- | --- | --- | --- |
-| JewelHire | `Jewellinkiv/Jewelhire` | Current evidence change set | Local release-control tests and live readiness audits passed on 2026-07-20; GitHub validation pending for this evidence commit |
+| JewelHire | `Jewellinkiv/Jewelhire` | Current evidence change set | Latest pushed evidence base `1b0c2e9` passed GitHub validation run `29785528988`; local release-control tests passed after the monitoring-audit update |
 | JewelLink | `Jewellinkiv/jewellink-app` | `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` passed and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have NO-GO findings below |
 | JewelLink local no-push patch | research checkout only | `f12e67d7202a6a567007605f7164d141638b5dbc` | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`; combines candidate-only Cloud Build and profile MFA audit refresh; not pushed |
 
@@ -61,8 +61,8 @@ still requires explicit approval before it can be pushed to
 | JewelHire admin allowlist | Pass | `docs/qa-runs/admin-allowlist-2026-07-20T22-22-44-403Z/` passes after rotating `jewelhire-admin-emails-v2` to version `2`; 9 active JewelLink admin-role users, 0 missing, 0 extra, 0 active non-admins |
 | JewelHire production migration ledger | Pass | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/` shows 25/25 applied, 0 pending, and no checksum/order issues |
 | JewelLink JewelHire migration rows | Pass | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/` reviews JewelLink commit `55032dbb` and shows all seven JewelHire integration/auth migrations active with matching checksums |
-| JewelLink full migration checksum audit | Fail | The same report shows 25 older non-integration active Prisma rows whose checksums drift from the reviewed repo; this remains a GO blocker until reviewed or repaired |
-| Operations readiness audit | Fail | `docs/qa-runs/operations-readiness-2026-07-20T22-38-07-000Z/` confirms both services and database hosts are discoverable, but backups, alert policies, JewelLink health scheduler, monitoring channel, rollback owners, observation window, and thresholds remain missing |
+| JewelLink full migration checksum audit | Fail | The same report shows 25 older non-integration active Prisma rows whose checksums drift from the reviewed repo; `docs/jewellink-migration-drift-review-2026-07-20.md` found only 1 exact match in fetched git history, so this remains a GO blocker until applied SQL is recovered, repaired, or explicitly accepted by a named database owner |
+| Operations readiness audit | Partial / Fail | `docs/qa-runs/operations-readiness-2026-07-20T23-05-00-020Z/` confirms alert policies, notification channels, log metrics, and the JewelLink health scheduler are installed; backups, rollback owners, observation window, and thresholds remain missing |
 | Live public and fail-closed QA | Pass | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/` passes public login/signup/forgot/verify/legal/careers/apply checks, logged-out API denials, and desktop/mobile browser smoke with no warnings |
 | Go/no-go dossier | No-go recorded | `docs/production-pilot-go-no-go-dossier-2026-07-20.md` captures required evidence rows, pilot smoke matrix, rollback evidence, and stop conditions |
 
@@ -91,7 +91,7 @@ node scripts/cross-product-acceptance.mjs \
 | End-to-end hire smoke | Not run | Hire in JewelHire provisions/reactivates the correct JewelLink user and stays idempotent |
 | End-to-end JewelCert smoke | Not run | JewelLink sends invite, JewelHire records result, JewelLink receives scoped aggregation |
 | JewelLink release-path patch approval | Open for future code/image deploys | Config-only pilot flag update was approved and completed; the Cloud Build candidate-release patch remains local and unpushed |
-| Rollback and monitoring evidence | Partial | Current revisions and admin-secret version are recorded; operations audit found no enabled GCP alert policies/log metrics, no JewelLink JewelHire health scheduler job, and missing owners/channel/thresholds/observation window |
+| Rollback and monitoring evidence | Partial | Current revisions and admin-secret version are recorded; monitoring resources are now installed and attached; backups, owners, thresholds, and observation window remain open |
 
 ## JewelLink approval boundary
 
@@ -107,8 +107,9 @@ without explicit approval.
 
 ## Next work order
 
-1. Review or repair the 25 older JewelLink active migration checksum drifts
-   before treating the full JewelLink ledger as GO-ready.
+1. Close the 25 older JewelLink active migration checksum drifts by recovering
+   applied SQL, repairing the ledger with approval, or recording named database
+   owner acceptance of the historical non-integration drift.
 2. Review and explicitly approve the combined local JewelLink patch
    `f12e67d7` if we want to close the source-audit/profile 2FA guard failure
    and unpatched Cloud Build direct-deploy failure through a JewelLink PR.
@@ -117,8 +118,9 @@ without explicit approval.
 4. Push/open a JewelLink PR only after explicit approval; the combined patch is
    staged locally and also preserved at
    `docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch`.
-5. Install monitoring: JewelLink integration health scheduler, alert policies,
-   monitoring channel, observation window, and rollback thresholds.
+5. Record rollback owners, observation window, rollback thresholds, and verify
+   the Cloud Monitoring email channels if Google requires recipient
+   confirmation.
 6. Fill the pilot roster and run the authenticated end-to-end smoke matrix in
    `docs/production-pilot-go-no-go-dossier-2026-07-20.md`.
 7. Move the go/no-go record to GO only after exact commits, build IDs,

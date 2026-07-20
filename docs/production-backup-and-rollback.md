@@ -19,6 +19,13 @@ this launch record. A named database operator must provide PlanetScale/provider
 backup IDs, retention/PITR evidence, or explicitly approve the encrypted
 logical-backup fallback below.
 
+2026-07-20 monitoring install: the pilot now has enabled Cloud Run 5xx alert
+policies, email notification channels, and log-based 5xx metrics in both GCP
+projects. JewelLink also has an enabled Cloud Scheduler job named
+`jewellink-jewelhire-integration-health` targeting
+`/api/cron/jewelhire-integration-health`. Evidence is recorded in
+`docs/qa-runs/operations-readiness-2026-07-20T23-05-00-020Z/`.
+
 | Evidence | JewelHire | JewelLink |
 | --- | --- | --- |
 | Named operator |  |  |

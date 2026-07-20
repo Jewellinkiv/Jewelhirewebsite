@@ -207,7 +207,7 @@ function monitoringPolicies(product) {
     "list",
     "--project",
     product.project,
-    "--format=json(name,displayName,enabled,conditions.displayName)",
+    "--format=json(name,displayName,enabled,notificationChannels,conditions.displayName)",
   ]);
 }
 
@@ -319,7 +319,14 @@ function policySummary(policies) {
     displayName: policy.displayName || "",
     enabled: policy.enabled !== false,
     conditionCount: Array.isArray(policy.conditions) ? policy.conditions.length : 0,
+    notificationChannels: Array.isArray(policy.notificationChannels)
+      ? policy.notificationChannels.map((channel) => String(channel || "").split("/").pop()).filter(Boolean)
+      : [],
   }));
+}
+
+function enabledPoliciesWithChannels(policies) {
+  return policies.filter((policy) => policy.enabled && policy.notificationChannels.length > 0);
 }
 
 function metricSummary(metrics) {
@@ -398,6 +405,11 @@ function buildProductEvidence(productKey, product) {
   record(`${product.label} has at least one enabled monitoring alert policy`, policies.some((policy) => policy.enabled), {
     policyCount: policies.length,
   });
+  const policiesWithChannels = enabledPoliciesWithChannels(policies);
+  record(`${product.label} enabled monitoring alert policy has notification channel`, policiesWithChannels.length > 0, {
+    policyCount: policies.length,
+    policyWithChannelCount: policiesWithChannels.length,
+  });
 
   const metricsResult = loggingMetrics(product);
   const metrics = metricSummary(metricsResult.data || []);
@@ -462,8 +474,14 @@ function checkJewelLinkHealthScheduler(jewellinkEvidence) {
   return job || null;
 }
 
-function checkDeclaredOperationsEvidence() {
-  record("Monitoring channel is recorded", Boolean(declaredEvidence.monitoring.channel.trim()));
+function checkDeclaredOperationsEvidence({ jewelhire, jewellink }) {
+  const attachedMonitoringChannels =
+    enabledPoliciesWithChannels(jewelhire.monitoring.policies).length > 0 &&
+    enabledPoliciesWithChannels(jewellink.monitoring.policies).length > 0;
+  record("Monitoring channel is recorded or attached to enabled alert policies", Boolean(declaredEvidence.monitoring.channel.trim()) || attachedMonitoringChannels, {
+    declaredChannelRecorded: Boolean(declaredEvidence.monitoring.channel.trim()),
+    attachedMonitoringChannels,
+  });
   record("JewelHire rollback owner is recorded", Boolean(declaredEvidence.rollback.jewelhireOwner.trim()));
   record("JewelLink rollback owner is recorded", Boolean(declaredEvidence.rollback.jewellinkOwner.trim()));
   record("JewelLink IAM rollback owner is recorded", Boolean(declaredEvidence.rollback.jewellinkIamOwner.trim()));
@@ -495,6 +513,7 @@ function markdown(report) {
       `- Backup ID recorded: ${product.backup.backupIdRecorded ? "yes" : "no"}`,
       `- Backup verified at: ${product.backup.backupVerifiedAt || "missing"}`,
       `- Alert policies: ${product.monitoring.policies.length}`,
+      `- Enabled policies with notification channels: ${enabledPoliciesWithChannels(product.monitoring.policies).length}`,
       `- Logging metrics: ${product.monitoring.loggingMetrics.length}`,
       `- Scheduler jobs readable: ${product.scheduler.readable ? "yes" : "no"}`,
       "",
@@ -510,7 +529,7 @@ function markdown(report) {
     "",
     "## Declared Operations Evidence",
     "",
-    `- Monitoring channel recorded: ${report.declaredEvidence.monitoring.channel ? "yes" : "no"}`,
+    `- Monitoring channel recorded or attached: ${report.declaredEvidence.monitoring.channel ? "yes" : "no"}`,
     `- JewelHire rollback owner recorded: ${report.declaredEvidence.rollback.jewelhireOwner ? "yes" : "no"}`,
     `- JewelLink rollback owner recorded: ${report.declaredEvidence.rollback.jewellinkOwner ? "yes" : "no"}`,
     `- JewelLink IAM rollback owner recorded: ${report.declaredEvidence.rollback.jewellinkIamOwner ? "yes" : "no"}`,
@@ -531,7 +550,7 @@ function main() {
   const jewelhire = buildProductEvidence("jewelhire", products.jewelhire);
   const jewellink = buildProductEvidence("jewellink", products.jewellink);
   const jewelLinkHealthJob = checkJewelLinkHealthScheduler(jewellink);
-  checkDeclaredOperationsEvidence();
+  checkDeclaredOperationsEvidence({ jewelhire, jewellink });
 
   const failures = checks.filter((check) => !check.pass);
   const report = {
@@ -555,7 +574,10 @@ function main() {
         Object.entries(declaredEvidence.rollback).map(([key, value]) => [key, Boolean(String(value).trim())]),
       ),
       monitoring: {
-        channel: Boolean(declaredEvidence.monitoring.channel.trim()),
+        channel:
+          Boolean(declaredEvidence.monitoring.channel.trim()) ||
+          (enabledPoliciesWithChannels(jewelhire.monitoring.policies).length > 0 &&
+            enabledPoliciesWithChannels(jewellink.monitoring.policies).length > 0),
       },
     },
     products: { jewelhire, jewellink },

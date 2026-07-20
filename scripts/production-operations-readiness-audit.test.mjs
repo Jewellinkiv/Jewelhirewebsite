@@ -44,12 +44,13 @@ function schedulerJob(name, uriPath = "/api/cron/jewelhire-integration-health") 
   };
 }
 
-function policy(displayName) {
+function policy(displayName, overrides = {}) {
   return {
     name: `projects/example/alertPolicies/${displayName}`,
     displayName,
     enabled: true,
     conditions: [{ displayName: `${displayName} condition` }],
+    notificationChannels: overrides.noChannels ? [] : [`projects/example/notificationChannels/${displayName}-email`],
   };
 }
 
@@ -61,8 +62,14 @@ function writeFixtures(dir, overrides = {}) {
     path.join(dir, "jewellink-scheduler-jobs.json"),
     JSON.stringify(overrides.missingHealthJob ? [] : [schedulerJob("jewellink-jewelhire-integration-health")], null, 2),
   );
-  fs.writeFileSync(path.join(dir, "jewelhire-monitoring-policies.json"), JSON.stringify([policy("JewelHire 5xx")], null, 2));
-  fs.writeFileSync(path.join(dir, "jewellink-monitoring-policies.json"), JSON.stringify([policy("JewelLink JewelHire Health")], null, 2));
+  fs.writeFileSync(
+    path.join(dir, "jewelhire-monitoring-policies.json"),
+    JSON.stringify([policy("JewelHire 5xx", { noChannels: overrides.noPolicyChannels })], null, 2),
+  );
+  fs.writeFileSync(
+    path.join(dir, "jewellink-monitoring-policies.json"),
+    JSON.stringify([policy("JewelLink JewelHire Health", { noChannels: overrides.noPolicyChannels })], null, 2),
+  );
   fs.writeFileSync(path.join(dir, "jewelhire-logging-metrics.json"), JSON.stringify([], null, 2));
   fs.writeFileSync(path.join(dir, "jewellink-logging-metrics.json"), JSON.stringify([], null, 2));
   fs.writeFileSync(path.join(dir, "jewelhire-cloud-sql-instances.json"), JSON.stringify([], null, 2));
@@ -96,7 +103,6 @@ function runAudit(overrides = {}) {
     "--jewellink-rollback-owner=Ops JewelLink",
     "--jewellink-iam-rollback-owner=Ops IAM",
     "--database-recovery-owner=Ops Database",
-    "--monitoring-channel=#pilot-alerts",
     "--observation-window=2026-07-20T23:00:00Z/2026-07-21T01:00:00Z",
     "--rollback-thresholds=Any cross-tenant data exposure or sustained 5xx",
   ];
@@ -129,4 +135,12 @@ test("missing JewelLink health scheduler job fails without printing secrets", ()
   assert.match(markdown, /FAIL JewelLink JewelHire integration health scheduler job exists/);
   assert.doesNotMatch(json, /super-secret-password/);
   assert.doesNotMatch(markdown, /super-secret-password/);
+});
+
+test("enabled alert policies without notification channels fail monitoring readiness", () => {
+  const { result, markdown } = runAudit({ noPolicyChannels: true });
+  assert.notEqual(result.status, 0);
+  assert.match(markdown, /FAIL JewelHire enabled monitoring alert policy has notification channel/);
+  assert.match(markdown, /FAIL JewelLink enabled monitoring alert policy has notification channel/);
+  assert.match(markdown, /FAIL Monitoring channel is recorded or attached to enabled alert policies/);
 });
