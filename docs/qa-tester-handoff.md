@@ -10,7 +10,7 @@ Updated: 2026-07-20
 
 - Hosted app: `https://app.jewelhire.com`
 - Login path: `https://app.jewelhire.com/login`
-- Source commit: `0662dfc Update brace expansion audit dependency`
+- Source commit: `63e7db4 Record authenticated production readiness evidence`
 - Database: PlanetScale Postgres via Secret Manager secret `jewelhire-database-url`
 
 Do not test from `/Users/williamiv/Documents/Jewelhire`; that repo was removed and is not the launch source of truth.
@@ -105,12 +105,12 @@ npm run qa:pilot-readiness
 
 2026-07-20 result summary:
 
-- `qa:auth -- --expect-firebase`, `qa:handoff`, and `qa:roles` passed.
-- `qa:config` and `qa:postmark` verified the live configuration, but remain
-  held until live email sends are explicitly acknowledged for the pilot.
-- `qa:pilot-readiness` verified the shared JewelHire/JewelLink secrets without
-  printing values, but remains held because JewelLink pilot rollout flags are
-  not enabled/configured yet.
+- `qa:auth -- --expect-firebase`, `qa:handoff`, `qa:roles`, `qa:config`,
+  `qa:postmark`, and `qa:pilot-readiness` passed.
+- Live email sends are explicitly acknowledged for the controlled pilot; the
+  audits did not send email or print provider values.
+- JewelLink pilot rollout flags are enabled for Diamond Exchange `comp_1` on
+  Cloud Run revision `jewellink-dev-01153-dqz`.
 
 Relevant artifacts:
 
@@ -121,9 +121,10 @@ Relevant artifacts:
 - Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T12-17-25-995Z/`
 - Config exposure: `docs/qa-runs/config-exposure-2026-07-01T11-42-53-276Z/`
 - Postmark safety: `docs/qa-runs/postmark-safety-2026-07-01T11-42-53-275Z/`
-- Production pilot readiness: `docs/qa-runs/production-pilot-readiness-2026-07-20T21-41-15-779Z/`
+- Production pilot readiness: `docs/qa-runs/production-pilot-readiness-2026-07-20T21-53-00-059Z/`
 - Auth readiness rerun: `docs/qa-runs/auth-readiness-2026-07-20T21-41-42-178Z/`
-- Config exposure rerun: `docs/qa-runs/config-exposure-2026-07-20T21-41-24-877Z/`
+- Config exposure rerun: `docs/qa-runs/config-exposure-2026-07-20T21-53-00-066Z/`
+- Postmark safety rerun: `docs/qa-runs/postmark-safety-2026-07-20T21-53-00-057Z/`
 - Role readiness rerun: `docs/qa-runs/role-readiness-2026-07-20T21-42-09-766Z/`
 - Tester handoff rerun: `docs/qa-runs/tester-handoff-2026-07-20T21-44-00-052Z/`
 - Notification readiness: `docs/qa-runs/notification-readiness-2026-07-01T11-05-56-878Z/`

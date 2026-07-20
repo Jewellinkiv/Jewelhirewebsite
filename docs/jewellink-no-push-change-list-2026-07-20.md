@@ -1,7 +1,10 @@
 # JewelLink No-Push Change List — 2026-07-20
 
 User instruction: inspect and prepare JewelLink work, but do not push anything
-to `Jewellinkiv/jewellink-app` without explicit approval.
+to `Jewellinkiv/jewellink-app` without explicit approval. On 2026-07-20,
+explicit approval was granted for the JewelLink pilot rollout flag
+configuration/deploy movement only; the prepared repository patch remains
+unpushed.
 
 ## Current JewelLink baseline
 
@@ -17,6 +20,11 @@ to `Jewellinkiv/jewellink-app` without explicit approval.
   touch JewelHire integration, auth, deployment, package, Docker, or Prisma
   migration paths.
 - Current JewelHire integration source audit passes against this head.
+- Approved config-only production update: Cloud Run service `jewellink-dev`
+  now serves `jewellink-dev-01153-dqz` at 100% traffic, using the existing
+  image `1c313cc00fd172ffa4a9903578afacf66dcfc67f`, with
+  `JEWELHIRE_INTEGRATION_ENABLED=true`, `JEWELHIRE_ROLLOUT_MODE=pilot`, and
+  `JEWELHIRE_PILOT_COMPANY_IDS=comp_1`.
 - Local patch verification: `node --test tests/deploy-release-safety.test.ts`
   passed 8/8, `scripts/check-committed-secrets.mjs` passed 2,505 files, and
   embedded Cloud Build bash blocks passed syntax checks after simulated
@@ -28,7 +36,7 @@ to `Jewellinkiv/jewellink-app` without explicit approval.
 | --- | --- | --- |
 | Cloud Build release path | Review the prepared local patch and push/open a PR only after explicit approval | The runbook says Cloud Build should not move production traffic, and current JewelLink `main` still runs `gcloud run services update` |
 | Open PR `#182` | Do not merge as-is; close as superseded or rebase into a fresh reviewed PR only if its remaining changes are still needed | It targets another integration branch, has no checks, and includes a workflow-deletion commit |
-| Integration rollout env | Verify without printing values: `JEWELHIRE_URL`, `JEWELHIRE_SSO_SHARED_SECRET`, `JEWELHIRE_INTEGRATION_SHARED_SECRET`, `JEWELHIRE_INTEGRATION_ENABLED`, `JEWELHIRE_ROLLOUT_MODE`, `JEWELHIRE_PILOT_COMPANY_IDS`, and `JEWELHIRE_HIRE_EMAIL_MODE` | Source is green, but live pilot depends on production configuration |
+| Integration rollout env | Done for the approved pilot flag set; keep verifying without printing values before GO | `qa:pilot-readiness` passes after setting the pilot rollout to Diamond Exchange `comp_1` |
 | Migration operator path | Verify the dedicated migration identity and `MIGRATION_DATABASE_URL` before any production migration run | The normal web runtime must not receive privileged migration credentials |
 | Authenticated smoke hooks | Preserve or add operator-visible evidence for Director, Manager, Student, Consultant denial, admin allowlist, hire provisioning, JewelCert result sync, and health/retry checks | The current safe probes prove fail-closed unauthenticated behavior, not end-to-end business flow |
 
@@ -46,8 +54,8 @@ The local JewelLink patch changes `cloudbuild.jewellink.yaml` only.
 - Keeps migration execution and traffic promotion outside Cloud Build, matching
   `docs/JEWELHIRE_INTEGRATION_OPERATIONS_RUNBOOK.md`.
 
-This patch is intentionally local-only until explicit JewelLink approval is
-given.
+This patch is intentionally local-only until explicit JewelLink repository
+approval is given.
 
 ## PR `#182` notes
 

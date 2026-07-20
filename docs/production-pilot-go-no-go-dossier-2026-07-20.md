@@ -16,7 +16,7 @@ names, nonsecret IDs, and pass/fail decisions only.
 
 | Product | State | Evidence |
 | --- | --- | --- |
-| JewelHire | Source-ready at latest validated runtime head `0662dfcc86cdf2006e00200ec46a6af6ce8435fb` | GitHub run `29780007588` passed on 2026-07-20; deploy job skipped |
+| JewelHire | Source-ready at latest validated runtime head `63e7db41a01e617c0dde1731257324424a7f33b1` | GitHub run `29781339114` passed on 2026-07-20; deploy job skipped |
 | JewelLink main | Source baseline `bd1f344699e97ed968a6c272277dffeaf0975479` | Latest known safe Cloud Build check passed on 2026-07-20 |
 | JewelLink release-path patch | Prepared locally, not pushed | Local branch `codex/jewellink-cloudbuild-candidate-gate-20260720`, commit `da53e2ab7eac45c93285c91492903aeb7c1ed52d` |
 
@@ -32,12 +32,12 @@ candidate only; current JewelLink production remains unchanged.
 
 | Gate | Current status | Evidence required for GO |
 | --- | --- | --- |
-| JewelHire CI | PASS | `0662dfcc86cdf2006e00200ec46a6af6ce8435fb`; GitHub run `29780007588` passed on 2026-07-20 |
-| JewelLink CI/build | PARTIAL | Green run for the reviewed JewelLink PR/head that will be deployed |
-| JewelLink release-path safety | WAITING APPROVAL | Approved/pushed PR or documented decision to accept current direct-update path |
-| Production integration secrets | PARTIAL | `docs/qa-runs/production-pilot-readiness-2026-07-20T21-41-15-779Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy; overall audit still fails on JewelLink rollout config |
-| JewelHire production config | PARTIAL | `docs/qa-runs/config-exposure-2026-07-20T21-41-24-877Z/` passes all config checks except explicit live-email acknowledgement; `docs/qa-runs/auth-readiness-2026-07-20T21-41-42-178Z/` and `docs/qa-runs/role-readiness-2026-07-20T21-42-09-766Z/` pass |
-| JewelLink production config | FAIL | `docs/qa-runs/production-pilot-readiness-2026-07-20T21-41-15-779Z/` shows JewelLink integration is not enabled for pilot, rollout mode does not match `pilot`, and pilot company IDs are not configured |
+| JewelHire CI | PASS | `63e7db41a01e617c0dde1731257324424a7f33b1`; GitHub run `29781339114` passed on 2026-07-20 |
+| JewelLink CI/build | CONFIG-ONLY CHANGE | Pilot rollout flag update used the existing image `1c313cc00fd172ffa4a9903578afacf66dcfc67f`; green PR/head required before any future code/image deploy |
+| JewelLink release-path safety | PARTIAL | Config-only Cloud Run update was explicitly approved and completed; Cloud Build candidate-release patch remains local/unpushed for future code/image deploys |
+| Production integration secrets | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T21-53-00-059Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
+| JewelHire production config | PASS | `docs/qa-runs/config-exposure-2026-07-20T21-53-00-066Z/`, `docs/qa-runs/postmark-safety-2026-07-20T21-53-00-057Z/`, `docs/qa-runs/auth-readiness-2026-07-20T21-41-42-178Z/`, and `docs/qa-runs/role-readiness-2026-07-20T21-42-09-766Z/` pass |
+| JewelLink production config | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T21-53-00-059Z/` passes after approved config-only update to `jewellink-dev-01153-dqz` with pilot company `comp_1` |
 | JewelHire migration ledger | MISSING | Production ledger status artifact showing expected applied/pending set and no checksum drift |
 | JewelLink migration ledger | MISSING | Production ledger status artifact showing only reviewed pending integration/auth migrations |
 | Database backups | MISSING | Backup identifiers/timestamps for both production databases |
@@ -52,9 +52,9 @@ candidate only; current JewelLink production remains unchanged.
 
 | Field | Value |
 | --- | --- |
-| Pilot company ID | `TBD` |
+| Pilot company ID | `comp_1` |
 | Pilot company name | Diamond Exchange |
-| Pilot location IDs | `TBD` |
+| Pilot location IDs | `loc_1`, `loc_2`, `loc_3`, `loc_4`, `loc_5`, `loc_6` |
 | JewelLink Director alias | `TBD` |
 | JewelLink Manager alias | `TBD` |
 | JewelLink Student alias | `TBD` |
@@ -108,8 +108,8 @@ candidate only; current JewelLink production remains unchanged.
 
 | Area | Required evidence | Value |
 | --- | --- | --- |
-| JewelHire prior live revision | Revision name, image digest, traffic assignment | Current 100% traffic revision observed by `gcloud` on 2026-07-20: `jewelhire-00111-dup`; image digest still `TBD` |
-| JewelLink prior live revision | Revision name, image digest, traffic assignment | `TBD` |
+| JewelHire prior live revision | Revision name, image digest, traffic assignment | Current 100% traffic revision observed by `gcloud` on 2026-07-20: `jewelhire-00111-dup`; image `us-central1-docker.pkg.dev/jewelhire-prod-20260626/cloud-run-source-deploy/jewelhire@sha256:d632afa46cf8e4ad8faeb72df06832089a6ad39028212fa7d37d006a7d5ee67a` |
+| JewelLink prior live revision | Revision name, image digest, traffic assignment | Rollback target from before the approved config-only update: `jewellink-dev-01152-cv8`, 100% traffic, image `us-central1-docker.pkg.dev/academy-460316/cloud-run-source-deploy/jewellinkiv-jewellink-app/jewellink-dev:1c313cc00fd172ffa4a9903578afacf66dcfc67f`; current active revision is `jewellink-dev-01153-dqz` |
 | JewelLink IAM rollback | Exact project-level binding restore command or approved console recovery path | `TBD` |
 | JewelHire rollback owner | Name and contact channel | `TBD` |
 | JewelLink rollback owner | Name and contact channel | `TBD` |
