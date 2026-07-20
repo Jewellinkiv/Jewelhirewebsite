@@ -11,6 +11,7 @@ drift found during pilot readiness. No database rows were changed.
 | Reviewed live baseline | `55032dbbebc519d1718aa14871da2048f60d9487` |
 | Local no-push patch head | `f12e67d7202a6a567007605f7164d141638b5dbc` |
 | Ledger evidence | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/migration-ledger-report.md` |
+| Repeatable recovery audit | `docs/qa-runs/jewellink-migration-drift-2026-07-20T23-37-49-955Z/jewellink-migration-drift-recovery-report.md` |
 
 ## Findings
 
@@ -24,6 +25,11 @@ drift found during pilot readiness. No database rows were changed.
   `20260708110000_add_pos_foundation_ledger_audit` at commit `e87bbaf744f8`.
 - The other 24 drifted checksums did not match any fetched committed version of
   their `migration.sql` files.
+- The repeatable recovery audit now codifies this check in
+  `scripts/jewellink-migration-drift-recovery-audit.mjs`. Its latest production
+  run reviewed `origin/main` at `55032dbbebc519d1718aa14871da2048f60d9487`,
+  searched 118 refs, and reproduced the same 1 recovered / 24 unrecovered
+  result without printing secrets.
 
 ## Drift Rows
 
