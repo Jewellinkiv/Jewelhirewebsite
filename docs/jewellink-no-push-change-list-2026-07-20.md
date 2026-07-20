@@ -8,27 +8,38 @@ unpushed.
 
 ## Current JewelLink baseline
 
-- Current `main`: `bd1f344699e97ed968a6c272277dffeaf0975479`
+- Current `main`: `55032dbbebc519d1718aa14871da2048f60d9487`
 - Prepared local no-push patch:
   `da53e2ab7eac45c93285c91492903aeb7c1ed52d` on branch
   `codex/jewellink-cloudbuild-candidate-gate-20260720`
 - Durable review artifact:
   `docs/jewellink-cloudbuild-candidate-approval-packet-2026-07-20.md`
-- Latest check: `cloudrun-jewellink-dev-main-safe` completed successfully on
-  2026-07-20.
-- Latest `ed225ce6..bd1f3446` delta touched only UP System files and did not
-  touch JewelHire integration, auth, deployment, package, Docker, or Prisma
-  migration paths.
-- Current JewelHire integration source audit passes against this head.
+- Latest Cloud Build: regional build `ae63d668-2ad0-435d-805f-0290460ebdb6`
+  completed successfully on 2026-07-20 for branch `main`, commit
+  `55032dbbebc519d1718aa14871da2048f60d9487`, and produced live revision
+  `jewellink-dev-01154-xpx`.
+- The `bd1f3446..55032dbb` delta includes auth, layout, i18n, UP System, and
+  translation-related paths; it does not change Prisma migrations, Docker,
+  package manifests, or the JewelHire integration API route paths.
+- Current JewelHire integration source audit against this head is partial:
+  `scripts/audit-jewelhire-sso.mjs` has one failing control for the translated
+  profile 2FA-phone label/read-only guard, and
+  `tests/profile-mfa-factor-protection.test.ts` fails the same literal-label
+  check. The page and route still show a read-only phone input and omit phone
+  from the self-profile save payload, so this needs JewelLink review rather
+  than being treated as closed.
 - Approved config-only production update: Cloud Run service `jewellink-dev`
-  now serves `jewellink-dev-01153-dqz` at 100% traffic, using the existing
-  image `1c313cc00fd172ffa4a9903578afacf66dcfc67f`, with
+  served `jewellink-dev-01153-dqz` at 100% traffic, using the existing image
+  `1c313cc00fd172ffa4a9903578afacf66dcfc67f`, with
   `JEWELHIRE_INTEGRATION_ENABLED=true`, `JEWELHIRE_ROLLOUT_MODE=pilot`, and
-  `JEWELHIRE_PILOT_COMPANY_IDS=comp_1`.
+  `JEWELHIRE_PILOT_COMPANY_IDS=comp_1`. Current production traffic later moved
+  to `jewellink-dev-01154-xpx` from commit `55032dbb`.
 - Local patch verification: `node --test tests/deploy-release-safety.test.ts`
   passed 8/8, `scripts/check-committed-secrets.mjs` passed 2,505 files, and
   embedded Cloud Build bash blocks passed syntax checks after simulated
-  substitutions.
+  substitutions on the prepared patch branch. Against current unpatched
+  `origin/main`, `tests/deploy-release-safety.test.ts` fails 1/8 because
+  `cloudbuild.jewellink.yaml` still updates the live service directly.
 
 ## Recommended JewelLink actions before pilot
 

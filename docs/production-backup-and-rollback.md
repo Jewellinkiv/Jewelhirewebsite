@@ -40,7 +40,7 @@ Also record immediately before deployment:
 | Runtime | 100%-traffic revision before cutover |
 | --- | --- |
 | JewelHire `jewelhire-prod-20260626/jewelhire` | `jewelhire-00111-dup` at 100%; image `us-central1-docker.pkg.dev/jewelhire-prod-20260626/cloud-run-source-deploy/jewelhire@sha256:d632afa46cf8e4ad8faeb72df06832089a6ad39028212fa7d37d006a7d5ee67a`; `JEWELHIRE_ADMIN_EMAILS` now mounts `jewelhire-admin-emails-v2:2` |
-| JewelLink `academy-460316/jewellink-dev` | Rollback target from before approved pilot-flag update: `jewellink-dev-01152-cv8` at 100%; image `us-central1-docker.pkg.dev/academy-460316/cloud-run-source-deploy/jewellinkiv-jewellink-app/jewellink-dev:1c313cc00fd172ffa4a9903578afacf66dcfc67f`; current pilot-config revision `jewellink-dev-01153-dqz` at 100% |
+| JewelLink `academy-460316/jewellink-dev` | Rollback target from before approved pilot-flag update: `jewellink-dev-01152-cv8`; image `us-central1-docker.pkg.dev/academy-460316/cloud-run-source-deploy/jewellinkiv-jewellink-app/jewellink-dev:1c313cc00fd172ffa4a9903578afacf66dcfc67f`; approved pilot-config revision `jewellink-dev-01153-dqz` is now retired; current 100% traffic revision is `jewellink-dev-01154-xpx`, commit `55032dbbebc519d1718aa14871da2048f60d9487`, image digest `sha256:fa0e36ad51b39da366392d63b65972a45b517387c802757f27a7fda47c41db43` |
 
 ## Preferred backup sequence
 

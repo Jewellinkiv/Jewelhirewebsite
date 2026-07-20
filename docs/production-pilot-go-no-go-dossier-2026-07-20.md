@@ -17,7 +17,7 @@ names, nonsecret IDs, and pass/fail decisions only.
 | Product | State | Evidence |
 | --- | --- | --- |
 | JewelHire | Source-ready at the current evidence change set | Local release-control tests and live readiness audits passed on 2026-07-20; GitHub validation pending for this evidence commit |
-| JewelLink main | Source baseline `bd1f344699e97ed968a6c272277dffeaf0975479` | Latest known safe Cloud Build check passed on 2026-07-20 |
+| JewelLink main | Current live baseline `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have open findings |
 | JewelLink release-path patch | Prepared locally, not pushed | Local branch `codex/jewellink-cloudbuild-candidate-gate-20260720`, commit `da53e2ab7eac45c93285c91492903aeb7c1ed52d` |
 
 ## Approval boundary
@@ -34,22 +34,22 @@ config-only pilot flag update recorded below.
 | Gate | Current status | Evidence required for GO |
 | --- | --- | --- |
 | JewelHire CI | LOCAL PASS / GITHUB PENDING | Local release-control tests passed on 2026-07-20; GitHub validation pending for this evidence commit |
-| JewelLink CI/build | CONFIG-ONLY CHANGE | Pilot rollout flag update used the existing image `1c313cc00fd172ffa4a9903578afacf66dcfc67f`; green PR/head required before any future code/image deploy |
-| JewelLink release-path safety | PARTIAL | Config-only Cloud Run update was explicitly approved and completed; Cloud Build candidate-release patch remains local/unpushed for future code/image deploys |
-| Production integration secrets | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-24-52-524Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
+| JewelLink CI/build | PARTIAL / NO-GO | Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded for commit `55032dbb`, but `scripts/audit-jewelhire-sso.mjs` fails 1 profile 2FA-phone guard and `tests/profile-mfa-factor-protection.test.ts` fails the same literal-label check |
+| JewelLink release-path safety | PARTIAL / NO-GO | Config-only Cloud Run update was explicitly approved and completed; current `cloudbuild.jewellink.yaml` still direct-deploys live service and `tests/deploy-release-safety.test.ts` fails 1/8 against unpatched `55032dbb`; candidate-release patch remains local/unpushed |
+| Production integration secrets | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
 | JewelHire production config | PASS | `docs/qa-runs/config-exposure-2026-07-20T22-25-23-830Z/`, `docs/qa-runs/postmark-safety-2026-07-20T22-25-23-839Z/`, `docs/qa-runs/auth-readiness-2026-07-20T21-41-42-178Z/`, and `docs/qa-runs/role-readiness-2026-07-20T22-25-24-584Z/` pass |
-| JewelLink production config | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-24-52-524Z/` passes after approved config-only update to `jewellink-dev-01153-dqz` with pilot company `comp_1` |
-| JewelHire migration ledger | PASS | `docs/qa-runs/migration-ledgers-2026-07-20T22-22-44-408Z/migration-ledger-report.md` shows 25/25 applied, 0 pending, required launch migrations applied, and no checksum/order issues |
-| JewelLink migration ledger | PARTIAL | `docs/qa-runs/migration-ledgers-2026-07-20T22-22-44-408Z/migration-ledger-report.md` shows the seven JewelHire integration/auth migrations are active and checksum-clean, but 25 older non-integration active Prisma rows drift from the reviewed repo checksum |
-| Database backups | MISSING | GCP checks found no JewelHire Cloud SQL instance and JewelLink Cloud SQL Admin API remains disabled; provider-native PlanetScale/Postgres backup identifiers or an explicitly approved encrypted logical-backup artifact are still required |
+| JewelLink production config | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` passes against current live revision `jewellink-dev-01154-xpx` with pilot company `comp_1` |
+| JewelHire migration ledger | PASS | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/migration-ledger-report.md` shows 25/25 applied, 0 pending, required launch migrations applied, and no checksum/order issues |
+| JewelLink migration ledger | PARTIAL | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/migration-ledger-report.md` reviews JewelLink commit `55032dbb` and shows the seven JewelHire integration/auth migrations are active and checksum-clean, but 25 older non-integration active Prisma rows drift from the reviewed repo checksum |
+| Database backups | MISSING | `docs/qa-runs/operations-readiness-2026-07-20T22-38-07-000Z/operations-readiness-report.md` confirms both database hosts are external `pg.psdb.cloud` Postgres hosts and no provider backup IDs or verification timestamps are recorded |
 | JewelHire admin allowlist | PASS | `docs/qa-runs/admin-allowlist-2026-07-20T22-22-44-403Z/admin-allowlist-report.md` passes after rotating `jewelhire-admin-emails-v2` to version `2`; 9 active JewelLink admin-role users, 0 missing, 0 extra, 0 allowlisted active non-admins |
-| Rollback owners | MISSING | Named operator for JewelHire traffic rollback, JewelLink traffic rollback, and JewelLink IAM rollback |
+| Rollback owners | MISSING | `docs/qa-runs/operations-readiness-2026-07-20T22-38-07-000Z/operations-readiness-report.md` confirms named operators are still missing for JewelHire traffic rollback, JewelLink traffic rollback, JewelLink IAM rollback, and database recovery |
 | Pilot roster | PARTIAL | Diamond Exchange `comp_1` and locations `loc_1`-`loc_6` are verified; role/test aliases remain `TBD` below |
 | Authenticated SSO smoke | NOT RUN | Role matrix below completed against candidate/live URLs |
 | Hire handoff smoke | NOT RUN | Hire creates or links the expected JewelLink user and remains idempotent |
 | JewelCert smoke | NOT RUN | Invite/result flow completes and retry evidence is recorded |
 | Public and fail-closed smoke | PARTIAL | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/report.md` passes public/login/apply/auth-boundary checks; team-invite mutation, resume download, and authenticated same-store checks still need controlled smoke accounts |
-| Observation window | NOT SET | Start/end time, owner, monitoring channel, rollback threshold |
+| Observation window | NOT SET | Start/end time, monitoring channel, and rollback thresholds are still missing; operations audit also found no enabled alert policies and no JewelLink JewelHire integration health scheduler job |
 
 ## Pilot roster
 
@@ -112,12 +112,12 @@ config-only pilot flag update recorded below.
 | Area | Required evidence | Value |
 | --- | --- | --- |
 | JewelHire prior live revision | Revision name, image digest, traffic assignment | Current 100% traffic revision observed by `gcloud` on 2026-07-20 after admin allowlist config refresh: `jewelhire-00111-dup`; image `us-central1-docker.pkg.dev/jewelhire-prod-20260626/cloud-run-source-deploy/jewelhire@sha256:d632afa46cf8e4ad8faeb72df06832089a6ad39028212fa7d37d006a7d5ee67a`; `JEWELHIRE_ADMIN_EMAILS` now mounts `jewelhire-admin-emails-v2:2` |
-| JewelLink prior live revision | Revision name, image digest, traffic assignment | Rollback target from before the approved config-only update: `jewellink-dev-01152-cv8`, 100% traffic, image `us-central1-docker.pkg.dev/academy-460316/cloud-run-source-deploy/jewellinkiv-jewellink-app/jewellink-dev:1c313cc00fd172ffa4a9903578afacf66dcfc67f`; current active revision is `jewellink-dev-01153-dqz` |
+| JewelLink prior/current live revisions | Revision name, image digest, traffic assignment | Pre-pilot rollback target from before the approved config-only update: `jewellink-dev-01152-cv8`, image `us-central1-docker.pkg.dev/academy-460316/cloud-run-source-deploy/jewellinkiv-jewellink-app/jewellink-dev:1c313cc00fd172ffa4a9903578afacf66dcfc67f`; approved config-only revision `jewellink-dev-01153-dqz` is now retired; current 100% traffic revision is `jewellink-dev-01154-xpx`, commit `55032dbb`, image digest `sha256:fa0e36ad51b39da366392d63b65972a45b517387c802757f27a7fda47c41db43` |
 | JewelLink IAM rollback | Exact project-level binding restore command or approved console recovery path | `TBD` |
 | JewelHire rollback owner | Name and contact channel | `TBD` |
 | JewelLink rollback owner | Name and contact channel | `TBD` |
 | Database recovery owner | Name and contact channel | `TBD` |
-| Monitoring channel | Link or channel name | `TBD`; `gcloud monitoring policies list` and `gcloud logging metrics list` returned no project-level policies/metrics for both GCP projects on 2026-07-20 |
+| Monitoring channel | Link or channel name | `TBD`; `docs/qa-runs/operations-readiness-2026-07-20T22-38-07-000Z/operations-readiness-report.md` found no enabled alert policies/logging metrics for either GCP project and no JewelLink JewelHire integration health scheduler job |
 | Immediate rollback thresholds | Error rate, auth failure, data isolation, provider delivery, or integration failure thresholds | `TBD` |
 
 ## GO rule

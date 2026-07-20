@@ -63,5 +63,5 @@ secret fails the audit without leaking the fake secret value into either report.
 This audit does not replace the authenticated pilot smoke matrix. After it
 passes, the live pilot still needs the selected Diamond Exchange company and
 location IDs, role aliases, SSO smoke, hire provisioning smoke, JewelCert result
-smoke, migration ledger evidence, and rollback owner recorded in the live
-readiness dossier.
+smoke, migration ledger evidence, operations readiness evidence, and rollback
+owner recorded in the live readiness dossier.

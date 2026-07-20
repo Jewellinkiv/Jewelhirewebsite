@@ -26,6 +26,7 @@ const requiredPacketMarkers = [
   "without explicit approval",
   "Gate Cloud Build behind candidate release",
   "bd1f344699e97ed968a6c272277dffeaf0975479",
+  "55032dbbebc519d1718aa14871da2048f60d9487",
   "da53e2ab7eac45c93285c91492903aeb7c1ed52d",
   "cloudbuild.jewellink.yaml",
 ];

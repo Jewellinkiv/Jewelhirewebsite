@@ -15,6 +15,9 @@ without explicit approval.
   `da53e2ab7eac45c93285c91492903aeb7c1ed52d`
 - JewelLink base:
   `bd1f344699e97ed968a6c272277dffeaf0975479`
+- Latest JewelLink main compatibility check:
+  `55032dbbebc519d1718aa14871da2048f60d9487`; patch artifact still passes
+  `git apply --check`
 - File changed:
   `cloudbuild.jewellink.yaml`
 
@@ -56,6 +59,8 @@ Cloud Run service image directly, which is not the desired pilot release path.
 - `git diff --check`
 - `git apply --check` against JewelLink base
   `bd1f344699e97ed968a6c272277dffeaf0975479`
+- `git apply --check` against refreshed JewelLink `origin/main`
+  `55032dbbebc519d1718aa14871da2048f60d9487`
 - Cloud Build embedded bash blocks syntax-checked after simulated substitutions
 
 ## Approval
@@ -66,8 +71,8 @@ approval record explicitly authorizes the JewelLink release-path change.
 
 ## Apply after approval
 
-From a clean JewelLink checkout at
-`bd1f344699e97ed968a6c272277dffeaf0975479`:
+From a clean JewelLink checkout at current `origin/main`
+`55032dbbebc519d1718aa14871da2048f60d9487`:
 
 ```bash
 git switch -c codex/jewellink-cloudbuild-candidate-gate-20260720

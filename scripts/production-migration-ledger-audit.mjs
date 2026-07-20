@@ -147,6 +147,17 @@ function loadPrismaMigrations(repo) {
   });
 }
 
+function repoRevision(repo) {
+  try {
+    return execFileSync("git", ["-C", repo, "rev-parse", "HEAD"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+  } catch {
+    return "";
+  }
+}
+
 async function readJewelLinkLedger(rawUrl) {
   const local = loadPrismaMigrations(JEWELLINK_REPO);
   const localByName = new Map(local.map((migration) => [migration.name, migration]));
@@ -234,6 +245,8 @@ function markdown(report) {
     "",
     "## JewelLink",
     "",
+    `- Reviewed repo: ${report.jewelLink.reviewedRepo}`,
+    `- Reviewed repo commit: ${report.jewelLink.reviewedRepoCommit || "unavailable"}`,
     `- Reviewed repo migrations: ${report.jewelLink.localCount}`,
     `- Active applied migrations: ${report.jewelLink.activeAppliedCount}`,
     `- Historical rolled-back rows: ${report.jewelLink.rolledBackHistoricalCount}`,
@@ -271,6 +284,8 @@ async function main() {
 
   const jewelHire = await readJewelHireLedger(jewelHireDatabaseUrl);
   const jewelLink = await readJewelLinkLedger(jewelLinkDatabaseUrl);
+  jewelLink.reviewedRepo = JEWELLINK_REPO;
+  jewelLink.reviewedRepoCommit = repoRevision(JEWELLINK_REPO);
   const failures = checks.filter((check) => !check.pass);
   const report = {
     createdAt: new Date().toISOString(),

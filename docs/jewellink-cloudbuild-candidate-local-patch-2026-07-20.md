@@ -46,9 +46,12 @@ create a validated, no-traffic candidate revision.
 - `git diff --check` passed.
 - The durable patch artifact passed `git apply --check` against JewelLink base
   `bd1f344699e97ed968a6c272277dffeaf0975479`.
+- The same patch artifact passed `git apply --check` against refreshed
+  JewelLink `origin/main` `55032dbbebc519d1718aa14871da2048f60d9487`.
 
 ## Approval gate
 
-This is ready to turn into a JewelLink PR after approval. Until then, JewelLink
-production remains unchanged and current `main` remains
-`bd1f344699e97ed968a6c272277dffeaf0975479`.
+This is ready to turn into a JewelLink PR after approval. Until then, the
+repository patch remains unpushed. Current JewelLink `main` is
+`55032dbbebc519d1718aa14871da2048f60d9487`, and production currently serves
+revision `jewellink-dev-01154-xpx` from that commit.
