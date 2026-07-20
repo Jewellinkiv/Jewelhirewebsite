@@ -27,11 +27,23 @@ testUrl.searchParams.set("sslmode", "disable");
 const admin = new Client({ connectionString: adminUrl.toString(), ssl: false });
 let databaseCreated = false;
 let pool;
+let teardownStarted = false;
 const originalFetch = globalThis.fetch;
 const originalConsoleError = console.error;
 const deliveries = [];
 let postmarkOutcome = "accepted";
 let postmarkDelayMs = 0;
+
+function isExpectedTeardownPoolError(error) {
+  return error?.code === "57P01" || /terminating connection due to administrator command/i.test(error?.message || "");
+}
+
+function attachPoolErrorHandler(currentPool) {
+  currentPool.on("error", (error) => {
+    if (teardownStarted && isExpectedTeardownPoolError(error)) return;
+    throw error;
+  });
+}
 
 function runCommand(command, args, options = {}) {
   return new Promise((resolve) => {
@@ -309,6 +321,7 @@ async function main() {
   const resetRoute = await import("../app/api/auth/password/reset/route.ts");
   const passwordSessionRoute = await import("../app/api/auth/password/session/route.ts");
   pool = postgres.getPostgresPool();
+  attachPoolErrorHandler(pool);
 
   const scheduledTasks = [];
   const requestReset = async (email, ip, bodyOverride) => {
@@ -1163,6 +1176,7 @@ async function main() {
 try {
   await main();
 } finally {
+  teardownStarted = true;
   console.error = originalConsoleError;
   globalThis.fetch = originalFetch;
   if (pool) await pool.end().catch(() => {});
