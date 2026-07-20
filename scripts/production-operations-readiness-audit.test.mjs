@@ -95,10 +95,18 @@ function runAudit(overrides = {}) {
     script,
     `--fixture-dir=${dir}`,
     `--artifacts=${artifacts}`,
+    "--jewelhire-backup-method=provider-snapshot",
+    "--jewellink-backup-method=encrypted-logical",
     "--jewelhire-backup-id=backup-jewelhire",
     "--jewellink-backup-id=backup-jewellink",
+    "--jewelhire-backup-completed-at=2026-07-20T21:55:00Z",
+    "--jewellink-backup-completed-at=2026-07-20T21:58:00Z",
     "--jewelhire-backup-verified-at=2026-07-20T22:00:00Z",
     "--jewellink-backup-verified-at=2026-07-20T22:05:00Z",
+    "--jewelhire-backup-retention=provider-pitr-retention-confirmed",
+    "--jewellink-backup-retention=encrypted-object-retention-confirmed",
+    "--jewelhire-backup-restore-evidence=provider-list-verification",
+    "--jewellink-backup-restore-evidence=pg-restore-list-verification",
     "--jewelhire-rollback-owner=Ops JewelHire",
     "--jewellink-rollback-owner=Ops JewelLink",
     "--jewellink-iam-rollback-owner=Ops IAM",
@@ -106,6 +114,9 @@ function runAudit(overrides = {}) {
     "--observation-window=2026-07-20T23:00:00Z/2026-07-21T01:00:00Z",
     "--rollback-thresholds=Any cross-tenant data exposure or sustained 5xx",
   ];
+  if (!overrides.missingLogicalSha256) {
+    args.push(`--jewellink-logical-backup-sha256=${"b".repeat(64)}`);
+  }
   const result = spawnSync(process.execPath, args, {
     cwd: root,
     encoding: "utf8",
@@ -123,10 +134,20 @@ test("fixture mode passes with complete operations evidence and no secret leakag
   const { result, json, markdown } = runAudit();
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.match(markdown, /Result: PASS/);
+  assert.match(markdown, /Backup method: provider-snapshot/);
+  assert.match(markdown, /Backup method: encrypted-logical/);
   assert.doesNotMatch(json, /super-secret-password/);
   assert.doesNotMatch(markdown, /super-secret-password/);
   assert.doesNotMatch(json, /postgresql:\/\/user/);
   assert.doesNotMatch(markdown, /postgresql:\/\/user/);
+});
+
+test("encrypted logical backup fallback requires a SHA-256 without leaking secrets", () => {
+  const { result, json, markdown } = runAudit({ missingLogicalSha256: true });
+  assert.notEqual(result.status, 0);
+  assert.match(markdown, /FAIL JewelLink encrypted logical backup SHA-256 is recorded when required/);
+  assert.doesNotMatch(json, /super-secret-password/);
+  assert.doesNotMatch(markdown, /super-secret-password/);
 });
 
 test("missing JewelLink health scheduler job fails without printing secrets", () => {

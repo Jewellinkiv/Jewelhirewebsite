@@ -21,10 +21,20 @@ npm run qa:operations-readiness -- \
   --jewellink-project=academy-460316 \
   --jewellink-region=us-central1 \
   --jewellink-service=jewellink-dev \
+  --jewelhire-backup-method='<provider-snapshot|pitr|encrypted-logical>' \
+  --jewellink-backup-method='<provider-snapshot|pitr|encrypted-logical>' \
   --jewelhire-backup-id='<provider backup id>' \
   --jewellink-backup-id='<provider backup id>' \
+  --jewelhire-backup-completed-at='<UTC timestamp>' \
+  --jewellink-backup-completed-at='<UTC timestamp>' \
   --jewelhire-backup-verified-at='<UTC timestamp>' \
   --jewellink-backup-verified-at='<UTC timestamp>' \
+  --jewelhire-backup-retention='<non-secret PITR/retention evidence>' \
+  --jewellink-backup-retention='<non-secret PITR/retention evidence>' \
+  --jewelhire-backup-restore-evidence='<non-secret list/restore/drill evidence>' \
+  --jewellink-backup-restore-evidence='<non-secret list/restore/drill evidence>' \
+  --jewelhire-logical-backup-sha256='<64 hex chars, only for encrypted-logical>' \
+  --jewellink-logical-backup-sha256='<64 hex chars, only for encrypted-logical>' \
   --jewelhire-rollback-owner='<name/channel>' \
   --jewellink-rollback-owner='<name/channel>' \
   --jewellink-iam-rollback-owner='<name/channel>' \
@@ -42,8 +52,11 @@ The report is written under `docs/qa-runs/operations-readiness-*` unless
 - Both Cloud Run services are readable and have one 100% live revision.
 - Database URLs can be read only long enough to record redacted host/provider
   hints.
-- Backup identifiers and verification timestamps are recorded for both
+- Backup method, identifier, completion timestamp, verification timestamp,
+  PITR/retention evidence, and restore/list evidence are recorded for both
   external Postgres databases.
+- Encrypted logical backup fallback evidence includes a SHA-256 digest for the
+  encrypted artifact.
 - Monitoring alert policy metadata is readable and at least one enabled alert
   policy exists for both GCP projects.
 - JewelLink has the expected `jewellink-jewelhire-integration-health` Scheduler
@@ -55,11 +68,24 @@ The report is written under `docs/qa-runs/operations-readiness-*` unless
 observation window and threshold set. Passing this audit still requires the
 approved final values to be supplied on the command line.
 
+## Latest Production Result
+
+`docs/qa-runs/operations-readiness-2026-07-20T23-45-44-306Z/` confirms both
+Cloud Run rollback targets, external `pg.psdb.cloud` database hosts, enabled
+alert policies with notification channels, log metrics, and the JewelLink
+JewelHire health scheduler. It still fails the GO gate because both databases
+are missing backup method, ID, completion time, verification time,
+PITR/retention evidence, and restore/list evidence, and because the rollback
+owner/window/threshold fields are still unapproved.
+
 ## Secret Handling
 
 The audit reads database URL secrets only to parse host names in memory. It
 writes no database URLs, bearer tokens, passwords, cookies, customer data, or
-secret values to the terminal or report. The JSON report includes
+secret values to the terminal or report. Backup retention, restore/list, and
+logical artifact location values should be supplied only as non-secret IDs or
+short summaries; the report records booleans, method labels, and timestamps
+rather than printing those raw values. The JSON report includes
 `valuesPrinted: false`.
 
 ## Local Verification

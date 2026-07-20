@@ -31,13 +31,25 @@ now proposes named owner slots, a 60-minute staffed observation window, and
 immediate rollback thresholds. It is not GO evidence until the named owners and
 window are approved.
 
+2026-07-20 stricter operations gate: `npm run qa:operations-readiness` now
+requires each database to record backup method, provider/logical ID, completion
+time, verification time, PITR or retention posture, and restore/list evidence.
+If the encrypted logical fallback is used, the audit also requires the
+encrypted artifact SHA-256 digest.
+
+2026-07-20T23:45Z operations rerun:
+`docs/qa-runs/operations-readiness-2026-07-20T23-45-44-306Z/` confirms the
+runtime rollback targets, monitoring resources, and JewelLink health scheduler,
+but still fails because the backup evidence fields and named rollback owner
+approval fields below are not complete.
+
 | Evidence | JewelHire | JewelLink |
 | --- | --- | --- |
 | Named operator |  |  |
 | Provider and project/account |  |  |
 | Database resource/cluster ID |  |  |
 | Current database/schema name |  |  |
-| Backup method (snapshot/PITR/logical) |  |  |
+| Backup method (`provider-snapshot`/`pitr`/`encrypted-logical`) |  |  |
 | Backup/snapshot ID |  |  |
 | Backup completed UTC |  |  |
 | Point-in-time recovery enabled and retention |  |  |

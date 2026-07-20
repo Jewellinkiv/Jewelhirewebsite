@@ -31,10 +31,20 @@ Options:
   --jewellink-service=<name>                Default: jewellink-dev
   --jewellink-db-secret=<name>              Default: DATABASE_URL
   --expected-jewellink-health-job=<name>    Default: jewellink-jewelhire-integration-health
+  --jewelhire-backup-method=<method>        provider-snapshot, pitr, or encrypted-logical
+  --jewellink-backup-method=<method>        provider-snapshot, pitr, or encrypted-logical
   --jewelhire-backup-id=<id>                Provider backup/snapshot/logical artifact ID
   --jewellink-backup-id=<id>                Provider backup/snapshot/logical artifact ID
+  --jewelhire-backup-completed-at=<iso>     Backup/snapshot/logical dump completion timestamp
+  --jewellink-backup-completed-at=<iso>     Backup/snapshot/logical dump completion timestamp
   --jewelhire-backup-verified-at=<iso>      Backup list/restore verification timestamp
   --jewellink-backup-verified-at=<iso>      Backup list/restore verification timestamp
+  --jewelhire-backup-retention=<summary>    Non-secret PITR/retention evidence summary
+  --jewellink-backup-retention=<summary>    Non-secret PITR/retention evidence summary
+  --jewelhire-backup-restore-evidence=<id>  Non-secret restore/list/drill evidence
+  --jewellink-backup-restore-evidence=<id>  Non-secret restore/list/drill evidence
+  --jewelhire-logical-backup-sha256=<hex>   Required when method is encrypted-logical
+  --jewellink-logical-backup-sha256=<hex>   Required when method is encrypted-logical
   --jewelhire-rollback-owner=<name/channel>
   --jewellink-rollback-owner=<name/channel>
   --jewellink-iam-rollback-owner=<name/channel>
@@ -83,12 +93,22 @@ function option(name, envName = "") {
 const declaredEvidence = {
   backups: {
     jewelhire: {
+      method: option("jewelhire-backup-method", "JEWELHIRE_BACKUP_METHOD"),
       id: option("jewelhire-backup-id", "JEWELHIRE_BACKUP_ID"),
+      completedAt: option("jewelhire-backup-completed-at", "JEWELHIRE_BACKUP_COMPLETED_AT"),
       verifiedAt: option("jewelhire-backup-verified-at", "JEWELHIRE_BACKUP_VERIFIED_AT"),
+      retention: option("jewelhire-backup-retention", "JEWELHIRE_BACKUP_RETENTION"),
+      restoreEvidence: option("jewelhire-backup-restore-evidence", "JEWELHIRE_BACKUP_RESTORE_EVIDENCE"),
+      logicalSha256: option("jewelhire-logical-backup-sha256", "JEWELHIRE_LOGICAL_BACKUP_SHA256"),
     },
     jewellink: {
+      method: option("jewellink-backup-method", "JEWELLINK_BACKUP_METHOD"),
       id: option("jewellink-backup-id", "JEWELLINK_BACKUP_ID"),
+      completedAt: option("jewellink-backup-completed-at", "JEWELLINK_BACKUP_COMPLETED_AT"),
       verifiedAt: option("jewellink-backup-verified-at", "JEWELLINK_BACKUP_VERIFIED_AT"),
+      retention: option("jewellink-backup-retention", "JEWELLINK_BACKUP_RETENTION"),
+      restoreEvidence: option("jewellink-backup-restore-evidence", "JEWELLINK_BACKUP_RESTORE_EVIDENCE"),
+      logicalSha256: option("jewellink-logical-backup-sha256", "JEWELLINK_LOGICAL_BACKUP_SHA256"),
     },
   },
   rollback: {
@@ -363,6 +383,50 @@ function isoLike(value) {
   return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value);
 }
 
+function validBackupMethod(value) {
+  return ["provider-snapshot", "pitr", "encrypted-logical"].includes(String(value || "").trim());
+}
+
+function sha256Like(value) {
+  return /^[a-f0-9]{64}$/i.test(String(value || "").trim());
+}
+
+function checkBackupEvidence(label, backup) {
+  const method = String(backup.method || "").trim();
+  const logicalBackup = method === "encrypted-logical";
+  record(`${label} backup method is recorded`, validBackupMethod(method), {
+    method: validBackupMethod(method) ? method : "",
+  });
+  record(`${label} backup identifier is recorded`, Boolean(backup.id.trim()), {
+    backupIdRecorded: Boolean(backup.id.trim()),
+  });
+  record(`${label} backup completion timestamp is recorded`, isoLike(backup.completedAt.trim()), {
+    backupCompletedAtRecorded: Boolean(backup.completedAt.trim()),
+  });
+  record(`${label} backup verification timestamp is recorded`, isoLike(backup.verifiedAt.trim()), {
+    backupVerifiedAtRecorded: Boolean(backup.verifiedAt.trim()),
+  });
+  record(`${label} PITR or retention evidence is recorded`, Boolean(backup.retention.trim()), {
+    retentionEvidenceRecorded: Boolean(backup.retention.trim()),
+  });
+  record(`${label} restore/list verification evidence is recorded`, Boolean(backup.restoreEvidence.trim()), {
+    restoreEvidenceRecorded: Boolean(backup.restoreEvidence.trim()),
+  });
+  record(`${label} encrypted logical backup SHA-256 is recorded when required`, !logicalBackup || sha256Like(backup.logicalSha256), {
+    logicalBackup,
+    sha256Recorded: sha256Like(backup.logicalSha256),
+  });
+  return {
+    method: validBackupMethod(method) ? method : "",
+    backupIdRecorded: Boolean(backup.id.trim()),
+    completedAt: isoLike(backup.completedAt.trim()) ? backup.completedAt.trim() : "",
+    verifiedAt: isoLike(backup.verifiedAt.trim()) ? backup.verifiedAt.trim() : "",
+    retentionEvidenceRecorded: Boolean(backup.retention.trim()),
+    restoreEvidenceRecorded: Boolean(backup.restoreEvidence.trim()),
+    logicalSha256Recorded: sha256Like(backup.logicalSha256),
+  };
+}
+
 function buildProductEvidence(productKey, product) {
   const serviceResult = serviceJson(product);
   const service = serviceResult.data || {};
@@ -425,13 +489,7 @@ function buildProductEvidence(productKey, product) {
     error: cloudSqlResult.ok ? "" : cloudSqlResult.error,
   });
 
-  const backup = declaredEvidence.backups[productKey];
-  record(`${product.label} backup identifier is recorded`, Boolean(backup.id.trim()), {
-    backupIdRecorded: Boolean(backup.id.trim()),
-  });
-  record(`${product.label} backup verification timestamp is recorded`, isoLike(backup.verifiedAt.trim()), {
-    backupVerifiedAtRecorded: Boolean(backup.verifiedAt.trim()),
-  });
+  const backup = checkBackupEvidence(product.label, declaredEvidence.backups[productKey]);
 
   return {
     project: product.project,
@@ -451,10 +509,7 @@ function buildProductEvidence(productKey, product) {
       loggingMetrics: metrics,
     },
     cloudSql,
-    backup: {
-      backupIdRecorded: Boolean(backup.id.trim()),
-      backupVerifiedAt: backup.verifiedAt.trim() || "",
-    },
+    backup,
   };
 }
 
@@ -510,8 +565,13 @@ function markdown(report) {
       `- Live traffic: ${product.liveTraffic.map((item) => `${item.revisionName || "latest"} ${item.percent}%`).join(", ") || "unavailable"}`,
       `- Database host: ${product.databaseTarget.host || "unavailable"}`,
       `- Database provider hint: ${product.databaseTarget.providerHint || "unavailable"}`,
+      `- Backup method: ${product.backup.method || "missing"}`,
       `- Backup ID recorded: ${product.backup.backupIdRecorded ? "yes" : "no"}`,
-      `- Backup verified at: ${product.backup.backupVerifiedAt || "missing"}`,
+      `- Backup completed at: ${product.backup.completedAt || "missing"}`,
+      `- Backup verified at: ${product.backup.verifiedAt || "missing"}`,
+      `- PITR/retention evidence recorded: ${product.backup.retentionEvidenceRecorded ? "yes" : "no"}`,
+      `- Restore/list evidence recorded: ${product.backup.restoreEvidenceRecorded ? "yes" : "no"}`,
+      `- Logical SHA-256 recorded: ${product.backup.logicalSha256Recorded ? "yes" : "no"}`,
       `- Alert policies: ${product.monitoring.policies.length}`,
       `- Enabled policies with notification channels: ${enabledPoliciesWithChannels(product.monitoring.policies).length}`,
       `- Logging metrics: ${product.monitoring.loggingMetrics.length}`,
@@ -562,12 +622,22 @@ function main() {
     declaredEvidence: {
       backups: {
         jewelhire: {
+          method: validBackupMethod(declaredEvidence.backups.jewelhire.method),
           backupIdRecorded: Boolean(declaredEvidence.backups.jewelhire.id.trim()),
-          verifiedAt: declaredEvidence.backups.jewelhire.verifiedAt.trim() || "",
+          completedAt: isoLike(declaredEvidence.backups.jewelhire.completedAt.trim()),
+          verifiedAt: isoLike(declaredEvidence.backups.jewelhire.verifiedAt.trim()),
+          retentionEvidenceRecorded: Boolean(declaredEvidence.backups.jewelhire.retention.trim()),
+          restoreEvidenceRecorded: Boolean(declaredEvidence.backups.jewelhire.restoreEvidence.trim()),
+          logicalSha256Recorded: sha256Like(declaredEvidence.backups.jewelhire.logicalSha256),
         },
         jewellink: {
+          method: validBackupMethod(declaredEvidence.backups.jewellink.method),
           backupIdRecorded: Boolean(declaredEvidence.backups.jewellink.id.trim()),
-          verifiedAt: declaredEvidence.backups.jewellink.verifiedAt.trim() || "",
+          completedAt: isoLike(declaredEvidence.backups.jewellink.completedAt.trim()),
+          verifiedAt: isoLike(declaredEvidence.backups.jewellink.verifiedAt.trim()),
+          retentionEvidenceRecorded: Boolean(declaredEvidence.backups.jewellink.retention.trim()),
+          restoreEvidenceRecorded: Boolean(declaredEvidence.backups.jewellink.restoreEvidence.trim()),
+          logicalSha256Recorded: sha256Like(declaredEvidence.backups.jewellink.logicalSha256),
         },
       },
       rollback: Object.fromEntries(
