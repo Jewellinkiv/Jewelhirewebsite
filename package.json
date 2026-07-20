@@ -58,6 +58,8 @@
     "qa:config": "node scripts/config-exposure-audit.mjs",
     "qa:go-no-go": "node scripts/go-no-go-dossier-audit.mjs",
     "qa:pilot-readiness": "node scripts/production-pilot-readiness-audit.mjs",
+    "qa:migration-ledgers": "node scripts/production-migration-ledger-audit.mjs",
+    "qa:admin-allowlist": "node scripts/production-admin-allowlist-audit.mjs",
     "qa:invalid-input": "node scripts/invalid-input-audit.mjs",
     "qa:legal": "node scripts/legal-readiness-audit.mjs",
     "qa:jewellink-sso": "node scripts/jewellink-sso-audit.mjs",

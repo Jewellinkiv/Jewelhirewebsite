@@ -151,6 +151,9 @@ async function run() {
   await requestCheck(context, "public apply is public", PUBLIC_APPLY_PATH, 200);
   await requestCheck(context, "privacy policy is public", "/privacy", 200);
   await requestCheck(context, "terms are public", "/terms", 200);
+  await requestCheck(context, "signup is public", "/signup", 200);
+  await requestCheck(context, "forgot password is public", "/forgot-password", 200);
+  await requestCheck(context, "verify email is public", "/verify-email", 200);
   await requestCheck(context, "api me requires auth", "/api/me", 401, ({ body }) => body?.error?.code === "unauthenticated");
   await requestCheck(
     context,

@@ -1,6 +1,6 @@
 # Two-database backup and rollback runbook
 
-Updated: 2026-07-12
+Updated: 2026-07-20
 
 Use this runbook for the JewelLink/JewelHire cutover. It is an operator checklist,
 not authorization to access credentials, create backups, restore data, deploy,
@@ -10,6 +10,14 @@ or move traffic.
 
 Complete every field for both databases. A checkbox without a provider backup
 ID or verified dump is not sufficient.
+
+2026-07-20 non-secret discovery: both live database URLs point to external
+`pg.psdb.cloud` Postgres hosts. JewelHire has no Cloud SQL instance in
+`jewelhire-prod-20260626`, and JewelLink's Cloud SQL Admin API remains disabled
+in `academy-460316`. GCP therefore cannot supply the backup identifiers for
+this launch record. A named database operator must provide PlanetScale/provider
+backup IDs, retention/PITR evidence, or explicitly approve the encrypted
+logical-backup fallback below.
 
 | Evidence | JewelHire | JewelLink |
 | --- | --- | --- |
@@ -31,8 +39,8 @@ Also record immediately before deployment:
 
 | Runtime | 100%-traffic revision before cutover |
 | --- | --- |
-| JewelHire `jewelhire-prod-20260626/jewelhire` |  |
-| JewelLink `academy-460316/jewellink-dev` |  |
+| JewelHire `jewelhire-prod-20260626/jewelhire` | `jewelhire-00111-dup` at 100%; image `us-central1-docker.pkg.dev/jewelhire-prod-20260626/cloud-run-source-deploy/jewelhire@sha256:d632afa46cf8e4ad8faeb72df06832089a6ad39028212fa7d37d006a7d5ee67a`; `JEWELHIRE_ADMIN_EMAILS` now mounts `jewelhire-admin-emails-v2:2` |
+| JewelLink `academy-460316/jewellink-dev` | Rollback target from before approved pilot-flag update: `jewellink-dev-01152-cv8` at 100%; image `us-central1-docker.pkg.dev/academy-460316/cloud-run-source-deploy/jewellinkiv-jewellink-app/jewellink-dev:1c313cc00fd172ffa4a9903578afacf66dcfc67f`; current pilot-config revision `jewellink-dev-01153-dqz` at 100% |
 
 ## Preferred backup sequence
 
