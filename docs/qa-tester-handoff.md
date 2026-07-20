@@ -1,16 +1,16 @@
 # JewelHire QA Tester Handoff
 
 Production app: `https://app.jewelhire.com`
-Source repo: `/Users/williamiv/Desktop/Jewelhire`
+Source repo: `/Users/sterling/Desktop/jewelhire`
 Cloud Run project: `jewelhire-prod-20260626`
-Current production revision: `jewelhire-00042-gsz`
-Updated: 2026-07-01
+Current production revision: `jewelhire-00111-dup`
+Updated: 2026-07-20
 
 ## Build Under Test
 
 - Hosted app: `https://app.jewelhire.com`
 - Login path: `https://app.jewelhire.com/login`
-- Source commit: `9d5e4cb Route admin logins to admin panel`
+- Source commit: `0662dfc Update brace expansion audit dependency`
 - Database: PlanetScale Postgres via Secret Manager secret `jewelhire-database-url`
 
 Do not test from `/Users/williamiv/Documents/Jewelhire`; that repo was removed and is not the launch source of truth.
@@ -18,6 +18,8 @@ Do not test from `/Users/williamiv/Documents/Jewelhire`; that repo was removed a
 ## Credentials
 
 Smoke credentials are stored in Google Secret Manager. Do not paste passwords into tickets, docs, Slack, screenshots, or test evidence.
+
+Public self-serve signup is not enabled for the production pilot.
 
 ```bash
 gcloud secrets versions access latest --secret=jewelhire-smoke-test-credentials --project=jewelhire-prod-20260626
@@ -90,14 +92,25 @@ npm run qa:manual-smoke-handoff
 
 Latest local build rerun passed on 2026-07-01 with TypeScript compilation.
 
-Cloud-backed checks with passing evidence and active local `gcloud` access:
+Cloud-backed checks rerun with active local `gcloud` access:
 
 ```bash
 npm run qa:config
 npm run qa:postmark
 npm run qa:auth -- --expect-firebase
 npm run qa:handoff
+npm run qa:roles
+npm run qa:pilot-readiness
 ```
+
+2026-07-20 result summary:
+
+- `qa:auth -- --expect-firebase`, `qa:handoff`, and `qa:roles` passed.
+- `qa:config` and `qa:postmark` verified the live configuration, but remain
+  held until live email sends are explicitly acknowledged for the pilot.
+- `qa:pilot-readiness` verified the shared JewelHire/JewelLink secrets without
+  printing values, but remains held because JewelLink pilot rollout flags are
+  not enabled/configured yet.
 
 Relevant artifacts:
 
@@ -108,6 +121,11 @@ Relevant artifacts:
 - Auth readiness: `docs/qa-runs/auth-readiness-2026-07-01T12-17-25-995Z/`
 - Config exposure: `docs/qa-runs/config-exposure-2026-07-01T11-42-53-276Z/`
 - Postmark safety: `docs/qa-runs/postmark-safety-2026-07-01T11-42-53-275Z/`
+- Production pilot readiness: `docs/qa-runs/production-pilot-readiness-2026-07-20T21-41-15-779Z/`
+- Auth readiness rerun: `docs/qa-runs/auth-readiness-2026-07-20T21-41-42-178Z/`
+- Config exposure rerun: `docs/qa-runs/config-exposure-2026-07-20T21-41-24-877Z/`
+- Role readiness rerun: `docs/qa-runs/role-readiness-2026-07-20T21-42-09-766Z/`
+- Tester handoff rerun: `docs/qa-runs/tester-handoff-2026-07-20T21-44-00-052Z/`
 - Notification readiness: `docs/qa-runs/notification-readiness-2026-07-01T11-05-56-878Z/`
 - Billing readiness: `docs/qa-runs/billing-readiness-2026-07-01T11-23-13-218Z/`
 - Tester handoff audit: `docs/qa-runs/tester-handoff-2026-07-01T12-18-09-993Z/`
@@ -115,7 +133,7 @@ Relevant artifacts:
 - Provider handoff audit: `docs/qa-runs/provider-handoff-2026-07-01T11-44-43-768Z/`
 - Manual smoke handoff audit: `docs/qa-runs/manual-smoke-handoff-2026-07-01T11-23-44-371Z/`
 
-Local `gcloud` access was refreshed on 2026-07-01, and Secret Manager-backed audits, Cloud Run revision checks, Cloud Run config exposure audits, and Cloud Run Postmark env-gate checks can now be rerun. If access expires again, use `docs/cloud-reauth-runbook.md`.
+Local `gcloud` access was refreshed on 2026-07-20, and Secret Manager-backed audits, Cloud Run revision checks, Cloud Run config exposure audits, and Cloud Run Postmark env-gate checks can now be rerun. If access expires again, use `docs/cloud-reauth-runbook.md`.
 
 Cloud reauth steps and post-reauth verification commands are documented in `docs/cloud-reauth-runbook.md`.
 

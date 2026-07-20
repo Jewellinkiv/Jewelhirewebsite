@@ -44,6 +44,9 @@ explicit approval before it can be pushed to `Jewellinkiv/jewellink-app`.
 | JewelLink no-push release-path patch | Pass | Local commit `da53e2ab`; `node --test tests/deploy-release-safety.test.ts` passed 8/8; secret scan passed 2,505 files; Cloud Build embedded bash syntax checked |
 | JewelLink durable approval packet | Pass | Patch artifact applies cleanly to JewelLink base `bd1f3446`; packet audit preserves no-push boundary and candidate-only controls |
 | Production pilot readiness audit tooling | Pass | `scripts/production-pilot-readiness-audit.mjs` added with fixture coverage for matching and mismatched shared secrets without value leakage |
+| Production cloud access | Pass | `gcloud` authenticated as `william@jewelrysalesacademy.com`; JewelHire and JewelLink Cloud Run service configs are readable |
+| Production shared secrets | Pass | `docs/qa-runs/production-pilot-readiness-2026-07-20T21-41-15-779Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
+| JewelHire auth and role readiness | Pass | `docs/qa-runs/auth-readiness-2026-07-20T21-41-42-178Z/` and `docs/qa-runs/role-readiness-2026-07-20T21-42-09-766Z/` passed without printing credentials or database URLs |
 | Go/no-go dossier | No-go recorded | `docs/production-pilot-go-no-go-dossier-2026-07-20.md` captures required evidence rows, pilot smoke matrix, rollback evidence, and stop conditions |
 
 Full safe cross-product command used for this snapshot:
@@ -61,9 +64,9 @@ node scripts/cross-product-acceptance.mjs \
 
 | Gate | Status | Needed before live pilot |
 | --- | --- | --- |
-| Production integration secrets | Unknown | Run `npm run qa:pilot-readiness` from a machine with `gcloud`; it compares matching high-entropy SSO and integration secrets in memory without printing values |
-| JewelHire integration env | Unknown | Run `npm run qa:pilot-readiness` and `npm run qa:config` from a machine with `gcloud`; verify `JEWELLINK_URL`, SSO/integration secrets, `JEWELHIRE_TEAM_INVITES_ENABLED=0`, trusted proxy hops, admin allowlist, email posture, Stripe env, and secret-backed mounts |
-| JewelLink integration env | Unknown | Run `npm run qa:pilot-readiness`; verify `JEWELHIRE_URL`, SSO/integration secrets, rollout mode, pilot company IDs, and hire email mode |
+| Production integration secrets | Partial | Shared SSO and integration handoff secrets match and are high entropy; full `qa:pilot-readiness` remains failing because JewelLink pilot rollout config is not set |
+| JewelHire integration env | Partial | JewelHire env, auth, storage, admin allowlist, Stripe, and secret-backed mounts pass; `qa:config` still needs explicit live-email acknowledgement |
+| JewelLink integration env | Failing | `qa:pilot-readiness` shows JewelLink integration is not enabled for pilot, rollout mode does not match `pilot`, and pilot company IDs are not configured |
 | Migration ledger state | Unknown | Confirm JewelHire and JewelLink production ledgers match reviewed pending migration lists; stop on drift |
 | Authenticated pilot roster | Not selected | Record Diamond Exchange company/location IDs and role test aliases |
 | End-to-end SSO smoke | Not run | Director, Manager, Student, Consultant denial, platform-admin allowlist, allowlisted non-admin denial |
