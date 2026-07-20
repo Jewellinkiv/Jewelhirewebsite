@@ -20,17 +20,26 @@ const artifacts = path.resolve(
   args.get("artifacts") || `docs/qa-runs/cross-product-${timestamp}`,
 );
 const jewelLinkBase = args.get("jewellink-base")?.replace(/\/$/, "");
+const jewelHireBase = args.get("jewelhire-base")?.replace(/\/$/, "");
 const requireEndpointProbes = args.has("require-endpoint-probes");
+const includeServerAudits = args.has("include-server-audits");
 
 const suites = [
-  ["JewelHire", "role and platform-admin isolation", "scripts/role-model-audit.mjs", jewelHireRepo],
-  ["JewelHire", "JewelLink SSO and cancellation recovery", "scripts/jewellink-sso-audit.mjs", jewelHireRepo],
-  ["JewelHire", "hire handoff", "scripts/jewellink-hire-audit.mjs", jewelHireRepo],
-  ["JewelHire", "JewelCert handoff", "scripts/jewellink-jewelcert-audit.mjs", jewelHireRepo],
-  ["JewelHire", "tenant and location access control", "scripts/access-control-audit.mjs", jewelHireRepo],
-  ["JewelHire", "public careers, privacy, analytics, and throttling", "scripts/public-careers-audit.mjs", jewelHireRepo],
-  ["JewelHire", "legal consent", "scripts/legal-readiness-audit.mjs", jewelHireRepo],
-  ["JewelLink", "JewelHire integration contract", "scripts/audit-jewelhire-sso.mjs", jewelLinkRepo],
+  { product: "JewelHire", name: "role and platform-admin isolation", script: "scripts/role-model-audit.mjs", cwd: jewelHireRepo },
+  { product: "JewelHire", name: "JewelLink SSO and cancellation recovery", script: "scripts/jewellink-sso-audit.mjs", cwd: jewelHireRepo },
+  { product: "JewelHire", name: "hire handoff", script: "scripts/jewellink-hire-audit.mjs", cwd: jewelHireRepo },
+  { product: "JewelHire", name: "JewelCert handoff", script: "scripts/jewellink-jewelcert-audit.mjs", cwd: jewelHireRepo },
+  {
+    product: "JewelHire",
+    name: "tenant and location access control",
+    script: "scripts/access-control-audit.mjs",
+    cwd: jewelHireRepo,
+    requiresServer: true,
+    args: jewelHireBase ? [`--base=${jewelHireBase}`] : [],
+  },
+  { product: "JewelHire", name: "public careers, privacy, analytics, and throttling", script: "scripts/public-careers-audit.mjs", cwd: jewelHireRepo },
+  { product: "JewelHire", name: "legal consent", script: "scripts/legal-readiness-audit.mjs", cwd: jewelHireRepo },
+  { product: "JewelLink", name: "JewelHire integration contract", script: "scripts/audit-jewelhire-sso.mjs", cwd: jewelLinkRepo },
 ];
 
 const fixtures = {
@@ -134,13 +143,14 @@ function contractChecks() {
   return checks.map(([name, pass]) => ({ name, pass }));
 }
 
-function runSuite([product, name, relativeScript, cwd]) {
+function runSuite(suite) {
+  const { product, name, script: relativeScript, cwd } = suite;
   const script = path.join(cwd, relativeScript);
   if (!fs.existsSync(script)) {
     return { product, name, script: relativeScript, pass: false, exitCode: null, output: "Required audit script is missing." };
   }
   const started = Date.now();
-  const result = spawnSync(process.execPath, [script], {
+  const result = spawnSync(process.execPath, [script, ...(suite.args || [])], {
     cwd,
     encoding: "utf8",
     env: safeEnvironment(),
@@ -204,6 +214,14 @@ function markdown(report) {
     "## Product suites",
     "",
     ...report.suites.map((suite) => `- ${suite.pass ? "PASS" : "FAIL"} ${suite.product}: ${suite.name}`),
+    ...(report.skippedSuites.length
+      ? [
+          "",
+          "## Skipped suites",
+          "",
+          ...report.skippedSuites.map((suite) => `- SKIPPED ${suite.product}: ${suite.name} (${suite.reason})`),
+        ]
+      : []),
     "",
     "## Safe endpoint probes",
     "",
@@ -223,10 +241,25 @@ async function main() {
   if (requireEndpointProbes && !jewelLinkBase) {
     throw new Error("--require-endpoint-probes requires --jewellink-base=<local origin>");
   }
+  if (includeServerAudits && !jewelHireBase) {
+    throw new Error("--include-server-audits requires --jewelhire-base=<local JewelHire origin>");
+  }
 
   const contracts = contractChecks();
   for (const check of contracts) console.log(`${check.pass ? "PASS" : "FAIL"} ${check.name}`);
-  const suiteResults = suites.map(runSuite);
+  const runnableSuites = suites.filter((suite) => includeServerAudits || !suite.requiresServer);
+  const skippedSuites = suites
+    .filter((suite) => suite.requiresServer && !includeServerAudits)
+    .map((suite) => ({
+      product: suite.product,
+      name: suite.name,
+      script: suite.script,
+      reason: "requires a running JewelHire server; rerun with --include-server-audits --jewelhire-base=<origin>",
+    }));
+  for (const suite of skippedSuites) {
+    console.log(`SKIP ${suite.product}: ${suite.name} (${suite.reason})`);
+  }
+  const suiteResults = runnableSuites.map(runSuite);
   const endpointResults = await endpointChecks();
   for (const check of endpointResults) console.log(`${check.pass ? "PASS" : "FAIL"} ${check.name}`);
 
@@ -243,6 +276,7 @@ async function main() {
     },
     contractChecks: contracts,
     suites: suiteResults,
+    skippedSuites,
     endpointChecks: endpointResults,
     fixtures,
     environmentContract,

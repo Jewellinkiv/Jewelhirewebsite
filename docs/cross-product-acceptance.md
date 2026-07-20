@@ -20,9 +20,27 @@ npm run qa:cross-product -- --jewellink-repo=/absolute/path/to/JewelLink
 ```
 
 This mode runs both products' contract audits and verifies role mapping,
-platform-admin isolation, location scope, one-time SSO-code controls, hire and
-JewelCert idempotency, cancellation recovery, public careers, legal consent,
-private résumé access, aggregate analytics, and application throttling.
+platform-admin isolation, one-time SSO-code controls, hire and JewelCert
+idempotency, cancellation recovery, public careers, legal consent, private
+résumé access, aggregate analytics, and application throttling. Live
+tenant/location endpoint probes are skipped unless a running JewelHire server is
+explicitly provided.
+
+## Live JewelHire server audits
+
+When a local JewelHire server is already running, include endpoint-level access
+control checks:
+
+```bash
+npm run qa:cross-product -- \
+  --jewellink-repo=/absolute/path/to/JewelLink \
+  --include-server-audits \
+  --jewelhire-base=http://127.0.0.1:3004
+```
+
+This mode runs the same source checks plus the access-control audit against the
+provided JewelHire origin. It expects the server to be seeded/configured for the
+mock sessions used by `scripts/access-control-audit.mjs`.
 
 ## Safe local endpoint probes
 
