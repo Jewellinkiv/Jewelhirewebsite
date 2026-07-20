@@ -11,6 +11,10 @@ User boundary: do not push or open a JewelLink PR without explicit approval.
 - Branch: `codex/jewellink-cloudbuild-candidate-gate-20260720`
 - Commit: `da53e2ab7eac45c93285c91492903aeb7c1ed52d`
 - File changed: `cloudbuild.jewellink.yaml`
+- Durable patch artifact:
+  `docs/jewellink-cloudbuild-candidate-no-push-2026-07-20.patch`
+- Approval packet:
+  `docs/jewellink-cloudbuild-candidate-approval-packet-2026-07-20.md`
 
 ## What it changes
 
@@ -40,6 +44,8 @@ create a validated, no-traffic candidate revision.
 - Cloud Build embedded bash blocks passed syntax checks after simulated
   substitutions.
 - `git diff --check` passed.
+- The durable patch artifact passed `git apply --check` against JewelLink base
+  `bd1f344699e97ed968a6c272277dffeaf0975479`.
 
 ## Approval gate
 

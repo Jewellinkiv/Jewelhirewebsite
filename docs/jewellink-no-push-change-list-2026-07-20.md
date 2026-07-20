@@ -9,6 +9,8 @@ to `Jewellinkiv/jewellink-app` without explicit approval.
 - Prepared local no-push patch:
   `da53e2ab7eac45c93285c91492903aeb7c1ed52d` on branch
   `codex/jewellink-cloudbuild-candidate-gate-20260720`
+- Durable review artifact:
+  `docs/jewellink-cloudbuild-candidate-approval-packet-2026-07-20.md`
 - Latest check: `cloudrun-jewellink-dev-main-safe` completed successfully on
   2026-07-20.
 - Latest `ed225ce6..bd1f3446` delta touched only UP System files and did not

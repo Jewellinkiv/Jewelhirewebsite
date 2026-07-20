@@ -1,0 +1,141 @@
+From da53e2ab7eac45c93285c91492903aeb7c1ed52d Mon Sep 17 00:00:00 2001
+From: Sterling <sterling@Sterlings-MacBook-Pro.local>
+Date: Mon, 20 Jul 2026 15:43:45 -0500
+Subject: [PATCH] Gate Cloud Build behind candidate release
+
+---
+ cloudbuild.jewellink.yaml | 99 ++++++++++++++++++++++++++++++++-------
+ 1 file changed, 82 insertions(+), 17 deletions(-)
+
+diff --git a/cloudbuild.jewellink.yaml b/cloudbuild.jewellink.yaml
+index c0a99989..b4ad87a6 100644
+--- a/cloudbuild.jewellink.yaml
++++ b/cloudbuild.jewellink.yaml
+@@ -1,12 +1,26 @@
+ steps:
+-  - id: Pull
++  - id: Validate source
++    name: node:22-bookworm
++    entrypoint: /bin/bash
++    args:
++      - -ec
++      - |
++        npm ci --ignore-scripts
++        npx prisma generate
++        npm run security:secrets
++        npm run lint:jewelhire-integration
++        npm run audit:jewelhire-sso
++        npm test
++        npm run type-check
++
++  - id: Pull image cache
+     name: gcr.io/cloud-builders/docker
+     entrypoint: /bin/bash
+     args:
+       - -c
+       - docker pull $_IMAGE_REPO:latest || exit 0
+ 
+-  - id: Build
++  - id: Build image
+     name: gcr.io/cloud-builders/docker
+     args:
+       - build
+@@ -20,29 +34,80 @@ steps:
+       - -f
+       - Dockerfile
+ 
+-  - id: Push
++  - id: Push image
+     name: gcr.io/cloud-builders/docker
++    entrypoint: /bin/bash
+     args:
+-      - push
+-      - --all-tags
+-      - $_IMAGE_REPO
++      - -ec
++      - |
++        docker push $_IMAGE_REPO:$COMMIT_SHA
++        docker push $_IMAGE_REPO:latest
++
++  - id: Deploy candidate
++    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
++    entrypoint: /bin/bash
++    args:
++      - -ec
++      - |
++        candidate_sha="$COMMIT_SHA"
++        candidate_tag="candidate-$${candidate_sha:0:12}"
++        image_ref="$_IMAGE_REPO:$COMMIT_SHA"
++
++        gcloud run deploy "$_SERVICE_NAME" \
++          --image="$${image_ref}" \
++          --region="$_DEPLOY_REGION" \
++          --no-traffic \
++          --tag="$${candidate_tag}" \
++          --update-labels="managed-by=gcp-cloud-build-deploy-cloud-run,gcb-trigger-id=$_GCB_TRIGGER_ID,gcb-trigger-region=$_GCB_TRIGGER_REGION,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID" \
++          --quiet
+ 
+-  - id: Deploy
++  - id: Smoke candidate login
+     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
++    entrypoint: /bin/bash
+     args:
+-      - gcloud
+-      - run
+-      - services
+-      - update
+-      - $_SERVICE_NAME
+-      - --image=$_IMAGE_REPO:$COMMIT_SHA
+-      - --update-labels=managed-by=gcp-cloud-build-deploy-cloud-run,gcb-trigger-id=$_GCB_TRIGGER_ID,gcb-trigger-region=$_GCB_TRIGGER_REGION,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID
+-      - --region=$_DEPLOY_REGION
+-      - --quiet
++      - -ec
++      - |
++        candidate_sha="$COMMIT_SHA"
++        candidate_tag="candidate-$${candidate_sha:0:12}"
++        service_json_path="/workspace/jewellink-candidate-service.json"
++
++        gcloud run services describe "$_SERVICE_NAME" \
++          --region="$_DEPLOY_REGION" \
++          --format=json > "$${service_json_path}"
++
++        candidate_url="$$(python3 - "$${candidate_tag}" "$${service_json_path}" <<'PY'
++        import json
++        import sys
++
++        tag = sys.argv[1]
++        path = sys.argv[2]
++
++        with open(path, encoding="utf-8") as handle:
++            service = json.load(handle)
++
++        for item in service.get("status", {}).get("traffic", []):
++            if item.get("tag") == tag and item.get("url"):
++                print(item["url"])
++                break
++        else:
++            raise SystemExit(f"candidate tag {tag} was not found on the Cloud Run service")
++        PY
++        )"
++
++        python3 - "$${candidate_url}/login" <<'PY'
++        import sys
++        import urllib.request
++
++        url = sys.argv[1]
++        request = urllib.request.Request(url, headers={"User-Agent": "jewellink-cloudbuild-smoke/1.0"})
++
++        with urllib.request.urlopen(request, timeout=30) as response:
++            if response.status >= 500:
++                raise SystemExit(f"{url} returned HTTP {response.status}")
++        PY
+ 
+ images:
+   - $_IMAGE_REPO:$COMMIT_SHA
+-  - $_IMAGE_REPO:latest
+ 
+ options:
+   logging: CLOUD_LOGGING_ONLY
+-- 
+2.50.1 (Apple Git-155)
+
