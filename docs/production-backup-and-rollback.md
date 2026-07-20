@@ -20,11 +20,11 @@ backup IDs, retention/PITR evidence, or explicitly approve the encrypted
 logical-backup fallback below.
 
 2026-07-20 monitoring install: the pilot now has enabled Cloud Run 5xx alert
-policies, email notification channels, and log-based 5xx metrics in both GCP
-projects. JewelLink also has an enabled Cloud Scheduler job named
-`jewellink-jewelhire-integration-health` targeting
+policies, readable and enabled attached email notification channels, and
+log-based 5xx metrics in both GCP projects. JewelLink also has an enabled Cloud
+Scheduler job named `jewellink-jewelhire-integration-health` targeting
 `/api/cron/jewelhire-integration-health`. Evidence is recorded in
-`docs/qa-runs/operations-readiness-2026-07-20T23-05-00-020Z/`.
+`docs/qa-runs/operations-readiness-2026-07-20T23-54-21-528Z/`.
 
 2026-07-20 rollback-window proposal: `docs/pilot-rollback-window-proposal-2026-07-20.md`
 now proposes named owner slots, a 60-minute staffed observation window, and
@@ -37,11 +37,11 @@ time, verification time, PITR or retention posture, and restore/list evidence.
 If the encrypted logical fallback is used, the audit also requires the
 encrypted artifact SHA-256 digest.
 
-2026-07-20T23:45Z operations rerun:
-`docs/qa-runs/operations-readiness-2026-07-20T23-45-44-306Z/` confirms the
-runtime rollback targets, monitoring resources, and JewelLink health scheduler,
-but still fails because the backup evidence fields and named rollback owner
-approval fields below are not complete.
+2026-07-20T23:54Z operations rerun:
+`docs/qa-runs/operations-readiness-2026-07-20T23-54-21-528Z/` confirms the
+runtime rollback targets, monitoring resources, enabled attached notification
+channels, and JewelLink health scheduler, but still fails because the backup
+evidence fields and named rollback owner approval fields below are not complete.
 
 | Evidence | JewelHire | JewelLink |
 | --- | --- | --- |

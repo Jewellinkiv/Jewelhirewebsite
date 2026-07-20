@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
+import https from "node:https";
 import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
@@ -243,6 +244,63 @@ function loggingMetrics(product) {
   ]);
 }
 
+function httpsJson(url, token) {
+  return new Promise((resolve) => {
+    const request = https.get(
+      url,
+      {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      },
+      (response) => {
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => {
+          body += chunk;
+        });
+        response.on("end", () => {
+          if (response.statusCode < 200 || response.statusCode >= 300) {
+            resolve({ ok: false, data: null, error: sanitizeError(body || `HTTP ${response.statusCode}`) });
+            return;
+          }
+          try {
+            resolve({ ok: true, data: body.trim() ? JSON.parse(body) : null, error: "" });
+          } catch (error) {
+            resolve({ ok: false, data: null, error: error instanceof Error ? error.message : String(error) });
+          }
+        });
+      },
+    );
+    request.on("error", (error) => {
+      resolve({ ok: false, data: null, error: sanitizeError(error.message) });
+    });
+    request.setTimeout(15000, () => {
+      request.destroy(new Error("Cloud Monitoring notification channel request timed out"));
+    });
+  });
+}
+
+async function monitoringChannels(product) {
+  if (FIXTURE_DIR) return { ok: true, data: fixtureJson(`${product.fixturePrefix}-monitoring-channels.json`, []) };
+  if (!commandAvailable("gcloud")) {
+    return { ok: false, data: null, error: "gcloud is not available" };
+  }
+  const tokenResult = spawnSync("gcloud", ["auth", "print-access-token", "--quiet"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, CLOUDSDK_CORE_DISABLE_PROMPTS: "1" },
+  });
+  if (tokenResult.status !== 0 || !tokenResult.stdout.trim()) {
+    return { ok: false, data: null, error: sanitizeError(tokenResult.stderr || tokenResult.stdout) };
+  }
+  const url = `https://monitoring.googleapis.com/v3/projects/${encodeURIComponent(product.project)}/notificationChannels`;
+  const result = await httpsJson(url, tokenResult.stdout.trim());
+  if (!result.ok) return result;
+  return { ok: true, data: result.data?.notificationChannels || [], error: "" };
+}
+
 function confirmedUnavailable(error) {
   return /SERVICE_DISABLED|has not been used|disabled/i.test(error || "");
 }
@@ -349,6 +407,37 @@ function enabledPoliciesWithChannels(policies) {
   return policies.filter((policy) => policy.enabled && policy.notificationChannels.length > 0);
 }
 
+function notificationChannelSummary(channels) {
+  return channels.map((channel) => ({
+    name: String(channel.name || "").split("/").pop(),
+    type: channel.type || "",
+    enabled: channel.enabled !== false,
+    verificationStatus: channel.verificationStatus || "",
+  }));
+}
+
+function attachedChannelIdsForEnabledPolicies(policies) {
+  return [
+    ...new Set(
+      enabledPoliciesWithChannels(policies)
+        .flatMap((policy) => policy.notificationChannels || [])
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function enabledAttachedChannelIds(policies, channels) {
+  const byId = new Map(channels.map((channel) => [channel.name, channel]));
+  return attachedChannelIdsForEnabledPolicies(policies).filter((id) => byId.get(id)?.enabled);
+}
+
+function attachedNotificationChannelsReady(monitoring) {
+  const attachedIds = attachedChannelIdsForEnabledPolicies(monitoring.policies);
+  if (attachedIds.length === 0) return false;
+  const byId = new Map(monitoring.notificationChannels.map((channel) => [channel.name, channel]));
+  return attachedIds.every((id) => byId.get(id)?.enabled);
+}
+
 function metricSummary(metrics) {
   return metrics.map((metric) => ({
     name: metric.name || "",
@@ -427,7 +516,7 @@ function checkBackupEvidence(label, backup) {
   };
 }
 
-function buildProductEvidence(productKey, product) {
+async function buildProductEvidence(productKey, product) {
   const serviceResult = serviceJson(product);
   const service = serviceResult.data || {};
   const liveTraffic = trafficSummary(service);
@@ -475,6 +564,19 @@ function buildProductEvidence(productKey, product) {
     policyWithChannelCount: policiesWithChannels.length,
   });
 
+  const channelsResult = await monitoringChannels(product);
+  const notificationChannels = notificationChannelSummary(channelsResult.data || []);
+  record(`${product.label} Cloud Monitoring notification channels are readable`, channelsResult.ok, {
+    notificationChannelCount: notificationChannels.length,
+    error: channelsResult.ok ? "" : channelsResult.error,
+  });
+  const attachedIds = attachedChannelIdsForEnabledPolicies(policies);
+  const enabledAttachedIds = enabledAttachedChannelIds(policies, notificationChannels);
+  record(`${product.label} attached notification channels are enabled`, attachedIds.length > 0 && enabledAttachedIds.length === attachedIds.length, {
+    attachedChannelCount: attachedIds.length,
+    enabledAttachedChannelCount: enabledAttachedIds.length,
+  });
+
   const metricsResult = loggingMetrics(product);
   const metrics = metricSummary(metricsResult.data || []);
   record(`${product.label} Cloud Logging metric metadata is readable`, metricsResult.ok, {
@@ -506,6 +608,8 @@ function buildProductEvidence(productKey, product) {
     },
     monitoring: {
       policies,
+      notificationChannels,
+      enabledAttachedNotificationChannelIds: enabledAttachedIds,
       loggingMetrics: metrics,
     },
     cloudSql,
@@ -531,11 +635,10 @@ function checkJewelLinkHealthScheduler(jewellinkEvidence) {
 
 function checkDeclaredOperationsEvidence({ jewelhire, jewellink }) {
   const attachedMonitoringChannels =
-    enabledPoliciesWithChannels(jewelhire.monitoring.policies).length > 0 &&
-    enabledPoliciesWithChannels(jewellink.monitoring.policies).length > 0;
-  record("Monitoring channel is recorded or attached to enabled alert policies", Boolean(declaredEvidence.monitoring.channel.trim()) || attachedMonitoringChannels, {
+    attachedNotificationChannelsReady(jewelhire.monitoring) && attachedNotificationChannelsReady(jewellink.monitoring);
+  record("Monitoring channel is recorded or attached and enabled", Boolean(declaredEvidence.monitoring.channel.trim()) || attachedMonitoringChannels, {
     declaredChannelRecorded: Boolean(declaredEvidence.monitoring.channel.trim()),
-    attachedMonitoringChannels,
+    attachedEnabledMonitoringChannels: attachedMonitoringChannels,
   });
   record("JewelHire rollback owner is recorded", Boolean(declaredEvidence.rollback.jewelhireOwner.trim()));
   record("JewelLink rollback owner is recorded", Boolean(declaredEvidence.rollback.jewellinkOwner.trim()));
@@ -574,6 +677,8 @@ function markdown(report) {
       `- Logical SHA-256 recorded: ${product.backup.logicalSha256Recorded ? "yes" : "no"}`,
       `- Alert policies: ${product.monitoring.policies.length}`,
       `- Enabled policies with notification channels: ${enabledPoliciesWithChannels(product.monitoring.policies).length}`,
+      `- Notification channels readable: ${product.monitoring.notificationChannels.length}`,
+      `- Attached enabled notification channels: ${product.monitoring.enabledAttachedNotificationChannelIds.length}`,
       `- Logging metrics: ${product.monitoring.loggingMetrics.length}`,
       `- Scheduler jobs readable: ${product.scheduler.readable ? "yes" : "no"}`,
       "",
@@ -606,9 +711,9 @@ function markdown(report) {
   return lines.join("\n");
 }
 
-function main() {
-  const jewelhire = buildProductEvidence("jewelhire", products.jewelhire);
-  const jewellink = buildProductEvidence("jewellink", products.jewellink);
+async function main() {
+  const jewelhire = await buildProductEvidence("jewelhire", products.jewelhire);
+  const jewellink = await buildProductEvidence("jewellink", products.jewellink);
   const jewelLinkHealthJob = checkJewelLinkHealthScheduler(jewellink);
   checkDeclaredOperationsEvidence({ jewelhire, jewellink });
 
@@ -646,8 +751,7 @@ function main() {
       monitoring: {
         channel:
           Boolean(declaredEvidence.monitoring.channel.trim()) ||
-          (enabledPoliciesWithChannels(jewelhire.monitoring.policies).length > 0 &&
-            enabledPoliciesWithChannels(jewellink.monitoring.policies).length > 0),
+          (attachedNotificationChannelsReady(jewelhire.monitoring) && attachedNotificationChannelsReady(jewellink.monitoring)),
       },
     },
     products: { jewelhire, jewellink },
@@ -662,4 +766,7 @@ function main() {
   process.exit(report.pass ? 0 : 1);
 }
 
-main();
+main().catch((error) => {
+  console.error(sanitizeError(error instanceof Error ? error.message : String(error)));
+  process.exit(1);
+});

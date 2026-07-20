@@ -54,6 +54,14 @@ function policy(displayName, overrides = {}) {
   };
 }
 
+function channel(displayName, overrides = {}) {
+  return {
+    name: `projects/example/notificationChannels/${displayName}-email`,
+    type: "email",
+    enabled: !overrides.disabled,
+  };
+}
+
 function writeFixtures(dir, overrides = {}) {
   fs.writeFileSync(path.join(dir, "jewelhire-service.json"), JSON.stringify(service("jewelhire"), null, 2));
   fs.writeFileSync(path.join(dir, "jewellink-service.json"), JSON.stringify(service("jewellink-dev"), null, 2));
@@ -69,6 +77,20 @@ function writeFixtures(dir, overrides = {}) {
   fs.writeFileSync(
     path.join(dir, "jewellink-monitoring-policies.json"),
     JSON.stringify([policy("JewelLink JewelHire Health", { noChannels: overrides.noPolicyChannels })], null, 2),
+  );
+  fs.writeFileSync(
+    path.join(dir, "jewelhire-monitoring-channels.json"),
+    JSON.stringify(overrides.missingMonitoringChannels ? [] : [channel("JewelHire 5xx", { disabled: overrides.disabledMonitoringChannel })], null, 2),
+  );
+  fs.writeFileSync(
+    path.join(dir, "jewellink-monitoring-channels.json"),
+    JSON.stringify(
+      overrides.missingMonitoringChannels
+        ? []
+        : [channel("JewelLink JewelHire Health", { disabled: overrides.disabledMonitoringChannel })],
+      null,
+      2,
+    ),
   );
   fs.writeFileSync(path.join(dir, "jewelhire-logging-metrics.json"), JSON.stringify([], null, 2));
   fs.writeFileSync(path.join(dir, "jewellink-logging-metrics.json"), JSON.stringify([], null, 2));
@@ -136,6 +158,7 @@ test("fixture mode passes with complete operations evidence and no secret leakag
   assert.match(markdown, /Result: PASS/);
   assert.match(markdown, /Backup method: provider-snapshot/);
   assert.match(markdown, /Backup method: encrypted-logical/);
+  assert.match(markdown, /Attached enabled notification channels: 1/);
   assert.doesNotMatch(json, /super-secret-password/);
   assert.doesNotMatch(markdown, /super-secret-password/);
   assert.doesNotMatch(json, /postgresql:\/\/user/);
@@ -163,5 +186,13 @@ test("enabled alert policies without notification channels fail monitoring readi
   assert.notEqual(result.status, 0);
   assert.match(markdown, /FAIL JewelHire enabled monitoring alert policy has notification channel/);
   assert.match(markdown, /FAIL JewelLink enabled monitoring alert policy has notification channel/);
-  assert.match(markdown, /FAIL Monitoring channel is recorded or attached to enabled alert policies/);
+  assert.match(markdown, /FAIL Monitoring channel is recorded or attached and enabled/);
+});
+
+test("disabled attached notification channels fail monitoring readiness", () => {
+  const { result, markdown } = runAudit({ disabledMonitoringChannel: true });
+  assert.notEqual(result.status, 0);
+  assert.match(markdown, /FAIL JewelHire attached notification channels are enabled/);
+  assert.match(markdown, /FAIL JewelLink attached notification channels are enabled/);
+  assert.match(markdown, /FAIL Monitoring channel is recorded or attached and enabled/);
 });

@@ -57,8 +57,9 @@ The report is written under `docs/qa-runs/operations-readiness-*` unless
   external Postgres databases.
 - Encrypted logical backup fallback evidence includes a SHA-256 digest for the
   encrypted artifact.
-- Monitoring alert policy metadata is readable and at least one enabled alert
-  policy exists for both GCP projects.
+- Monitoring alert policy metadata is readable, at least one enabled alert
+  policy exists for both GCP projects, and each attached notification channel
+  resolves to a real enabled channel without printing recipient labels.
 - JewelLink has the expected `jewellink-jewelhire-integration-health` Scheduler
   job and it targets `/api/cron/jewelhire-integration-health`.
 - Rollback owners, monitoring channel, observation window, and rollback
@@ -70,13 +71,13 @@ approved final values to be supplied on the command line.
 
 ## Latest Production Result
 
-`docs/qa-runs/operations-readiness-2026-07-20T23-45-44-306Z/` confirms both
+`docs/qa-runs/operations-readiness-2026-07-20T23-54-21-528Z/` confirms both
 Cloud Run rollback targets, external `pg.psdb.cloud` database hosts, enabled
-alert policies with notification channels, log metrics, and the JewelLink
-JewelHire health scheduler. It still fails the GO gate because both databases
-are missing backup method, ID, completion time, verification time,
-PITR/retention evidence, and restore/list evidence, and because the rollback
-owner/window/threshold fields are still unapproved.
+alert policies, readable and enabled attached notification channels, log
+metrics, and the JewelLink JewelHire health scheduler. It still fails the GO
+gate because both databases are missing backup method, ID, completion time,
+verification time, PITR/retention evidence, and restore/list evidence, and
+because the rollback owner/window/threshold fields are still unapproved.
 
 ## Secret Handling
 
@@ -97,4 +98,5 @@ node --test scripts/production-operations-readiness-audit.test.mjs
 ```
 
 The fixture tests prove the complete-evidence path and verify that missing
-JewelLink health monitoring fails without leaking fake secret values.
+JewelLink health monitoring or disabled attached notification channels fail
+without leaking fake secret values.
