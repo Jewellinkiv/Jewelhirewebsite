@@ -9,12 +9,12 @@ production cutover by itself.
 ## Validated heads
 
 These are the heads used for the live-readiness evidence below. Later
-documentation-only JewelHire commits may supersede the JewelHire SHA without
-changing runtime behavior.
+documentation-only or audit-tooling JewelHire commits may supersede the
+JewelHire SHA without changing runtime behavior.
 
 | Product | Repository | Current head | Build/status |
 | --- | --- | --- | --- |
-| JewelHire | `Jewellinkiv/Jewelhire` | `de1d5096b286e4275283191ce587d1e003676cbd` | GitHub workflow `29775882206` passed on 2026-07-20; deploy job skipped by workflow conditions |
+| JewelHire | `Jewellinkiv/Jewelhire` | `c101c62c2925032467828609e0e2c86f90d08fd4` | GitHub workflow `29776216461` passed on 2026-07-20; deploy job skipped by workflow conditions |
 | JewelLink | `Jewellinkiv/jewellink-app` | `bd1f344699e97ed968a6c272277dffeaf0975479` | `cloudrun-jewellink-dev-main-safe` passed on 2026-07-20 |
 
 The latest JewelLink move from `ed225ce6` to `bd1f3446` changed only UP System
@@ -51,7 +51,7 @@ node scripts/cross-product-acceptance.mjs \
 | Gate | Status | Needed before live pilot |
 | --- | --- | --- |
 | Production integration secrets | Unknown | Verify matching high-entropy SSO and integration secrets on both Cloud Run services without printing values |
-| JewelHire integration env | Unknown | Verify `JEWELLINK_URL`, SSO/integration secrets, `JEWELHIRE_TEAM_INVITES_ENABLED=0`, trusted proxy hops, and admin allowlist |
+| JewelHire integration env | Unknown | Run the strengthened `scripts/config-exposure-audit.mjs` from a machine with `gcloud`; verify `JEWELLINK_URL`, SSO/integration secrets, `JEWELHIRE_TEAM_INVITES_ENABLED=0`, trusted proxy hops, admin allowlist, email posture, Stripe env, and secret-backed mounts |
 | JewelLink integration env | Unknown | Verify `JEWELHIRE_URL`, SSO/integration secrets, rollout mode, pilot company IDs, and hire email mode |
 | Migration ledger state | Unknown | Confirm JewelHire and JewelLink production ledgers match reviewed pending migration lists; stop on drift |
 | Authenticated pilot roster | Not selected | Record Diamond Exchange company/location IDs and role test aliases |
@@ -77,9 +77,10 @@ the Cloud Run service image directly. Before a live pilot, decide whether to:
 
 ## Next work order
 
-1. Build a JewelHire-side production configuration audit that checks required
-   environment names, expected fail-closed defaults, and admin allowlist posture
-   without reading secret values.
+1. Run the strengthened JewelHire-side production configuration audit from a
+   machine with `gcloud` access; it checks required environment names,
+   expected fail-closed defaults, email/Stripe posture, integration settings,
+   and admin allowlist mounts without reading secret values.
 2. Prepare a no-push JewelLink release-process diff or written patch plan for
    the Cloud Build/candidate mismatch.
 3. Fill the pilot roster and run the authenticated end-to-end smoke matrix.

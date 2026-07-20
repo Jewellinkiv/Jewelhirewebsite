@@ -32,8 +32,42 @@ const privateRuntimeEnv = [
   "POSTMARK_SERVER_TOKEN",
   "JEWELHIRE_ADMIN_EMAILS",
   "AUTH_ADMIN_EMAILS",
+  "JEWELLINK_SSO_SHARED_SECRET",
+  "JEWELLINK_INTEGRATION_SHARED_SECRET",
 ];
-const requiredPrivateForLaunch = ["AUTH_SECRET", "GOOGLE_CLIENT_SECRET", "STRIPE_WEBHOOK_SECRET"];
+const requiredRuntimeEnvForLaunch = [
+  "DATABASE_URL",
+  "AUTH_SECRET",
+  "JEWELLINK_URL",
+  "JEWELLINK_SSO_SHARED_SECRET",
+  "JEWELLINK_INTEGRATION_SHARED_SECRET",
+  "JEWELHIRE_TEAM_INVITES_ENABLED",
+  "JEWELHIRE_TRUSTED_PROXY_HOPS",
+  "JEWELHIRE_REQUIRE_AUTH",
+  "AUTH_MODE",
+  "JEWELHIRE_STORAGE",
+  "JEWELHIRE_ENABLE_SESSION_OVERRIDE",
+  "EMAIL_NOTIFICATIONS_ENABLED",
+  "POSTMARK_DRY_RUN",
+  "POSTMARK_SERVER_TOKEN",
+  "POSTMARK_FROM_EMAIL",
+  "POSTMARK_MESSAGE_STREAM",
+  "STRIPE_SECRET_KEY",
+  "STRIPE_WEBHOOK_SECRET",
+  "STRIPE_STORE_OWNER_MONTHLY_PRICE_ID",
+  "STRIPE_STORE_OWNER_ANNUAL_PRICE_ID",
+  "STRIPE_STORE_OWNER_PAYMENT_LINK",
+];
+const requiredSecretBackedEnv = [
+  "DATABASE_URL",
+  "AUTH_SECRET",
+  "GOOGLE_CLIENT_SECRET",
+  "JEWELLINK_SSO_SHARED_SECRET",
+  "JEWELLINK_INTEGRATION_SHARED_SECRET",
+  "POSTMARK_SERVER_TOKEN",
+  "STRIPE_SECRET_KEY",
+  "STRIPE_WEBHOOK_SECRET",
+];
 const requiredPublicForLogin = [
   "NEXT_PUBLIC_FIREBASE_API_KEY",
   "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
@@ -84,6 +118,15 @@ function envMap(env) {
   return new Map((env || []).map((item) => [envName(item), item]).filter(([name]) => Boolean(name)));
 }
 
+function envValue(byName, name) {
+  return String(byName.get(name)?.value || "");
+}
+
+function isSecretBacked(byName, name) {
+  const item = byName.get(name);
+  return Boolean(item && secretRef(item));
+}
+
 async function fetchText(pathname) {
   const response = await fetch(`${BASE}${pathname}`, { redirect: "manual" });
   const text = await response.text().catch(() => "");
@@ -115,12 +158,34 @@ async function main() {
     public: publicConfigNames.has(name),
   }));
 
+  for (const name of requiredRuntimeEnvForLaunch) {
+    record(`Cloud Run env ${name} mounted`, byName.has(name));
+  }
+
   for (const name of requiredPublicForLogin) {
     record(`Cloud Run env ${name} mounted`, byName.has(name));
   }
 
-  for (const name of requiredPrivateForLaunch) {
-    record(`private launch env ${name} mounted`, byName.has(name));
+  const adminAllowlistName = byName.has("JEWELHIRE_ADMIN_EMAILS")
+    ? "JEWELHIRE_ADMIN_EMAILS"
+    : byName.has("AUTH_ADMIN_EMAILS")
+      ? "AUTH_ADMIN_EMAILS"
+      : "";
+  record("platform admin allowlist env mounted", Boolean(adminAllowlistName), {
+    envName: adminAllowlistName || null,
+    valuesPrinted: false,
+  });
+  if (adminAllowlistName) {
+    record("platform admin allowlist is secret-backed", isSecretBacked(byName, adminAllowlistName), {
+      envName: adminAllowlistName,
+      valuesPrinted: false,
+    });
+  }
+
+  for (const name of requiredSecretBackedEnv) {
+    record(`private launch env ${name} is secret-backed`, isSecretBacked(byName, name), {
+      valuesPrinted: false,
+    });
   }
   record("database env mounted", byName.has("DATABASE_URL") || byName.has("POSTGRES_URL"));
 
@@ -133,9 +198,25 @@ async function main() {
     valuesPrinted: false,
   });
 
+  record("JewelLink URL is HTTPS", envValue(byName, "JEWELLINK_URL").startsWith("https://"));
+  record("production auth is required", envValue(byName, "JEWELHIRE_REQUIRE_AUTH") === "1");
+  record("production auth mode is Google", envValue(byName, "AUTH_MODE") === "google");
+  record("production storage is Postgres", envValue(byName, "JEWELHIRE_STORAGE") === "postgres");
+  record("test session override is disabled", envValue(byName, "JEWELHIRE_ENABLE_SESSION_OVERRIDE") === "0");
+  record("Diamond Exchange team invites are disabled", envValue(byName, "JEWELHIRE_TEAM_INVITES_ENABLED") === "0");
+  record("trusted proxy hops is explicit and bounded", /^[0-8]$/.test(envValue(byName, "JEWELHIRE_TRUSTED_PROXY_HOPS")));
+  const monthlyPriceId = envValue(byName, "STRIPE_STORE_OWNER_MONTHLY_PRICE_ID");
+  const annualPriceId = envValue(byName, "STRIPE_STORE_OWNER_ANNUAL_PRICE_ID");
+  record("Stripe recurring price ids are distinct configured ids", monthlyPriceId.startsWith("price_") && annualPriceId.startsWith("price_") && monthlyPriceId !== annualPriceId);
+  const legacyPaymentLink = envValue(byName, "STRIPE_STORE_OWNER_PAYMENT_LINK");
+  record("legacy Stripe payment link is configured for drain checks", legacyPaymentLink.startsWith("https://") || legacyPaymentLink.startsWith("plink_"));
+
   const emailFlag = byName.get("EMAIL_NOTIFICATIONS_ENABLED");
   const emailEnabled = String(emailFlag?.value || "").toLowerCase() === "true";
-  record(emailEnabled ? "live email sends are explicitly acknowledged" : "live email sends remain intentionally disabled", !emailEnabled || ALLOW_LIVE_EMAIL_SENDS, {
+  const dryRunDisabled = !["true", "1"].includes(envValue(byName, "POSTMARK_DRY_RUN").toLowerCase());
+  record("verified applicant signup email is enabled", emailEnabled);
+  record("Postmark dry-run is disabled for launch", dryRunDisabled);
+  record(emailEnabled ? "live email sends are explicitly acknowledged" : "live email sends are not yet live-ready", emailEnabled && ALLOW_LIVE_EMAIL_SENDS, {
     enabled: emailEnabled,
     allowOverride: ALLOW_LIVE_EMAIL_SENDS,
   });
