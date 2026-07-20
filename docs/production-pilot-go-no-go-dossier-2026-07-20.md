@@ -37,6 +37,7 @@ config-only pilot flag update recorded below.
 | JewelLink CI/build | PARTIAL / NO-GO | Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded for commit `55032dbb`, but unpatched main fails 1 profile 2FA-phone guard; local combined patch `f12e67d7` makes JewelHire SSO source audit and profile/release tests pass, but it is not pushed |
 | JewelLink release-path safety | PARTIAL / NO-GO | Config-only Cloud Run update was explicitly approved and completed; current `cloudbuild.jewellink.yaml` still direct-deploys live service and `tests/deploy-release-safety.test.ts` fails 1/8 against unpatched `55032dbb`; combined candidate-release/profile patch remains local/unpushed |
 | Production integration secrets | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
+| Integration smoke preflight | PASS | `docs/qa-runs/integration-smoke-preflight-2026-07-20T23-29-09-249Z/integration-smoke-preflight-report.md` passed read-only: pilot linkage and location mapping match, no unresolved hire/JewelCert sync residue exists, hire email mode is explicit, and unauthenticated mutation endpoints reject with `401` |
 | JewelHire production config | PASS | `docs/qa-runs/config-exposure-2026-07-20T22-25-23-830Z/`, `docs/qa-runs/postmark-safety-2026-07-20T22-25-23-839Z/`, `docs/qa-runs/auth-readiness-2026-07-20T21-41-42-178Z/`, and `docs/qa-runs/role-readiness-2026-07-20T22-25-24-584Z/` pass |
 | JewelLink production config | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` passes against current live revision `jewellink-dev-01154-xpx` with pilot company `comp_1` |
 | JewelHire migration ledger | PASS | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/migration-ledger-report.md` shows 25/25 applied, 0 pending, required launch migrations applied, and no checksum/order issues |
@@ -48,7 +49,7 @@ config-only pilot flag update recorded below.
 | Authenticated SSO smoke | NOT RUN | Role matrix below completed against candidate/live URLs |
 | Hire handoff smoke | NOT RUN | Hire creates or links the expected JewelLink user and remains idempotent |
 | JewelCert smoke | NOT RUN | Invite/result flow completes and retry evidence is recorded |
-| Public and fail-closed smoke | PARTIAL | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/report.md` passes public/login/apply/auth-boundary checks; team-invite mutation, resume download, and authenticated same-store checks still need controlled smoke accounts |
+| Public and fail-closed smoke | PARTIAL | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/report.md` passes public/login/apply/auth-boundary checks; `docs/qa-runs/integration-smoke-preflight-2026-07-20T23-29-09-249Z/integration-smoke-preflight-report.md` passes unauthenticated mutation endpoint denials; team-invite mutation, resume download, and authenticated same-store checks still need controlled smoke accounts |
 | Observation window | PROPOSED / NO-GO | Cloud Monitoring alert policies/channels, log metrics, and the JewelLink JewelHire health scheduler are installed; `docs/pilot-rollback-window-proposal-2026-07-20.md` proposes a 60-minute staffed window and rollback thresholds, but owner approval and exact UTC start/end remain missing |
 
 ## Pilot roster

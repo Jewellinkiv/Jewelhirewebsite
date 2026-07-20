@@ -54,6 +54,7 @@ still requires explicit approval before it can be pushed to
 | Production pilot readiness audit tooling | Pass | `scripts/production-pilot-readiness-audit.mjs` added with fixture coverage for matching and mismatched shared secrets without value leakage |
 | Production cloud access | Pass | `gcloud` authenticated as `william@jewelrysalesacademy.com`; JewelHire and JewelLink Cloud Run service configs are readable |
 | Production pilot readiness audit | Pass | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` reports `valuesPrinted: false`; both Cloud Run configs are readable; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
+| Production integration smoke preflight | Pass | `docs/qa-runs/integration-smoke-preflight-2026-07-20T23-29-09-249Z/` confirms JewelHire/JewelLink pilot linkage, exact location mapping, clean hire/JewelCert sync residue, explicit hire email mode, and fail-closed unauthenticated mutation endpoints without production writes |
 | JewelHire production config | Pass | `docs/qa-runs/config-exposure-2026-07-20T22-25-23-830Z/` passed after explicit live-email acknowledgement |
 | JewelHire Postmark safety | Pass | `docs/qa-runs/postmark-safety-2026-07-20T22-25-23-839Z/` passed after explicit live-email acknowledgement; no email was sent by the audit |
 | JewelLink pilot rollout flags | Pass | Approved config-only Cloud Run update deployed `jewellink-dev-01153-dqz`; refreshed readiness audit confirms the pilot flags remain mounted after current live revision `jewellink-dev-01154-xpx` from commit `55032dbb` |
@@ -85,6 +86,7 @@ node scripts/cross-product-acceptance.mjs \
 | Production integration secrets | Closed | `qa:pilot-readiness` passed; shared SSO and integration handoff secrets match and are high entropy |
 | JewelHire integration env | Closed | `qa:config` passed after explicit live-email acknowledgement |
 | JewelLink integration env | Closed | `qa:pilot-readiness` passed after approved pilot rollout config update for Diamond Exchange `comp_1` |
+| Integration smoke preflight | Closed | `qa:integration-smoke-preflight` passed read-only against production; mutating authenticated smokes are still separate gates |
 | Migration ledger state | Partial | JewelHire is closed; JewelLink integration/auth rows are closed; 25 older JewelLink full-ledger checksum drifts remain open |
 | Authenticated pilot roster | Partial | `qa:pilot-roster` verifies Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, and Director/Manager/Student/platform-admin candidates; Consultant-denial and paused-company denial aliases remain missing |
 | Admin allowlist and role cleanup | Closed | `qa:admin-allowlist` passes with `jewelhire-admin-emails-v2:2`; no active JewelLink non-admin remains allowlisted |
