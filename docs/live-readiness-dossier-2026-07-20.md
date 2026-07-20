@@ -14,12 +14,19 @@ JewelHire SHA without changing runtime behavior.
 
 | Product | Repository | Current head | Build/status |
 | --- | --- | --- | --- |
-| JewelHire | `Jewellinkiv/Jewelhire` | `c101c62c2925032467828609e0e2c86f90d08fd4` | GitHub workflow `29776216461` passed on 2026-07-20; deploy job skipped by workflow conditions |
+| JewelHire | `Jewellinkiv/Jewelhire` | `b39dd3c6b9de5b689a27ec0a302ade63365d6d3e` | GitHub workflow `29776736801` passed on 2026-07-20; deploy job skipped by workflow conditions |
 | JewelLink | `Jewellinkiv/jewellink-app` | `bd1f344699e97ed968a6c272277dffeaf0975479` | `cloudrun-jewellink-dev-main-safe` passed on 2026-07-20 |
+| JewelLink local no-push patch | research checkout only | `da53e2ab7eac45c93285c91492903aeb7c1ed52d` | Local branch `codex/jewellink-cloudbuild-candidate-gate-20260720`; not pushed |
 
 The latest JewelLink move from `ed225ce6` to `bd1f3446` changed only UP System
 paths. It did not touch JewelHire integration, auth, deployment, Docker,
 package, or Prisma migration paths.
+
+The JewelLink Cloud Build release-path mismatch now has a prepared local patch
+in the research checkout. It changes `cloudbuild.jewellink.yaml` to validate the
+repo, build/push an immutable image, deploy a tagged `candidate-<12-sha>`
+revision with `--no-traffic`, and smoke `/login`. This patch still requires
+explicit approval before it can be pushed to `Jewellinkiv/jewellink-app`.
 
 ## Green evidence
 
@@ -34,6 +41,7 @@ package, or Prisma migration paths.
 | Cross-product acceptance with local JewelHire server | Pass | Included source audits, local tenant/location access-control, and live JewelLink fail-closed probes |
 | Live public pages | Pass | `app.jewelhire.com/login`, `/privacy`, `/terms`, and `ai.jewellink.com/login` return `200` |
 | Live unauthenticated endpoint posture | Pass | JewelLink SSO exchange/introspection, hire provisioning, JewelCert results, and JewelHire inbound JewelCert invite all reject without bearer auth |
+| JewelLink no-push release-path patch | Pass | Local commit `da53e2ab`; `node --test tests/deploy-release-safety.test.ts` passed 8/8; secret scan passed 2,505 files; Cloud Build embedded bash syntax checked |
 
 Full safe cross-product command used for this snapshot:
 
@@ -58,6 +66,7 @@ node scripts/cross-product-acceptance.mjs \
 | End-to-end SSO smoke | Not run | Director, Manager, Student, Consultant denial, platform-admin allowlist, allowlisted non-admin denial |
 | End-to-end hire smoke | Not run | Hire in JewelHire provisions/reactivates the correct JewelLink user and stays idempotent |
 | End-to-end JewelCert smoke | Not run | JewelLink sends invite, JewelHire records result, JewelLink receives scoped aggregation |
+| JewelLink release-path patch approval | Waiting on approval | Local no-push patch is prepared; push/PR to JewelLink requires explicit approval |
 | Rollback and monitoring evidence | Not recorded | Record prior revisions, rollback command, health scheduler/alert status, and handoff retry procedure |
 
 ## JewelLink approval boundary
@@ -65,15 +74,12 @@ node scripts/cross-product-acceptance.mjs \
 JewelLink may be inspected and locally tested, but changes must not be pushed
 without explicit approval.
 
-The main JewelLink release-process concern remains the Cloud Build path:
+The main JewelLink release-process concern is prepared but not published.
 `docs/JEWELHIRE_INTEGRATION_OPERATIONS_RUNBOOK.md` describes a non-traffic
-candidate build, but the checked-in `cloudbuild.jewellink.yaml` still updates
-the Cloud Run service image directly. Before a live pilot, decide whether to:
-
-1. make the Cloud Build configuration match the gated candidate/promotion
-   release contract, or
-2. formally accept the current direct-update path for this pilot and document
-   the rollback controls that compensate for it.
+candidate build, while current JewelLink `main` still updates the Cloud Run
+service image directly. A local patch now makes Cloud Build match the gated
+candidate/promotion contract. The patch must not be pushed or opened as a PR
+without explicit approval.
 
 ## Next work order
 
@@ -81,8 +87,8 @@ the Cloud Run service image directly. Before a live pilot, decide whether to:
    machine with `gcloud` access; it checks required environment names,
    expected fail-closed defaults, email/Stripe posture, integration settings,
    and admin allowlist mounts without reading secret values.
-2. Prepare a no-push JewelLink release-process diff or written patch plan for
-   the Cloud Build/candidate mismatch.
+2. Review and approve the local no-push JewelLink Cloud Build candidate patch,
+   then push/open a PR only after explicit approval.
 3. Fill the pilot roster and run the authenticated end-to-end smoke matrix.
 4. Produce a final go/no-go record with exact commits, build IDs, migration
    ledger evidence, config evidence, smoke results, and rollback owner.
