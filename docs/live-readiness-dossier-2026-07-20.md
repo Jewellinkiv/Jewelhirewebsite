@@ -43,6 +43,7 @@ explicit approval before it can be pushed to `Jewellinkiv/jewellink-app`.
 | Live unauthenticated endpoint posture | Pass | JewelLink SSO exchange/introspection, hire provisioning, JewelCert results, and JewelHire inbound JewelCert invite all reject without bearer auth |
 | JewelLink no-push release-path patch | Pass | Local commit `da53e2ab`; `node --test tests/deploy-release-safety.test.ts` passed 8/8; secret scan passed 2,505 files; Cloud Build embedded bash syntax checked |
 | Production pilot readiness audit tooling | Pass | `scripts/production-pilot-readiness-audit.mjs` added with fixture coverage for matching and mismatched shared secrets without value leakage |
+| Go/no-go dossier | No-go recorded | `docs/production-pilot-go-no-go-dossier-2026-07-20.md` captures required evidence rows, pilot smoke matrix, rollback evidence, and stop conditions |
 
 Full safe cross-product command used for this snapshot:
 
@@ -89,6 +90,8 @@ without explicit approval.
    match without printing values, and records traffic/revision posture.
 2. Review and approve the local no-push JewelLink Cloud Build candidate patch,
    then push/open a PR only after explicit approval.
-3. Fill the pilot roster and run the authenticated end-to-end smoke matrix.
-4. Produce a final go/no-go record with exact commits, build IDs, migration
-   ledger evidence, config evidence, smoke results, and rollback owner.
+3. Fill the pilot roster and run the authenticated end-to-end smoke matrix in
+   `docs/production-pilot-go-no-go-dossier-2026-07-20.md`.
+4. Move the go/no-go record to GO only after exact commits, build IDs,
+   migration ledger evidence, config evidence, smoke results, and rollback
+   owners are recorded.
