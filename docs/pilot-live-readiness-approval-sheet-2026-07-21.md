@@ -49,13 +49,15 @@ below before any gate changes to GO.
 ## Operations approval fields
 
 Latest audit:
-`docs/qa-runs/operations-readiness-2026-07-21T09-00-14-939Z/operations-readiness-report.md`
+`docs/qa-runs/operations-readiness-2026-07-21T09-24-22-483Z/operations-readiness-report.md`
 
 Fillable template:
 `docs/production-operations-evidence.approval-template-2026-07-21.json`
 
 To close operations readiness, record these six non-secret fields in the
-operations evidence file and rerun `qa:operations-readiness`:
+operations evidence file and rerun `qa:operations-readiness`. The current
+template already includes the closed encrypted-backup and monitoring-channel
+evidence, so the six rollback fields below are the remaining operation items:
 
 | Field | Required approval |
 | --- | --- |

@@ -57,7 +57,8 @@ before execution or before the relevant gate can pass:
 
 1. Close operations rollback evidence.
    - Fill `docs/production-operations-evidence.approval-template-2026-07-21.json`
-     with the six non-secret rollback fields.
+     with the six non-secret rollback fields. The template already preserves
+     the current encrypted-backup and monitoring-channel evidence.
    - Run `qa:operations-readiness`.
    - Commit only the PASS evidence and dossier pointer updates.
 
@@ -104,6 +105,7 @@ before execution or before the relevant gate can pass:
 The next gate is operations rollback evidence. The latest operations audit
 already passes backup and monitoring checks, with monitoring channel IDs now
 explicitly recorded in `docs/production-operations-evidence-2026-07-21.json`,
+and mirrored into `docs/production-operations-evidence.approval-template-2026-07-21.json`,
 but it still needs named rollback owners, an approved UTC observation window,
 and approved rollback thresholds.
 
