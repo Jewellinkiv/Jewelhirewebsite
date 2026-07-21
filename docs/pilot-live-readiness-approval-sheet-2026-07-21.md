@@ -163,6 +163,14 @@ Consultant-denial / allowlisted-non-admin / paused-company aliases, approved
 SSO persona matrix, controlled hire application alias, and resume application
 ID.
 
+The allowlisted non-admin denial row now has two auditable options in the smoke
+plan. Use a controlled production denial persona, or set
+`personas.allowlistedNonAdminDenialEvidence.strategy` to
+`source-test-plus-clean-allowlist` and provide PASS source-test and admin
+allowlist artifacts plus non-secret acceptance metadata. The second path avoids
+creating a temporary production non-admin solely for an allowlist-denial check,
+but it still requires explicit acceptance before `qa:pilot-smoke-plan` can pass.
+
 ## JewelLink code/repo approval
 
 The combined JewelLink release-path/profile-audit patch remains local and

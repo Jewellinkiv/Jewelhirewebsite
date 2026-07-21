@@ -212,6 +212,65 @@ function checkPrerequisite(plan, prerequisite) {
   });
 }
 
+function checkPassArtifact(plan, dottedPath, label, required) {
+  const artifact = artifactPath(get(plan, dottedPath));
+  const safe = artifactIsSafe(artifact);
+  const validPath = artifactIsQaRun(artifact);
+  const exists = validPath && safe && artifactExists(artifact);
+  const pass = exists && artifactPasses(artifact);
+  record(`${label} is a concrete PASS artifact`, pass, {
+    path: dottedPath,
+    required,
+    artifact: validPath && safe ? artifact : "",
+    artifactRecorded: Boolean(artifact),
+    artifactPathValid: validPath,
+    artifactPathSafe: safe,
+    artifactExists: exists,
+    artifactPasses: pass,
+  });
+}
+
+function allowlistedNonAdminStrategy(plan) {
+  const strategy = String(get(plan, "personas.allowlistedNonAdminDenialEvidence.strategy") || "").trim();
+  const alias = String(get(plan, "personas.allowlistedNonAdminDenialAlias") || "").trim();
+  if (strategy) return strategy;
+  if (/source-test|clean-allowlist|acceptance/i.test(alias)) return "source-test-plus-clean-allowlist";
+  return "production-persona";
+}
+
+function checkAllowlistedNonAdminDenialStrategy(plan) {
+  const strategy = allowlistedNonAdminStrategy(plan);
+  const validStrategies = ["production-persona", "source-test-plus-clean-allowlist"];
+  record("Allowlisted non-admin denial strategy is recognized", validStrategies.includes(strategy), {
+    path: "personas.allowlistedNonAdminDenialEvidence.strategy",
+    required: "production-persona or source-test-plus-clean-allowlist",
+  });
+  if (strategy !== "source-test-plus-clean-allowlist") return;
+
+  checkPassArtifact(
+    plan,
+    "personas.allowlistedNonAdminDenialEvidence.sourceTestReport",
+    "Allowlisted non-admin denial source-test report",
+    "Existing PASS docs/qa-runs source-test artifact proving non-admin allowlist elevation is denied",
+  );
+  checkPassArtifact(
+    plan,
+    "personas.allowlistedNonAdminDenialEvidence.cleanAllowlistReport",
+    "Allowlisted non-admin denial clean allowlist report",
+    "Existing PASS docs/qa-runs admin-allowlist artifact proving no active JewelLink non-admins are allowlisted",
+  );
+  checkField(plan, "personas.allowlistedNonAdminDenialEvidence.acceptedBy", "Allowlisted non-admin source-test acceptance approver");
+  checkField(plan, "personas.allowlistedNonAdminDenialEvidence.acceptanceChannel", "Allowlisted non-admin source-test acceptance channel");
+  record(
+    "Allowlisted non-admin source-test acceptance timestamp is ISO-like UTC",
+    isoLike(get(plan, "personas.allowlistedNonAdminDenialEvidence.acceptedAt")),
+    {
+      path: "personas.allowlistedNonAdminDenialEvidence.acceptedAt",
+      required: "ISO-like UTC timestamp",
+    },
+  );
+}
+
 function stopConditionText(plan) {
   const conditions = get(plan, "stopConditions");
   return Array.isArray(conditions) ? conditions.join("\n").toLowerCase() : "";
@@ -245,6 +304,14 @@ function planSkeleton() {
       consultantDenialAlias: "",
       platformAdminAlias: "",
       allowlistedNonAdminDenialAlias: "",
+      allowlistedNonAdminDenialEvidence: {
+        strategy: "",
+        sourceTestReport: "",
+        cleanAllowlistReport: "",
+        acceptedBy: "",
+        acceptanceChannel: "",
+        acceptedAt: "",
+      },
       pausedCompanyDenialAlias: "",
     },
     scopes: {
@@ -308,6 +375,7 @@ function evaluatePlan(plan) {
   for (const [dottedPath, label] of requiredApprovalBooleans) checkBoolean(plan, dottedPath, label);
   for (const prerequisite of prerequisiteReports) checkPrerequisite(plan, prerequisite);
   for (const [dottedPath, label] of requiredPersonaFields) checkField(plan, dottedPath, label);
+  checkAllowlistedNonAdminDenialStrategy(plan);
 
   checkBoolean(plan, "scopes.authenticatedSso.enabled", "Authenticated SSO smoke is in scope");
   checkField(plan, "scopes.authenticatedSso.operatorAlias", "Authenticated SSO operator alias");

@@ -13,6 +13,9 @@ const reportPaths = {
   pilotRosterReport: "docs/qa-runs/pilot-roster-fixture/pilot-roster-report.md",
   integrationSmokePreflightReport: "docs/qa-runs/integration-smoke-preflight-fixture/integration-smoke-preflight-report.md",
   smokeCredentialAuthReport: "docs/qa-runs/smoke-credential-auth-fixture/smoke-credential-auth-report.md",
+  allowlistedNonAdminSourceTestReport:
+    "docs/qa-runs/allowlisted-non-admin-source-test-fixture/allowlisted-non-admin-source-test-report.md",
+  adminAllowlistReport: "docs/qa-runs/admin-allowlist-fixture/admin-allowlist-report.md",
 };
 
 function writeReport(cwd, relativePath, result = "PASS") {
@@ -51,6 +54,14 @@ function completePlan(cwd, overrides = {}) {
       consultantDenialAlias: "jewellink-consultant-denial-alias",
       platformAdminAlias: "jewellink-platform-admin-alias",
       allowlistedNonAdminDenialAlias: "source-test-plus-clean-allowlist-acceptance",
+      allowlistedNonAdminDenialEvidence: {
+        strategy: "source-test-plus-clean-allowlist",
+        sourceTestReport: reportPaths.allowlistedNonAdminSourceTestReport,
+        cleanAllowlistReport: reportPaths.adminAllowlistReport,
+        acceptedBy: "pilot-approver",
+        acceptanceChannel: "ticket PILOT-123",
+        acceptedAt: "2026-07-21T04:00:00Z",
+      },
       pausedCompanyDenialAlias: "jewellink-paused-company-denial-alias",
     },
     scopes: {
@@ -131,6 +142,8 @@ test("complete pilot smoke plan passes without printing raw notes", () => {
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(markdown, /Result: PASS/);
+  assert.match(markdown, /PASS Allowlisted non-admin denial source-test report is a concrete PASS artifact/);
+  assert.match(markdown, /PASS Allowlisted non-admin denial clean allowlist report is a concrete PASS artifact/);
   assert.match(markdown, /Plan request artifact: not generated/);
   assert.equal(requestMarkdown, "");
   assert.doesNotMatch(`${json}\n${markdown}`, /operator notes should not print/);
@@ -189,4 +202,35 @@ test("pilot smoke plan fails when public fail-closed store IDs diverge", () => {
 
   assert.notEqual(result.status, 0);
   assert.match(markdown, /FAIL Public\/fail-closed store ID matches expected store ID/);
+});
+
+test("pilot smoke plan fails when source-test allowlist acceptance evidence is incomplete", () => {
+  const { result, markdown, requestMarkdown } = runAudit({
+    plan: (cwd) => {
+      const plan = completePlan(cwd);
+      plan.personas.allowlistedNonAdminDenialEvidence.sourceTestReport = "";
+      plan.personas.allowlistedNonAdminDenialEvidence.acceptedBy = "";
+      return plan;
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(markdown, /FAIL Allowlisted non-admin denial source-test report is a concrete PASS artifact/);
+  assert.match(markdown, /FAIL Allowlisted non-admin source-test acceptance approver is recorded/);
+  assert.match(requestMarkdown, /personas\.allowlistedNonAdminDenialEvidence\.sourceTestReport/);
+});
+
+test("pilot smoke plan can use a production allowlisted non-admin denial persona without source-test evidence", () => {
+  const { result, markdown } = runAudit({
+    plan: (cwd) => {
+      const plan = completePlan(cwd);
+      plan.personas.allowlistedNonAdminDenialAlias = "jewellink-allowlisted-non-admin-denial-alias";
+      delete plan.personas.allowlistedNonAdminDenialEvidence;
+      return plan;
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(markdown, /PASS Allowlisted non-admin denial strategy is recognized/);
+  assert.doesNotMatch(markdown, /Allowlisted non-admin denial source-test report/);
 });

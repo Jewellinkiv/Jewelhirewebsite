@@ -36,6 +36,9 @@ approval file described in
   credential auth each link to an existing PASS artifact under `docs/qa-runs/`.
 - Director, Manager, Student, Consultant-denial, platform-admin, allowlisted
   non-admin denial, and paused-company denial personas are selected by alias.
+- The allowlisted non-admin denial row either uses a controlled production
+  denial persona or records an explicit source-test plus clean-allowlist
+  acceptance strategy with concrete PASS artifacts and acceptance metadata.
 - Hire, JewelCert, and public/fail-closed scopes include the controlled
   application, mailbox alias, target company/store, retry, repeat-confirm,
   revoke/cancel, resume, and local-cookie handling boundaries.
@@ -51,6 +54,10 @@ ignored local smoke plan while leaving unapproved production mutations closed.
 It records 53 checks, 40 passing checks, 13 missing or invalid checks, and
 writes
 `docs/qa-runs/pilot-smoke-plan-2026-07-21T04-11-01-000Z/pilot-smoke-plan-request.md`.
+
+The current audit has since been tightened so a non-production allowlisted
+non-admin denial strategy must record source-test and clean-allowlist PASS
+artifacts plus an explicit acceptance record before the smoke plan can pass.
 
 The gate remains a live-pilot NO-GO item until this audit passes, then the
 resulting report can be referenced by the pilot smoke evidence packet.
@@ -73,6 +80,11 @@ cookies, customer data, secret values, full production data extracts, or raw
 resume content in the smoke plan. Store authenticated cookies in a local ignored
 file only, and record only aliases, artifact paths, non-secret IDs, and
 approval references.
+
+For `personas.allowlistedNonAdminDenialEvidence.strategy =
+"source-test-plus-clean-allowlist"`, record only safe artifact paths and
+non-secret acceptance metadata. The audit rejects full emails, tokens, cookies,
+passwords, database URLs, secret values, and unsafe artifact paths.
 
 ## Local Verification
 

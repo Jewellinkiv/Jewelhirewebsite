@@ -25,6 +25,14 @@
     "consultantDenialAlias": "",
     "platformAdminAlias": "",
     "allowlistedNonAdminDenialAlias": "",
+    "allowlistedNonAdminDenialEvidence": {
+      "strategy": "",
+      "sourceTestReport": "",
+      "cleanAllowlistReport": "",
+      "acceptedBy": "",
+      "acceptanceChannel": "",
+      "acceptedAt": ""
+    },
     "pausedCompanyDenialAlias": ""
   },
   "scopes": {
