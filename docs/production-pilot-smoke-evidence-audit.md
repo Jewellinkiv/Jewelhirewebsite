@@ -19,6 +19,23 @@ For the current pilot matrix, copy
 and fill each row only after the corresponding authenticated smoke has a
 non-secret `docs/qa-runs` artifact.
 
+The dedicated public/fail-closed producer for `publicFailClosed.teamInvites` and
+`publicFailClosed.resumePrivacy` is:
+
+```bash
+npm run qa:public-fail-closed-smoke -- \
+  --cookie-file=<local-cookie-file> \
+  --store-id=<pilot-store-id> \
+  --expected-store-id=<pilot-store-id> \
+  --resume-application-id=<application-id>
+```
+
+It requires an authenticated pilot session cookie from a local ignored file,
+refuses invite/ownership-transfer probes unless `/api/stores/<storeId>/users`
+confirms `teamInvitesEnabled: false`, and never stores cookies, full email
+addresses, bearer tokens, passwords, database URLs, resume content, or customer
+data in its reports.
+
 The evidence file must contain one object per required smoke row. Every row must
 record:
 
@@ -66,5 +83,6 @@ it does not print raw operator notes.
 Fixture coverage runs without production access:
 
 ```bash
+node --test scripts/production-public-fail-closed-smoke.test.mjs
 node --test scripts/production-pilot-smoke-evidence-audit.test.mjs
 ```

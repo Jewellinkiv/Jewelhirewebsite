@@ -24,7 +24,7 @@ artifact. Candidate notes without a passing roster report are not sufficient.
 
 | Product | State | Evidence |
 | --- | --- | --- |
-| JewelHire | Source-ready at the current evidence change set | Previous pushed evidence base `f38ca23` passed GitHub validation run `29793360257`; this change set adds the dedicated smoke store-owner refresh path, updates the pilot roster admin SSO marker expectation, and passes release-control tests locally |
+| JewelHire | Source-ready at the current evidence change set | Previous pushed evidence base `f38ca23` passed GitHub validation run `29793360257`; this change set adds the dedicated smoke store-owner refresh path, public fail-closed smoke runner, updates the pilot roster admin SSO marker expectation, and passes release-control tests locally |
 | JewelLink main | Current live baseline `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have open findings |
 | JewelLink release/profile patch | Prepared locally, not pushed | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`, commit `f12e67d7202a6a567007605f7164d141638b5dbc`; patch artifact `docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch` |
 
@@ -41,7 +41,7 @@ config-only pilot flag update recorded below.
 
 | Gate | Current status | Evidence required for GO |
 | --- | --- | --- |
-| JewelHire CI | PASS | GitHub validation run `29795809114` passed for `3dfed0f`; deploy skipped as expected for docs/evidence-only work. Current local smoke-credential auth, pilot-smoke evidence, operations evidence-packet, drift owner-acceptance, roster-action, and go/no-go hardening tests pass |
+| JewelHire CI | PASS | GitHub validation run `29795809114` passed for `3dfed0f`; deploy skipped as expected for docs/evidence-only work. Current local smoke-credential auth, public fail-closed smoke, pilot-smoke evidence, operations evidence-packet, drift owner-acceptance, roster-action, and go/no-go hardening tests pass |
 | JewelLink CI/build | PARTIAL / NO-GO | Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded for commit `55032dbb`, but unpatched main fails 1 profile 2FA-phone guard; local combined patch `f12e67d7` makes JewelHire SSO source audit and profile/release tests pass, but it is not pushed |
 | JewelLink release-path safety | PARTIAL / NO-GO | Config-only Cloud Run update was explicitly approved and completed; current `cloudbuild.jewellink.yaml` still direct-deploys live service and `tests/deploy-release-safety.test.ts` fails 1/8 against unpatched `55032dbb`; combined candidate-release/profile patch remains local/unpushed |
 | Production integration secrets | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
@@ -58,7 +58,7 @@ config-only pilot flag update recorded below.
 | Authenticated SSO smoke | NOT RUN | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` requires 7 concrete authenticated SSO evidence rows before GO |
 | Hire handoff smoke | NOT RUN | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` requires 4 concrete hire handoff evidence rows before GO |
 | JewelCert smoke | NOT RUN | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` requires 4 concrete JewelCert evidence rows before GO |
-| Public and fail-closed smoke | PARTIAL | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/report.md` passes public/login/apply/auth-boundary checks; `docs/qa-runs/integration-smoke-preflight-2026-07-20T23-29-09-249Z/integration-smoke-preflight-report.md` passes unauthenticated mutation endpoint denials; `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` still requires team-invite mutation and resume privacy evidence |
+| Public and fail-closed smoke | PARTIAL | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/report.md` passes public/login/apply/auth-boundary checks; `docs/qa-runs/integration-smoke-preflight-2026-07-20T23-29-09-249Z/integration-smoke-preflight-report.md` passes unauthenticated mutation endpoint denials; `qa:public-fail-closed-smoke` is now available to produce the team-invite mutation and resume privacy artifact once a controlled authenticated pilot cookie, store id, and resume application id are provided; `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` still requires that evidence |
 | Observation window | PROPOSED / NO-GO | Cloud Monitoring alert policies, enabled attached notification channels, log metrics, JewelLink JewelHire health scheduler, and encrypted logical backup evidence are in place; `docs/pilot-rollback-window-proposal-2026-07-20.md` proposes a 60-minute staffed window and rollback thresholds, but owner approval and exact UTC start/end remain missing |
 
 ## Pilot roster
@@ -124,9 +124,9 @@ config-only pilot flag update recorded below.
 | --- | --- | --- |
 | Public pages | `/login`, `/privacy`, `/terms`, `/signup`, `/forgot-password`, and `/verify-email` return non-5xx public responses | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/report.md` |
 | Private APIs | Unauthenticated private APIs return `401` or branded denial | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/report.md` |
-| Team invites | Diamond Exchange invite/resend/role/status/ownership-transfer attempts return `team_invites_disabled` without mutation | `TBD` |
+| Team invites | Diamond Exchange invite/resend/role/status/ownership-transfer attempts return `team_invites_disabled` without mutation | Runner available via `qa:public-fail-closed-smoke`; production PASS artifact `TBD` |
 | Public careers | Published career page loads on mobile with no horizontal overflow and can reach application step 2 | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/report.md` |
-| Resume privacy | Resume asset returns `401` publicly and downloads only for an authorized same-store/location user | `TBD` |
+| Resume privacy | Resume asset returns `401` publicly and downloads only for an authorized same-store/location user | Runner available via `qa:public-fail-closed-smoke`; production PASS artifact `TBD` |
 
 ## Rollback evidence
 

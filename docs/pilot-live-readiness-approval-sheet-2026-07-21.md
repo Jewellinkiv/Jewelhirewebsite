@@ -116,6 +116,22 @@ scope for:
 - JewelCert invite, completion, scoped JewelLink sync, and retry evidence.
 - Team-invite fail-closed and resume privacy evidence.
 
+The team-invite and resume privacy rows now have a dedicated JewelHire-side
+producer:
+
+```bash
+npm run qa:public-fail-closed-smoke -- \
+  --cookie-file=<local-cookie-file> \
+  --store-id=<pilot-store-id> \
+  --expected-store-id=<pilot-store-id> \
+  --resume-application-id=<application-id>
+```
+
+This runner must be executed with a controlled authenticated pilot session. It
+fails closed when the session, store id, or resume application id is missing, and
+it skips invite/ownership-transfer mutation probes unless the store users API
+first confirms `teamInvitesEnabled: false`.
+
 Live email sends for pilot QA have already been explicitly acknowledged, but
 production user creation, hire confirmation, and JewelLink-side production data
 mutations still need the controlled roster and scope above.
@@ -136,6 +152,7 @@ place:
 ```bash
 npm run qa:operations-readiness -- --operations-evidence-file=docs/production-operations-evidence.approval-template-2026-07-21.json
 npm run qa:pilot-roster
+npm run qa:public-fail-closed-smoke -- --cookie-file=<local-cookie-file> --store-id=<pilot-store-id> --expected-store-id=<pilot-store-id> --resume-application-id=<application-id>
 npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=docs/production-pilot-smoke-evidence.template.json
 node scripts/jewellink-migration-drift-recovery-audit.mjs \
   --jewellink-repo=/Users/sterling/.codex/tmp/jewellink-app-origin-main-20260720 \
