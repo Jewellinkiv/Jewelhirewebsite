@@ -1,0 +1,73 @@
+{
+  "createdAt": "2026-07-21T16:24:55.388Z",
+  "base": "https://jewelhire-azgiue5n5q-uc.a.run.app",
+  "valuesPrinted": false,
+  "pass": false,
+  "checks": [
+    {
+      "name": "authenticated pilot cookie is provided",
+      "pass": true,
+      "source": "file"
+    },
+    {
+      "name": "authenticated session is readable",
+      "pass": true,
+      "status": 200,
+      "role": "store_owner",
+      "authSource": "native",
+      "activeStoreRecorded": true,
+      "storeCount": 1
+    },
+    {
+      "name": "store id is available for team-invite probes",
+      "pass": true,
+      "storeId": "store-jl-58deb73ef9454405c4fe"
+    },
+    {
+      "name": "resolved store matches expected pilot store",
+      "pass": true,
+      "expectedStoreId": "store-jl-58deb73ef9454405c4fe",
+      "storeId": "store-jl-58deb73ef9454405c4fe"
+    },
+    {
+      "name": "store users count recorded before disabled invite probes",
+      "pass": false,
+      "status": 403,
+      "countRecorded": false,
+      "count": "",
+      "teamInvitesEnabled": ""
+    },
+    {
+      "name": "team-invite capability is disabled before mutation probes",
+      "pass": false,
+      "teamInvitesEnabled": ""
+    },
+    {
+      "name": "team-invite mutation probes skipped because capability is not confirmed disabled",
+      "pass": false
+    },
+    {
+      "name": "resume application id is provided",
+      "pass": true
+    },
+    {
+      "name": "resume download rejects public access",
+      "pass": true,
+      "status": 401,
+      "errorCode": "unauthenticated"
+    },
+    {
+      "name": "resume download succeeds only for authenticated same-scope session with private headers",
+      "pass": false,
+      "status": 403,
+      "contentDisposition": "",
+      "cacheControlPrivate": false,
+      "cacheControlNoStore": false,
+      "contentSecurityPolicySandbox": false
+    }
+  ],
+  "evidenceRequest": {
+    "artifact": "public-fail-closed-smoke-request.md",
+    "json": "public-fail-closed-smoke-request.json"
+  }
+}

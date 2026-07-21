@@ -49,7 +49,7 @@ non-secret approval references listed below before any gate changes to GO.
 ## Operations approval fields
 
 Latest audit:
-`docs/qa-runs/operations-readiness-2026-07-21T15-51-32-002Z/operations-readiness-report.md`
+`docs/qa-runs/operations-readiness-2026-07-21T16-24-54-745Z/operations-readiness-report.md`
 
 Fillable template:
 `docs/production-operations-evidence.approval-template-2026-07-21.json`
@@ -102,7 +102,7 @@ ledger repair is authorized or needed for this closure evidence.
 ## JewelLink denial scope approvals
 
 Latest roster audit:
-`docs/qa-runs/pilot-roster-2026-07-21T15-37-32-626Z/pilot-roster-report.md`
+`docs/qa-runs/pilot-roster-2026-07-21T16-24-32-341Z/pilot-roster-report.md`
 
 That roster artifact applies the scoped denial decision:
 `docs/production-pilot-denial-scope-decision-2026-07-21.json`
@@ -124,22 +124,22 @@ Only then should the authenticated SSO smoke matrix proceed.
 ## Mutating smoke approvals
 
 The remaining authenticated smoke evidence packet is
-`docs/qa-runs/pilot-smoke-evidence-2026-07-21T15-26-10-865Z/pilot-smoke-evidence-request.md`.
+`docs/qa-runs/pilot-smoke-evidence-2026-07-21T16-25-53-517Z/pilot-smoke-evidence-request.md`.
 
 Fillable smoke plan preflight template:
 `docs/production-pilot-smoke-plan.template.json`
 
 Latest smoke plan report:
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T15-53-48-588Z/pilot-smoke-plan-report.md`
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T16-24-32-315Z/pilot-smoke-plan-report.md`
 
 Fillable smoke evidence template:
 `docs/production-pilot-smoke-evidence.template.json`
 
 Latest smoke evidence request:
-`docs/qa-runs/pilot-smoke-evidence-2026-07-21T15-26-10-865Z/pilot-smoke-evidence-request.md`
+`docs/qa-runs/pilot-smoke-evidence-2026-07-21T16-25-53-517Z/pilot-smoke-evidence-request.md`
 
 Latest final live-readiness request:
-`docs/qa-runs/pilot-live-readiness-2026-07-21T09-01-05-440Z/pilot-live-readiness-request.md`
+`docs/qa-runs/pilot-live-readiness-2026-07-21T16-26-31-849Z/pilot-live-readiness-request.md`
 
 Final live-readiness manifest template:
 `docs/production-pilot-live-readiness.template.json`
@@ -157,7 +157,7 @@ exact scope for:
 - Team-invite fail-closed and resume privacy evidence.
 
 Controlled smoke target finder:
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T15-52-45-780Z/pilot-smoke-targets-report.md`
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T16-24-54-763Z/pilot-smoke-targets-report.md`
 
 That read-only run confirms the controlled applicant smoke credential, linked
 pilot JewelHire store, published public store page, open public job, and
@@ -226,13 +226,15 @@ fails closed when the session, store id, or resume application id is missing, an
 it skips invite/ownership-transfer mutation probes unless the store users API
 first confirms `teamInvitesEnabled: false`.
 
-The latest public/fail-closed attempt is
-`docs/qa-runs/public-fail-closed-smoke-2026-07-21T15-54-36-822Z/public-fail-closed-smoke-report.md`.
-It proves public resume access rejects with `401`, but the run fails because
-the available native smoke cookie authenticates to the dedicated smoke store,
-not the Diamond Exchange pilot store. Finish this row with a real authenticated
-Diamond Exchange pilot session, preferably from the JewelLink SSO Director or
-Manager path.
+The latest session preflight and public/fail-closed attempt are
+`docs/qa-runs/pilot-session-cookie-2026-07-21T16-25-16-110Z/pilot-session-cookie-report.md`
+and
+`docs/qa-runs/public-fail-closed-smoke-2026-07-21T16-24-54-747Z/public-fail-closed-smoke-report.md`.
+They prove the available native smoke cookie is readable but not JewelLink SSO
+and not scoped to the Diamond Exchange pilot store. The public/fail-closed run
+also proves public resume access rejects with `401`. Finish these rows with a
+real authenticated Diamond Exchange pilot session, preferably from the
+JewelLink SSO Director or Manager path.
 
 The allowlisted non-admin denial row is accepted in the passing smoke plan with
 the source-test plus clean-allowlist strategy. This avoids creating a temporary

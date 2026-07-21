@@ -1,0 +1,24 @@
+{
+  "createdAt": "2026-07-21T16:24:55.388Z",
+  "valuesPrinted": false,
+  "status": "needed",
+  "verificationCommand": "npm run qa:public-fail-closed-smoke -- --cookie-file=<local-cookie-file> --store-id=<pilot-store-id> --resume-application-id=<application-id>",
+  "missingEvidence": [
+    {
+      "check": "store users count recorded before disabled invite probes",
+      "needed": "Provide the required authenticated pilot cookie, store id, resume application id, or investigate the failed live response."
+    },
+    {
+      "check": "team-invite capability is disabled before mutation probes",
+      "needed": "Provide the required authenticated pilot cookie, store id, resume application id, or investigate the failed live response."
+    },
+    {
+      "check": "team-invite mutation probes skipped because capability is not confirmed disabled",
+      "needed": "Provide the required authenticated pilot cookie, store id, resume application id, or investigate the failed live response."
+    },
+    {
+      "check": "resume download succeeds only for authenticated same-scope session with private headers",
+      "needed": "Provide the required authenticated pilot cookie, store id, resume application id, or investigate the failed live response."
+    }
+  ]
+}

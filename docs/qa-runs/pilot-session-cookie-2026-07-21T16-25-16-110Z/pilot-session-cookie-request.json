@@ -1,0 +1,20 @@
+{
+  "createdAt": "2026-07-21T16:25:16.248Z",
+  "valuesPrinted": false,
+  "status": "needed",
+  "verificationCommand": "npm run qa:pilot-session-cookie -- --cookie-file=<local-cookie-file> --expected-store-id=<pilot-store-id> --allowed-roles=store_owner,manager",
+  "missingEvidence": [
+    {
+      "check": "session came from expected auth source",
+      "needed": "Capture a fresh Diamond Exchange JewelLink SSO session in an allowed operator environment, save only the local cookie file, and rerun this read-only audit."
+    },
+    {
+      "check": "active store matches expected pilot store",
+      "needed": "Capture a fresh Diamond Exchange JewelLink SSO session in an allowed operator environment, save only the local cookie file, and rerun this read-only audit."
+    },
+    {
+      "check": "session store list includes expected pilot store",
+      "needed": "Capture a fresh Diamond Exchange JewelLink SSO session in an allowed operator environment, save only the local cookie file, and rerun this read-only audit."
+    }
+  ]
+}
