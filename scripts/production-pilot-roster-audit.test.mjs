@@ -22,7 +22,7 @@ function fixture(overrides = {}) {
       adminSecret: { name: "jewelhire-admin-emails-v2", version: "2" },
       adminAllowlistEmails: ["pilot.admin@example.test"],
       smokeCredentials: [
-        { role: "admin", email: "jewelhire.admin@example.test", password: "long-password-value" },
+        { role: "admin", authMethod: "jewellink_sso" },
         { role: "store_owner", email: "owner@example.test", password: "long-password-value" },
         { role: "applicant", email: "applicant@example.test", password: "long-password-value" },
       ],
@@ -101,6 +101,7 @@ test("complete pilot roster fixture passes without writing full emails or passwo
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(markdown, /Result: PASS/);
   assert.match(markdown, /d\*\*\*@example\.test/);
+  assert.match(markdown, /jewelHireAdmin \| admin \| not recorded \| no \| jewellink_sso/);
   assert.match(markdown, /Actions required: 0/);
   assert.match(provisioningMarkdown, /No roster production account actions are required/);
   assert.doesNotMatch(`${markdown}\n${json}`, /director@example\.test/);

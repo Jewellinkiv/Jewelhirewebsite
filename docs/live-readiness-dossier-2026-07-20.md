@@ -14,7 +14,7 @@ JewelHire SHA without changing runtime behavior.
 
 | Product | Repository | Current head | Build/status |
 | --- | --- | --- | --- |
-| JewelHire | `Jewellinkiv/Jewelhire` | Current evidence change set | Previous pushed evidence base `1c5e31c` passed GitHub validation run `29792815235`; smoke-credential auth, pilot-smoke evidence, operations evidence-packet, drift owner-acceptance, roster-action, and go/no-go hardening tests pass locally in this change set |
+| JewelHire | `Jewellinkiv/Jewelhire` | Current evidence change set | Previous pushed evidence base `f38ca23` passed GitHub validation run `29793360257`; this change set adds the dedicated smoke store-owner refresh path, updates the pilot roster admin SSO marker expectation, and passes release-control tests locally |
 | JewelLink | `Jewellinkiv/jewellink-app` | `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` passed and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have NO-GO findings below |
 | JewelLink local no-push patch | research checkout only | `f12e67d7202a6a567007605f7164d141638b5dbc` | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`; combines candidate-only Cloud Build and profile MFA audit refresh; not pushed |
 
@@ -64,8 +64,8 @@ still requires explicit approval before it can be pushed to
 | JewelLink JewelHire migration rows | Pass | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/` reviews JewelLink commit `55032dbb` and shows all seven JewelHire integration/auth migrations active with matching checksums |
 | JewelLink full migration checksum audit | Fail | The ledger report shows 25 older non-integration active Prisma rows whose checksums drift from the reviewed repo; repeatable recovery audit `docs/qa-runs/jewellink-migration-drift-2026-07-21T00-55-59-144Z/` reviewed `origin/main` `55032dbb`, fetched standard and PR-head refs, searched 302 refs plus 489 successful Cloud Build records / 258 reachable source revisions, recovered 1 exact SQL file, left 24 unrecovered, and generated `jewellink-migration-drift-owner-acceptance-request.md`, so this remains a GO blocker until applied SQL is recovered, repaired with approval, or covered by a valid named database-owner acceptance file |
 | Operations readiness audit | Partial / Fail | `docs/qa-runs/operations-readiness-2026-07-21T01-06-24-623Z/` confirms alert policies, readable and enabled attached notification channels, log metrics, live rollback targets, external database hosts, and the JewelLink health scheduler; backup method/ID/completion/verification/retention/restore evidence, rollback owners, observation window, and thresholds remain missing. Use `docs/qa-runs/operations-readiness-2026-07-21T01-06-24-623Z/operations-readiness-evidence-request.md` or `docs/production-operations-evidence.template.json` for the non-secret fields |
-| Production pilot roster audit | Partial / Fail | `docs/qa-runs/pilot-roster-2026-07-21T01-12-56-855Z/` confirms Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, Director/Manager/Student SSO candidates, a platform-admin candidate, clean admin allowlist, and JewelHire smoke credential roles; Consultant-denial and paused-company denial accounts are missing. The run also writes `pilot-roster-provisioning-packet.md` with the two approval-required production account actions |
-| Production smoke credential auth audit | Fail | `docs/qa-runs/smoke-credential-auth-2026-07-21T01-30-00-783Z/` confirms the controlled applicant credential signs in, but the controlled store-owner credential does not produce a live session and the smoke secret still advertises an obsolete native admin password credential; use `smoke-credential-auth-request.md` for cleanup |
+| Production pilot roster audit | Partial / Fail | `docs/qa-runs/pilot-roster-2026-07-21T01-47-56-756Z/` confirms Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, Director/Manager/Student SSO candidates, a platform-admin candidate, clean admin allowlist, and JewelHire smoke credential auth prerequisites; Consultant-denial and paused-company denial accounts are missing. The run also writes `pilot-roster-provisioning-packet.md` with the two approval-required JewelLink production account actions |
+| Production smoke credential auth audit | Pass | `docs/qa-runs/smoke-credential-auth-2026-07-21T01-47-42-153Z/` passes after refreshing a dedicated JewelHire pilot smoke store-owner account with a short `comped` entitlement, rotating the native password, and replacing the obsolete native admin password entry with a JewelLink SSO marker; values printed: false |
 | Production pilot smoke evidence audit | Fail | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/` generated the 17-row smoke evidence request packet for authenticated SSO, hire handoff, JewelCert, team-invite fail-closed, and resume privacy evidence |
 | Live public and fail-closed QA | Pass | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/` passes public login/signup/forgot/verify/legal/careers/apply checks, logged-out API denials, and desktop/mobile browser smoke with no warnings |
 | Go/no-go dossier | No-go recorded | `docs/production-pilot-go-no-go-dossier-2026-07-20.md` captures required evidence rows, pilot smoke matrix, rollback evidence, and stop conditions |
@@ -90,8 +90,8 @@ node scripts/cross-product-acceptance.mjs \
 | JewelLink integration env | Closed | `qa:pilot-readiness` passed after approved pilot rollout config update for Diamond Exchange `comp_1` |
 | Integration smoke preflight | Closed | `qa:integration-smoke-preflight` passed read-only against production; mutating authenticated smokes are still separate gates |
 | Migration ledger state | Partial | JewelHire is closed; JewelLink integration/auth rows are closed; 25 older JewelLink full-ledger checksum drifts remain open. The latest drift audit generated `docs/qa-runs/jewellink-migration-drift-2026-07-21T00-55-59-144Z/jewellink-migration-drift-owner-acceptance-request.md` for the 24 unrecovered historical rows |
-| Authenticated pilot roster | Partial | `qa:pilot-roster` verifies Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, and Director/Manager/Student/platform-admin candidates; Consultant-denial and paused-company denial aliases remain missing. Use `docs/qa-runs/pilot-roster-2026-07-21T01-12-56-855Z/pilot-roster-provisioning-packet.md` for the approval-required production account actions |
-| Admin allowlist and role cleanup | Partial | `qa:admin-allowlist` passes with `jewelhire-admin-emails-v2:2`; no active JewelLink non-admin remains allowlisted. `qa:smoke-credential-auth` now fails until the stale store-owner smoke credential is rotated and the obsolete native admin password credential is removed or replaced by a JewelLink SSO marker |
+| Authenticated pilot roster | Partial | `qa:pilot-roster` verifies Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, and Director/Manager/Student/platform-admin candidates; Consultant-denial and paused-company denial aliases remain missing. Use `docs/qa-runs/pilot-roster-2026-07-21T01-47-56-756Z/pilot-roster-provisioning-packet.md` for the approval-required JewelLink production account actions |
+| Admin allowlist and role cleanup | Closed | `qa:admin-allowlist` passes with `jewelhire-admin-emails-v2:2`; no active JewelLink non-admin remains allowlisted. `qa:smoke-credential-auth` now passes with the dedicated JewelHire pilot smoke store-owner account, applicant native smoke, and JewelLink SSO admin marker |
 | End-to-end SSO smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` requires Director, Manager, Student, Consultant denial, platform-admin allowlist, allowlisted non-admin denial, and paused-company denial artifacts |
 | End-to-end hire smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` requires preview, confirm, repeat-confirm, and revoked/cancelled access artifacts |
 | End-to-end JewelCert smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` requires invite, completion, scoped JewelLink sync, and retry artifacts |
@@ -133,15 +133,11 @@ without explicit approval.
    window/thresholds in `docs/pilot-rollback-window-proposal-2026-07-20.md`,
    and verify the Cloud Monitoring email channels if Google requires recipient
    confirmation.
-6. Rotate the controlled JewelHire store-owner smoke credential and remove or
-   replace the obsolete native admin password entry listed in
-   `docs/qa-runs/smoke-credential-auth-2026-07-21T01-30-00-783Z/smoke-credential-auth-request.md`,
-   then rerun `qa:smoke-credential-auth`.
-7. Create or approve the two controlled JewelLink accounts listed in
-   `docs/qa-runs/pilot-roster-2026-07-21T01-12-56-855Z/pilot-roster-provisioning-packet.md`,
+6. Create or approve the two controlled JewelLink accounts listed in
+   `docs/qa-runs/pilot-roster-2026-07-21T01-47-56-756Z/pilot-roster-provisioning-packet.md`,
    rerun `qa:pilot-roster`, run the authenticated end-to-end smoke matrix, then
    fill and pass
    `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md`.
-8. Move the go/no-go record to GO only after exact commits, build IDs,
+7. Move the go/no-go record to GO only after exact commits, build IDs,
    migration ledger evidence, config evidence, smoke results, and rollback
    owners are recorded.

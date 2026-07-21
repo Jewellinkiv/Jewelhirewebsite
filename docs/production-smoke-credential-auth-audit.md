@@ -37,18 +37,22 @@ secret values.
 
 ## Latest Production Result
 
-`docs/qa-runs/smoke-credential-auth-2026-07-21T01-30-00-783Z/` confirms the
-controlled applicant credential signs in as an `associate` session. It fails
-because the controlled store-owner credential does not produce a live session,
-and the smoke secret still advertises an obsolete native admin password
-credential. The run generated
-`docs/qa-runs/smoke-credential-auth-2026-07-21T01-30-00-783Z/smoke-credential-auth-request.md`
-with the required cleanup.
+`docs/qa-runs/smoke-credential-auth-2026-07-21T01-47-42-153Z/` passes. The
+controlled store-owner credential signs in as a native `store_owner` session
+with an active store, the controlled applicant credential signs in as an
+`associate` session, and the obsolete native admin password path has been
+replaced by a JewelLink SSO marker.
+
+The store-owner smoke path now uses a dedicated JewelHire pilot smoke company
+refreshed by `npm run ops:smoke-store-owner`; the operation creates or refreshes
+one controlled store-owner user, rotates the password, grants a short `comped`
+entitlement, and adds a new masked Secret Manager version without printing raw
+credentials.
 
 ## Local Verification
 
 Fixture coverage runs without production access:
 
 ```bash
-node --test scripts/production-smoke-credential-auth-audit.test.mjs
+node --test scripts/production-smoke-credential-auth-audit.test.mjs scripts/ops-smoke-store-owner-credential.test.mjs
 ```

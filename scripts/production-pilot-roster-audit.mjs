@@ -91,7 +91,16 @@ function credentialSummary(credentials) {
     emailAlias: maskEmail(credential.email),
     emailDomain: domainOf(credential.email),
     hasPassword: Boolean(credential.hasPassword || (typeof credential.password === "string" && credential.password.length >= 12)),
+    authMethod: typeof credential.authMethod === "string" ? credential.authMethod : "",
+    authSource: typeof credential.authSource === "string" ? credential.authSource : "",
+    sso: typeof credential.sso === "string" ? credential.sso : "",
   }));
+}
+
+function hasJewelLinkSsoMarker(credential) {
+  return credential?.authMethod === "jewellink_sso" ||
+    credential?.authSource === "jewellink_sso" ||
+    credential?.sso === "jewellink";
 }
 
 function connectionStringWithoutSslMode(rawUrl) {
@@ -301,6 +310,8 @@ function summarize(snapshot) {
   const unexpectedLocationIds = locations.map((location) => location.id).filter((id) => !expectedLocationIds.includes(id));
   const smokeCredentials = credentialSummary(snapshot.jewelHire.smokeCredentials || []);
   const hasCredential = (role) => smokeCredentials.some((credential) => credential.role === role && credential.hasPassword);
+  const hasAdminSsoMarker = smokeCredentials.some((credential) =>
+    credential.role === "admin" && !credential.hasPassword && hasJewelLinkSsoMarker(credential));
   const roleCountMap = Object.fromEntries((snapshot.jewelLink.roleCounts || []).map((row) => [row.role, Number(row.count)]));
   const pausedCompanyUsers = snapshot.jewelLink.pausedCompanyUsers || [];
 
@@ -349,7 +360,7 @@ function summarize(snapshot) {
       platformAdminReady: platformAdminCandidates.length > 0,
       allowlistClean: allowlistedNonAdmins.length === 0,
       pausedCompanyDenialCandidateReady: pausedCompanyUsers.length > 0,
-      jewelHireSmokeCredentialsReady: hasCredential("admin") && hasCredential("store_owner") && hasCredential("applicant"),
+      jewelHireSmokeCredentialsReady: hasCredential("store_owner") && hasCredential("applicant") && hasAdminSsoMarker,
     },
   };
 }
@@ -371,7 +382,8 @@ function markdown(report) {
   });
   const credentialRows = Object.entries(report.credentialAliases).map(([label, credential]) => {
     if (!credential) return `| ${label} | Missing |  | |`;
-    return `| ${label} | ${credential.role} | ${credential.emailAlias} | ${credential.hasPassword ? "yes" : "no"} |`;
+    const authPath = hasJewelLinkSsoMarker(credential) ? "jewellink_sso" : "native";
+    return `| ${label} | ${credential.role} | ${credential.emailAlias || "not recorded"} | ${credential.hasPassword ? "yes" : "no"} | ${authPath} |`;
   });
 
   return [
@@ -408,8 +420,8 @@ function markdown(report) {
     "",
     "## JewelHire Smoke Credential Aliases",
     "",
-    "| Alias | Role | Masked alias | Password present |",
-    "| --- | --- | --- | --- |",
+    "| Alias | Role | Masked alias | Password present | Auth path |",
+    "| --- | --- | --- | --- | --- |",
     ...credentialRows,
     "",
     "## Checks",
@@ -557,7 +569,7 @@ async function main() {
   record("paused-company denial candidate exists", report.readyChecks.pausedCompanyDenialCandidateReady, {
     activePausedCompanyUsers: report.pausedCompanyDenial.activePausedCompanyUsers,
   });
-  record("JewelHire smoke credential roles are present", report.readyChecks.jewelHireSmokeCredentialsReady);
+  record("JewelHire smoke credential auth prerequisites are present", report.readyChecks.jewelHireSmokeCredentialsReady);
 
   report.checks = checks;
   report.remainingGaps = [];
@@ -565,6 +577,7 @@ async function main() {
   if (!report.readyChecks.pausedCompanyDenialCandidateReady) report.remainingGaps.push("Create or approve a controlled active user in a paused JewelLink company for stale-access denial smoke.");
   if (report.readyChecks.allowlistClean) report.remainingGaps.push("Live allowlisted-non-admin elevation denial still needs a controlled temporary config window, or explicit acceptance of source-test plus clean-allowlist evidence.");
   if (!report.readyChecks.platformAdminReady) report.remainingGaps.push("Select an allowlisted active JewelLink ADMIN/SUPER_ADMIN account with MFA-backed login for platform-admin SSO smoke.");
+  if (!report.readyChecks.jewelHireSmokeCredentialsReady) report.remainingGaps.push("Rotate controlled JewelHire native store-owner/applicant smoke credentials and keep platform-admin smoke on a JewelLink SSO marker.");
   report.pass = checks.every((check) => check.pass);
   report.failures = checks.filter((check) => !check.pass).length;
   const provisioningPacket = rosterProvisioningPacket(report);

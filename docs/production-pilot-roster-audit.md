@@ -37,7 +37,8 @@ denial personas; it is an approval aid only and does not mutate either product.
   smoke.
 - A JewelLink platform-admin candidate exists in the JewelHire admin allowlist.
 - The JewelHire admin allowlist has no active non-admin JewelLink users.
-- JewelHire smoke credential roles exist for admin, store owner, and applicant.
+- JewelHire smoke credential auth prerequisites exist for admin SSO marker,
+  native store owner, and native applicant smoke paths.
 - Missing live-smoke personas are reported as GO blockers, not silently ignored.
 - Missing controlled Consultant or paused-company denial personas are converted
   into a non-secret provisioning packet with constraints and verification
@@ -45,18 +46,18 @@ denial personas; it is an approval aid only and does not mutate either product.
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-roster-2026-07-21T01-12-56-855Z/` confirms Diamond
+`docs/qa-runs/pilot-roster-2026-07-21T01-47-56-756Z/` confirms Diamond
 Exchange `comp_1`, locations `loc_1`-`loc_6`, Director/Manager/Student SSO
 candidates, a platform-admin candidate, clean admin allowlist, and JewelHire
-smoke credential roles. It still fails because the controlled Consultant-denial
-and paused-company denial personas are missing. The same run generated
-`docs/qa-runs/pilot-roster-2026-07-21T01-12-56-855Z/pilot-roster-provisioning-packet.md`
+smoke credential auth prerequisites. It still fails because the controlled
+Consultant-denial and paused-company denial personas are missing. The same run
+generated
+`docs/qa-runs/pilot-roster-2026-07-21T01-47-56-756Z/pilot-roster-provisioning-packet.md`
 with the two approval-required JewelLink production account actions.
 
 Credential presence is not sufficient for GO evidence. Run
-`npm run qa:smoke-credential-auth` to verify the controlled JewelHire smoke
-credentials can sign in with the expected live roles before using them for
-pilot smoke artifacts.
+`npm run qa:smoke-credential-auth` and require a passing report before using the
+controlled JewelHire smoke credentials for pilot smoke artifacts.
 
 ## Secret Handling
 
