@@ -58,6 +58,12 @@ provider backup IDs, timestamps, owner/channel names, and rollback threshold
 summaries. Do not include database URLs, passwords, tokens, cookies, customer
 data, full backup locations, or secret manager values. Then run:
 
+For the current 2026-07-21 pilot state,
+`docs/production-operations-evidence.approval-template-2026-07-21.json` already
+contains the verified encrypted logical backup evidence and leaves only the
+named rollback owners, observation window, and rollback thresholds blank. Copy
+it to an ignored local approval path before filling approver-specific values.
+
 ```bash
 npm run qa:operations-readiness -- \
   --operations-evidence-file=.qa_tmp/production-operations-evidence.json

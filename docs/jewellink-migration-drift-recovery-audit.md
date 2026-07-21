@@ -30,6 +30,12 @@ npm run qa:jewellink-migration-drift -- \
   --database-owner-acceptance-file=/path/to/database-owner-acceptance.json
 ```
 
+For the current 2026-07-21 pilot state, copy
+`docs/jewellink-migration-drift-owner-acceptance.template-2026-07-21.json` to
+an ignored local approval path, fill only non-secret owner/approval fields, set
+the acknowledgements to `true` only after named database-owner approval, and
+rerun the command above against the filled local file.
+
 The report is written under `docs/qa-runs/jewellink-migration-drift-*` unless
 `--artifacts=<dir>` is supplied.
 

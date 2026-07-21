@@ -25,6 +25,9 @@ authorize any production mutation.
 Latest audit:
 `docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/operations-readiness-report.md`
 
+Fillable template:
+`docs/production-operations-evidence.approval-template-2026-07-21.json`
+
 To close operations readiness, record these six non-secret fields in the
 operations evidence file and rerun `qa:operations-readiness`:
 
@@ -45,6 +48,9 @@ only until a named approver accepts or revises them.
 
 Latest audit:
 `docs/qa-runs/jewellink-migration-drift-2026-07-21T02-32-45-218Z/jewellink-migration-drift-recovery-report.md`
+
+Fillable acceptance template:
+`docs/jewellink-migration-drift-owner-acceptance.template-2026-07-21.json`
 
 Current state:
 
@@ -98,6 +104,9 @@ authenticated SSO smoke matrix proceed.
 The remaining authenticated smoke evidence packet is
 `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md`.
 
+Fillable smoke evidence template:
+`docs/production-pilot-smoke-evidence.template.json`
+
 Before running mutating live smokes, confirm the controlled roster and exact
 scope for:
 
@@ -125,14 +134,14 @@ Run these after the corresponding approvals or production personas are in
 place:
 
 ```bash
-npm run qa:operations-readiness -- --operations-evidence-file=<approved-evidence-file>
+npm run qa:operations-readiness -- --operations-evidence-file=docs/production-operations-evidence.approval-template-2026-07-21.json
 npm run qa:pilot-roster
-npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=<approved-smoke-evidence-file>
+npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=docs/production-pilot-smoke-evidence.template.json
 node scripts/jewellink-migration-drift-recovery-audit.mjs \
   --jewellink-repo=/Users/sterling/.codex/tmp/jewellink-app-origin-main-20260720 \
   --review-ref=origin/main \
   --include-cloud-build-source-search=1 \
-  --database-owner-acceptance-file=<approved-acceptance-file>
+  --database-owner-acceptance-file=docs/jewellink-migration-drift-owner-acceptance.template-2026-07-21.json
 ```
 
 The go/no-go dossier remains NO-GO until these checks pass and the exact

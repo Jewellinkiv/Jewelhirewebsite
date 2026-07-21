@@ -1,0 +1,43 @@
+{
+  "createdAt": "2026-07-21T02:33:02.780Z",
+  "valuesPrinted": false,
+  "status": "needed",
+  "scope": "historical non-integration JewelLink Prisma checksum drift",
+  "instructions": "Copy this JSON to a local approval file, fill owner fields and acknowledgements, then rerun the audit with --database-owner-acceptance-file=<path>. Do not put secrets or customer data in the file.",
+  "owner": "",
+  "ownerRole": "",
+  "acceptedAt": "",
+  "reviewArtifact": "",
+  "acceptanceStatement": "",
+  "acknowledgements": {
+    "acceptsHistoricalNonIntegrationDrift": false,
+    "confirmsIntegrationAuthRowsRemainHardLaunchBoundary": false,
+    "confirmsNoLedgerRepairAuthorizedByThisAcceptance": false
+  },
+  "acceptedUnrecoveredMigrations": [
+    "20260520152458_add_hidden_lesson_ids",
+    "20260530033000_add_pos_register_sessions",
+    "20260530040000_add_pos_tender_settings",
+    "20260530043000_add_pos_refund_lines",
+    "20260530050000_add_pos_inventory_movements",
+    "20260530060000_add_pos_service_settings",
+    "20260530070000_add_pos_service_activity",
+    "20260530080000_add_pos_service_checkout_lines",
+    "20260530090000_add_pos_commissions",
+    "20260530101500_add_pos_commission_workflow",
+    "20260530110000_add_inventory_catalog_fields",
+    "20260531004500_add_whatsapp_models",
+    "20260602090000_add_pos_appearance_settings",
+    "20260603151500_add_pos_device_settings",
+    "20260603163000_linkd_lite_pos_appearance_defaults",
+    "20260604125555_course_package_tag",
+    "20260604142331_feature_announcements",
+    "20260604160127_webchat_sms_merge",
+    "20260611120000_add_payment_reconciliation_fields",
+    "20260612110000_shopify_inventory_import_foundation",
+    "20260623120000_make_stripe_primary_payment_provider",
+    "20260624182000_add_company_pos_sources",
+    "20260625105500_add_reminder_automation_delay_unit",
+    "20260701130000_add_pos_payment_reference_unique"
+  ]
+}

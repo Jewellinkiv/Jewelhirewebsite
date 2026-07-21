@@ -14,6 +14,11 @@ npm run qa:pilot-smoke-evidence -- \
   --smoke-evidence-file=.qa_tmp/production-pilot-smoke-evidence.json
 ```
 
+For the current pilot matrix, copy
+`docs/production-pilot-smoke-evidence.template.json` to an ignored local path
+and fill each row only after the corresponding authenticated smoke has a
+non-secret `docs/qa-runs` artifact.
+
 The evidence file must contain one object per required smoke row. Every row must
 record:
 

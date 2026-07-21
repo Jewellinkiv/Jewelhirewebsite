@@ -1,0 +1,95 @@
+{
+  "authenticatedSso": {
+    "director": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "manager": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "student": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "consultant": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "platformAdmin": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "allowlistedNonAdmin": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "pausedCompany": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    }
+  },
+  "hireHandoff": {
+    "previewHire": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "confirmHire": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "repeatConfirm": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "revokedCancelledAccess": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    }
+  },
+  "jewelCert": {
+    "inviteFromJewelLink": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "completeResult": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "syncToJewelLink": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "retryPath": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    }
+  },
+  "publicFailClosed": {
+    "teamInvites": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    },
+    "resumePrivacy": {
+      "result": "",
+      "observedAt": "",
+      "artifact": ""
+    }
+  }
+}
