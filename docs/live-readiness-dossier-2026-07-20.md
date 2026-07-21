@@ -92,6 +92,7 @@ node scripts/cross-product-acceptance.mjs \
 | Migration ledger state | Closed | JewelHire is closed; JewelLink integration/auth rows are closed; 25 older JewelLink full-ledger checksum drifts are recovered by `docs/qa-runs/jewellink-migration-drift-2026-07-21T03-45-00-000Z/jewellink-migration-drift-recovery-report.md` with 0 unrecovered rows |
 | Authenticated pilot roster | Partial | `qa:pilot-roster` verifies Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, and Director/Manager/Student/platform-admin candidates; Consultant-denial and paused-company denial aliases remain missing. Use `docs/qa-runs/pilot-roster-2026-07-21T02-31-32-809Z/pilot-roster-provisioning-packet.md` for the approval-required JewelLink production account actions |
 | Admin allowlist and role cleanup | Closed | `qa:admin-allowlist` passes with `jewelhire-admin-emails-v2:2`; no active JewelLink non-admin remains allowlisted. `qa:smoke-credential-auth` now passes with the dedicated JewelHire pilot smoke store-owner account, applicant native smoke, and JewelLink SSO admin marker |
+| Controlled smoke-plan preflight | Partial | `docs/qa-runs/pilot-smoke-plan-2026-07-21T03-46-39-000Z/pilot-smoke-plan-report.md` records the explicit live-email and JewelLink pilot-flag movement approvals and now passes 40/53 checks; the request packet lists 13 remaining approval, roster, operations, alias, hire-application, and resume-application fields before mutating smokes can run |
 | End-to-end SSO smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` requires Director, Manager, Student, Consultant denial, platform-admin allowlist, allowlisted non-admin denial, and paused-company denial artifacts |
 | End-to-end hire smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` requires preview, confirm, repeat-confirm, and revoked/cancelled access artifacts |
 | End-to-end JewelCert smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` requires invite, completion, scoped JewelLink sync, and retry artifacts |
@@ -129,8 +130,10 @@ without explicit approval.
    confirmation.
 5. Create or approve the two controlled JewelLink accounts listed in
    `docs/qa-runs/pilot-roster-2026-07-21T02-31-32-809Z/pilot-roster-provisioning-packet.md`,
-   rerun `qa:pilot-roster`, pass `qa:pilot-smoke-plan`, run the authenticated
-   end-to-end smoke matrix, then fill and pass
+   rerun `qa:pilot-roster`, close the 13 remaining items in
+   `docs/qa-runs/pilot-smoke-plan-2026-07-21T03-46-39-000Z/pilot-smoke-plan-request.md`,
+   pass `qa:pilot-smoke-plan`, run the authenticated end-to-end smoke matrix,
+   then fill and pass
    `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md`.
 6. Move the go/no-go record to GO only after exact commits, build IDs,
    migration ledger evidence, config evidence, smoke results, and rollback

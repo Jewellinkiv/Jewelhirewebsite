@@ -97,7 +97,7 @@ Fillable smoke plan preflight template:
 `docs/production-pilot-smoke-plan.template.json`
 
 Latest smoke plan request:
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T03-28-26-058Z/pilot-smoke-plan-request.md`
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T03-46-39-000Z/pilot-smoke-plan-request.md`
 
 Fillable smoke evidence template:
 `docs/production-pilot-smoke-evidence.template.json`
@@ -130,9 +130,15 @@ fails closed when the session, store id, or resume application id is missing, an
 it skips invite/ownership-transfer mutation probes unless the store users API
 first confirms `teamInvitesEnabled: false`.
 
-Live email sends for pilot QA have already been explicitly acknowledged, but
-production user creation, hire confirmation, and JewelLink-side production data
-mutations still need the controlled roster and scope above.
+The latest smoke-plan preflight records the explicit live-email approval and
+JewelLink pilot rollout flag/config/repo/deploy movement approval already
+granted for this pilot. It still fails closed until the remaining request
+packet items are supplied: controlled production user/persona creation, hire
+confirmation, JewelCert production mutation, authenticated public/fail-closed
+probe approval, rollback window approval, PASS operations and roster artifacts,
+Consultant-denial / allowlisted-non-admin / paused-company aliases, approved
+SSO persona matrix, controlled hire application alias, and resume application
+ID.
 
 ## JewelLink code/repo approval
 

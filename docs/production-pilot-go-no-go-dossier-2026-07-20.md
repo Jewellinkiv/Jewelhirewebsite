@@ -24,7 +24,7 @@ artifact. Candidate notes without a passing roster report are not sufficient.
 
 | Product | State | Evidence |
 | --- | --- | --- |
-| JewelHire | Source-ready at the current evidence change set | Previous pushed evidence base `f38ca23` passed GitHub validation run `29793360257`; this change set adds the dedicated smoke store-owner refresh path, public fail-closed smoke runner, updates the pilot roster admin SSO marker expectation, and passes release-control tests locally |
+| JewelHire | Source-ready at the current evidence change set | Pushed evidence base `cf45c8e` passed GitHub validation run `29799180581`; deploy skipped as expected. The latest committed set closes JewelLink migration drift recovery and keeps release-control tests green locally |
 | JewelLink main | Current live baseline `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have open findings |
 | JewelLink release/profile patch | Prepared locally, not pushed | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`, commit `f12e67d7202a6a567007605f7164d141638b5dbc`; patch artifact `docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch` |
 
@@ -41,7 +41,7 @@ config-only pilot flag update recorded below.
 
 | Gate | Current status | Evidence required for GO |
 | --- | --- | --- |
-| JewelHire CI | PASS | GitHub validation run `29798670912` passed for `14efeff`; deploy skipped as expected. Current local release-control sweep passes 59/59 after adding terminal-CRLF migration drift recovery coverage |
+| JewelHire CI | PASS | GitHub validation run `29799180581` passed for `cf45c8e`; deploy skipped as expected. Current local release-control sweep passes 59/59 after adding terminal-CRLF migration drift recovery coverage |
 | JewelLink CI/build | PARTIAL / NO-GO | Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded for commit `55032dbb`, but unpatched main fails 1 profile 2FA-phone guard; local combined patch `f12e67d7` makes JewelHire SSO source audit and profile/release tests pass, but it is not pushed |
 | JewelLink release-path safety | PARTIAL / NO-GO | Config-only Cloud Run update was explicitly approved and completed; current `cloudbuild.jewellink.yaml` still direct-deploys live service and `tests/deploy-release-safety.test.ts` fails 1/8 against unpatched `55032dbb`; combined candidate-release/profile patch remains local/unpushed |
 | Production integration secrets | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
@@ -55,7 +55,7 @@ config-only pilot flag update recorded below.
 | JewelHire smoke credential auth | PASS | `docs/qa-runs/smoke-credential-auth-2026-07-21T01-47-42-153Z/smoke-credential-auth-report.md` passes after refreshing a dedicated JewelHire pilot smoke store-owner account with a short `comped` entitlement, rotating the native password, and replacing the obsolete native admin password entry with a JewelLink SSO marker; values printed: false |
 | Rollback owners | MISSING | `docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/operations-readiness-report.md` confirms the only remaining operations failures are named JewelHire traffic rollback owner, JewelLink traffic rollback owner, JewelLink IAM rollback owner, database recovery owner, approved observation window, and approved rollback thresholds; `docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/operations-readiness-evidence-request.md` lists the exact required fields |
 | Pilot roster | PARTIAL / NO-GO | `docs/qa-runs/pilot-roster-2026-07-21T02-31-32-809Z/pilot-roster-report.md` verifies Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, Director/Manager/Student SSO candidates, a platform-admin candidate, clean admin allowlist, and JewelHire smoke credential auth prerequisites; Consultant-denial and paused-company denial accounts are missing. The same run writes `docs/qa-runs/pilot-roster-2026-07-21T02-31-32-809Z/pilot-roster-provisioning-packet.md` with the two approval-required production account actions |
-| Controlled smoke plan preflight | REQUESTED / NO-GO | `docs/qa-runs/pilot-smoke-plan-2026-07-21T03-28-26-058Z/pilot-smoke-plan-report.md` was generated from `docs/production-pilot-smoke-plan.template.json`; 13/53 checks pass and 40 approval, prerequisite artifact, persona, and scope fields remain missing before authenticated SSO, hire, JewelCert, team-invite, or resume privacy smokes can run in production |
+| Controlled smoke plan preflight | REQUESTED / NO-GO | `docs/qa-runs/pilot-smoke-plan-2026-07-21T03-46-39-000Z/pilot-smoke-plan-report.md` records the explicit live-email and JewelLink pilot-flag movement approvals in an ignored local plan; 40/53 checks pass and 13 approval, prerequisite artifact, persona, and scope fields remain missing before authenticated SSO, hire, JewelCert, team-invite, or resume privacy smokes can run in production |
 | Authenticated SSO smoke | NOT RUN | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` requires 7 concrete authenticated SSO evidence rows before GO |
 | Hire handoff smoke | NOT RUN | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` requires 4 concrete hire handoff evidence rows before GO |
 | JewelCert smoke | NOT RUN | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` requires 4 concrete JewelCert evidence rows before GO |
@@ -85,7 +85,7 @@ config-only pilot flag update recorded below.
 | Field | Value |
 | --- | --- |
 | Smoke plan preflight template | `docs/production-pilot-smoke-plan.template.json` |
-| Smoke plan request packet | `docs/qa-runs/pilot-smoke-plan-2026-07-21T03-28-26-058Z/pilot-smoke-plan-request.md` |
+| Smoke plan request packet | `docs/qa-runs/pilot-smoke-plan-2026-07-21T03-46-39-000Z/pilot-smoke-plan-request.md` |
 | Smoke plan preflight command | `npm run qa:pilot-smoke-plan -- --smoke-plan-file=<path>` |
 | Evidence request packet | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` |
 | Required rows | 17 |
