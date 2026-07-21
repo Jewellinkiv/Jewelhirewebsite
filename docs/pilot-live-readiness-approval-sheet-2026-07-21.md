@@ -102,6 +102,12 @@ Latest smoke plan request:
 Fillable smoke evidence template:
 `docs/production-pilot-smoke-evidence.template.json`
 
+Latest final live-readiness request:
+`docs/qa-runs/pilot-live-readiness-2026-07-21T05-05-00-000Z/pilot-live-readiness-request.md`
+
+Final live-readiness manifest template:
+`docs/production-pilot-live-readiness.template.json`
+
 Before running mutating live smokes, copy the smoke plan template to an ignored
 local path, fill the non-secret approval/persona/scope fields, and require
 `qa:pilot-smoke-plan` to pass. The plan preflight must confirm the controlled
@@ -171,6 +177,11 @@ allowlist artifacts plus non-secret acceptance metadata. The second path avoids
 creating a temporary production non-admin solely for an allowlist-denial check,
 but it still requires explicit acceptance before `qa:pilot-smoke-plan` can pass.
 
+After every individual request packet is closed and the go/no-go dossier is
+moved to GO, copy `docs/production-pilot-live-readiness.template.json` to an
+ignored local path and run `qa:pilot-live-readiness`. That final read-only audit
+must pass before the pilot is treated as GO-ready.
+
 ## JewelLink code/repo approval
 
 The combined JewelLink release-path/profile-audit patch remains local and
@@ -192,6 +203,7 @@ npm run qa:pilot-application-submission -- --target-report=<pilot-smoke-targets-
 npm run qa:pilot-smoke-plan -- --smoke-plan-file=.qa_tmp/production-pilot-smoke-plan.json
 npm run qa:public-fail-closed-smoke -- --cookie-file=<local-cookie-file> --store-id=<pilot-store-id> --expected-store-id=<pilot-store-id> --resume-application-id=<application-id>
 npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=docs/production-pilot-smoke-evidence.template.json
+npm run qa:pilot-live-readiness -- --readiness-file=.qa_tmp/production-pilot-live-readiness.json
 npm run qa:jewellink-migration-object-state
 node scripts/jewellink-migration-drift-recovery-audit.mjs \
   --jewellink-repo=/Users/sterling/.codex/tmp/jewellink-app-origin-main-20260720 \

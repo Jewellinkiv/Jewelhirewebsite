@@ -1,0 +1,25 @@
+{
+  "decision": {
+    "goNoGoDossier": "docs/production-pilot-go-no-go-dossier-2026-07-20.md",
+    "expectedDecision": "GO for controlled pilot"
+  },
+  "evidence": {
+    "productionPilotReadinessReport": "",
+    "integrationSmokePreflightReport": "",
+    "operationsReadinessReport": "",
+    "pilotRosterReport": "",
+    "pilotSmokeTargetsReport": "",
+    "pilotApplicationSubmissionReport": "",
+    "pilotSmokePlanReport": "",
+    "pilotSmokeEvidenceReport": "",
+    "jewellinkNoPushValidationReport": "",
+    "jewellinkApprovalPacketReport": ""
+  },
+  "approvals": {
+    "jewelLinkRepoMovementApproval": "",
+    "rollbackWindowApproval": "",
+    "controlledApplicationSubmissionApproval": "",
+    "mutatingSmokeApproval": ""
+  },
+  "notes": ""
+}

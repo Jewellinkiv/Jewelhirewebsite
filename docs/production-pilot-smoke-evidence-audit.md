@@ -93,6 +93,13 @@ first request packet for this gate. It records 17 required smoke evidence rows,
 The gate remains a live-pilot NO-GO item until all 17 rows pass with concrete
 artifacts.
 
+After this evidence audit passes and the go/no-go dossier is moved to GO, run
+`qa:pilot-live-readiness` with an ignored manifest copied from
+`docs/production-pilot-live-readiness.template.json`. That final audit collects
+the concrete PASS artifacts and approval references in one place before the
+pilot is treated as GO-ready. The current final request packet is
+`docs/qa-runs/pilot-live-readiness-2026-07-21T05-05-00-000Z/pilot-live-readiness-request.md`.
+
 ## Secret Handling
 
 Do not put full email addresses, passwords, database URLs, bearer tokens,

@@ -24,7 +24,7 @@ artifact. Candidate notes without a passing roster report are not sufficient.
 
 | Product | State | Evidence |
 | --- | --- | --- |
-| JewelHire | Source-ready at `ff4f810214de3a9bb54c448e309dcfeced1164f0` | GitHub validation run `29802200805` passed after adding the guarded pilot application setup helper; deploy skipped as expected |
+| JewelHire | Source-ready, validated through `26b623045d0fb5bb35dee03a8a193afbc6745ecf` | GitHub validation run `29802530716` passed after tightening the pilot smoke-plan allowlist evidence guard; deploy skipped as expected. Later documentation-only or audit-tooling commits may supersede this SHA without changing runtime behavior |
 | JewelLink main | Current live baseline `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have open findings |
 | JewelLink release/profile patch | Prepared locally, not pushed | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`, commit `f12e67d7202a6a567007605f7164d141638b5dbc`; patch artifact `docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch` |
 
@@ -41,7 +41,7 @@ config-only pilot flag update recorded below.
 
 | Gate | Current status | Evidence required for GO |
 | --- | --- | --- |
-| JewelHire CI | PASS | GitHub validation run `29802200805` passed for `ff4f810`; deploy skipped as expected. The latest evidence refresh keeps release-control, lint, build, audit, and integration source checks green in hosted validation |
+| JewelHire CI | PASS | GitHub validation run `29802530716` passed for `26b6230`; deploy skipped as expected. The latest evidence refresh keeps release-control, lint, build, audit, and integration source checks green in hosted validation |
 | JewelLink CI/build | PARTIAL / NO-GO | Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded for commit `55032dbb`, but unpatched main fails 1 profile 2FA-phone guard; local combined patch `f12e67d7` is refreshed by `docs/qa-runs/jewellink-no-push-validation-2026-07-21T04-00-50-000Z/jewellink-no-push-validation-report.md` and makes JewelHire SSO source audit and profile/release tests pass, but it is not pushed |
 | JewelLink release-path safety | PARTIAL / NO-GO | Config-only Cloud Run update was explicitly approved and completed; current `cloudbuild.jewellink.yaml` still direct-deploys live service and `tests/deploy-release-safety.test.ts` fails 1/8 against unpatched `55032dbb`; combined candidate-release/profile patch remains local/unpushed, though the latest no-push validation confirms the saved patch applies to current `origin/main` and performs no JewelLink push/PR/deploy/mutation |
 | Production integration secrets | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
@@ -61,6 +61,7 @@ config-only pilot flag update recorded below.
 | Hire handoff smoke | NOT RUN | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` requires 4 concrete hire handoff evidence rows before GO |
 | JewelCert smoke | NOT RUN | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` requires 4 concrete JewelCert evidence rows before GO |
 | Public and fail-closed smoke | PARTIAL | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/report.md` passes public/login/apply/auth-boundary checks; `docs/qa-runs/integration-smoke-preflight-2026-07-20T23-29-09-249Z/integration-smoke-preflight-report.md` passes unauthenticated mutation endpoint denials; `qa:public-fail-closed-smoke` is now available to produce the team-invite mutation and resume privacy artifact once a controlled authenticated pilot cookie, store id, and resume application id are provided; `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` still requires that evidence |
+| Final live-readiness manifest | NOT RUN | `docs/qa-runs/pilot-live-readiness-2026-07-21T05-05-00-000Z/pilot-live-readiness-report.md` fails as expected while final evidence is open; `qa:pilot-live-readiness` must pass against an ignored manifest copied from `docs/production-pilot-live-readiness.template.json`; it requires GO dossier status, all concrete PASS evidence artifacts, and non-secret approval references before the pilot is treated as GO-ready |
 | Observation window | PROPOSED / NO-GO | Cloud Monitoring alert policies, enabled attached notification channels, log metrics, JewelLink JewelHire health scheduler, and encrypted logical backup evidence are in place; `docs/pilot-rollback-window-proposal-2026-07-20.md` proposes a 60-minute staffed window and rollback thresholds, but owner approval and exact UTC start/end remain missing |
 
 ## Pilot roster
@@ -91,6 +92,9 @@ config-only pilot flag update recorded below.
 | Smoke plan request packet | `docs/qa-runs/pilot-smoke-plan-2026-07-21T04-11-01-000Z/pilot-smoke-plan-request.md` |
 | Smoke plan preflight command | `npm run qa:pilot-smoke-plan -- --smoke-plan-file=<path>` |
 | Evidence request packet | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` |
+| Final live-readiness request packet | `docs/qa-runs/pilot-live-readiness-2026-07-21T05-05-00-000Z/pilot-live-readiness-request.md` |
+| Final live-readiness manifest template | `docs/production-pilot-live-readiness.template.json` |
+| Final live-readiness command | `npm run qa:pilot-live-readiness -- --readiness-file=<path>` |
 | Required rows | 17 |
 | Passing rows | 0 |
 | Verification command | `npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=<path>` |
@@ -162,7 +166,8 @@ The decision can move from **NO-GO** to **GO for controlled pilot** only when:
 7. Controlled smoke plan preflight passes before mutating live smokes run.
 8. Authenticated SSO, hire, and JewelCert smokes pass for the approved roster.
 9. Rollback owners and revision targets are recorded.
-10. No stop condition is open.
+10. `qa:pilot-live-readiness` passes against the final ignored manifest.
+11. No stop condition is open.
 
 ## Stop conditions
 

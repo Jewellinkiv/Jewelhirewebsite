@@ -14,7 +14,7 @@ JewelHire SHA without changing runtime behavior.
 
 | Product | Repository | Current head | Build/status |
 | --- | --- | --- | --- |
-| JewelHire | `Jewellinkiv/Jewelhire` | `ff4f810214de3a9bb54c448e309dcfeced1164f0` | GitHub validation run `29802200805` passed after adding the guarded pilot application setup helper; deploy skipped as expected |
+| JewelHire | `Jewellinkiv/Jewelhire` | Validated through `26b623045d0fb5bb35dee03a8a193afbc6745ecf` | GitHub validation run `29802530716` passed after tightening the pilot smoke-plan allowlist evidence guard; deploy skipped as expected. Later documentation-only or audit-tooling commits may supersede this SHA without changing runtime behavior |
 | JewelLink | `Jewellinkiv/jewellink-app` | `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` passed and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have NO-GO findings below |
 | JewelLink local no-push patch | research checkout only | `f12e67d7202a6a567007605f7164d141638b5dbc` | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`; combines candidate-only Cloud Build and profile MFA audit refresh; not pushed |
 
@@ -68,6 +68,7 @@ still requires explicit approval before it can be pushed to
 | Production smoke credential auth audit | Pass | `docs/qa-runs/smoke-credential-auth-2026-07-21T01-47-42-153Z/` passes after refreshing a dedicated JewelHire pilot smoke store-owner account with a short `comped` entitlement, rotating the native password, and replacing the obsolete native admin password entry with a JewelLink SSO marker; values printed: false |
 | Production pilot smoke target audit | Fail | `docs/qa-runs/pilot-smoke-targets-2026-07-21T04-36-00-000Z/` confirms the controlled applicant credential, native password, database credential, linked pilot JewelHire store, published public store page, and open public job are ready; it records endpoint path `/api/public/stores/diamond-exchange-58deb73e/applications` and job ID `job-d389b48d-3bd4-463f-9151-4ff7ed947e8f`, but the controlled applicant has no pilot application yet; `qa:pilot-application-submission` is now the guarded setup helper for creating that single controlled pilot-store application with a private resume attachment after explicit approval |
 | Production pilot smoke evidence audit | Fail | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/` generated the 17-row smoke evidence request packet for authenticated SSO, hire handoff, JewelCert, team-invite fail-closed, and resume privacy evidence |
+| Production pilot live readiness audit | Requested / Fail | `docs/qa-runs/pilot-live-readiness-2026-07-21T05-05-00-000Z/` generated the final request packet; `qa:pilot-live-readiness` is now the final read-only manifest gate requiring GO dossier status plus concrete PASS artifacts for production readiness, operations, roster, smoke targets, controlled application submission, smoke plan, smoke evidence, JewelLink no-push validation, JewelLink approval packet, and approval references before treating the pilot as GO-ready |
 | Live public and fail-closed QA | Pass | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/` passes public login/signup/forgot/verify/legal/careers/apply checks, logged-out API denials, and desktop/mobile browser smoke with no warnings |
 | Go/no-go dossier | No-go recorded | `docs/production-pilot-go-no-go-dossier-2026-07-20.md` captures required evidence rows, pilot smoke matrix, rollback evidence, and stop conditions |
 
@@ -98,6 +99,7 @@ node scripts/cross-product-acceptance.mjs \
 | End-to-end SSO smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` requires Director, Manager, Student, Consultant denial, platform-admin allowlist, allowlisted non-admin denial, and paused-company denial artifacts |
 | End-to-end hire smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` requires preview, confirm, repeat-confirm, and revoked/cancelled access artifacts |
 | End-to-end JewelCert smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` requires invite, completion, scoped JewelLink sync, and retry artifacts |
+| Final live-readiness manifest | Not run | `docs/qa-runs/pilot-live-readiness-2026-07-21T05-05-00-000Z/pilot-live-readiness-request.md` lists the final evidence fields; `qa:pilot-live-readiness` must pass against an ignored manifest copied from `docs/production-pilot-live-readiness.template.json` after every individual gate has a concrete PASS artifact and the go/no-go dossier is moved to GO |
 | JewelLink release-path patch approval | Open for future code/image deploys | Config-only pilot flag update was approved and completed; the Cloud Build candidate-release patch remains local and unpushed |
 | Rollback and monitoring evidence | Partial | Current revisions and admin-secret version are recorded; monitoring resources are installed and attached; encrypted logical backups are recorded in `docs/production-operations-evidence-2026-07-21.json`; `docs/pilot-rollback-window-proposal-2026-07-20.md` proposes the window/thresholds, but named owner approvals, exact UTC observation window, and rollback thresholds remain open. The latest operations audit generated `docs/qa-runs/operations-readiness-2026-07-21T04-11-01-000Z/operations-readiness-evidence-request.md` with the exact missing fields |
 
@@ -146,6 +148,9 @@ without explicit approval.
 6. Move the go/no-go record to GO only after exact commits, build IDs,
    migration ledger evidence, config evidence, smoke results, and rollback
    owners are recorded.
-7. Use `docs/pilot-live-readiness-approval-sheet-2026-07-21.md` as the current
+7. Fill and pass `qa:pilot-live-readiness` using an ignored manifest copied
+   from `docs/production-pilot-live-readiness.template.json` as the final
+   confirmation after the dossier is GO.
+8. Use `docs/pilot-live-readiness-approval-sheet-2026-07-21.md` as the current
    non-secret checklist for the remaining owner, JewelLink persona, smoke-scope,
    and JewelLink repo approvals.
