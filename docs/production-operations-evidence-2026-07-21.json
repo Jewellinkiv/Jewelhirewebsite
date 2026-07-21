@@ -28,6 +28,6 @@
     "rollbackThresholds": ""
   },
   "monitoring": {
-    "channel": ""
+    "channel": "GCP alert policies 'JewelHire pilot Cloud Run 5xx responses' and 'JewelLink pilot Cloud Run 5xx responses' have attached enabled email notification channels 10170517523806111204 and 6069355864943001083."
   }
 }

@@ -16,7 +16,7 @@ Dry-run or request packet:
 
 ```bash
 npm run qa:pilot-application-submission -- \
-  --target-report=docs/qa-runs/pilot-smoke-targets-2026-07-21T06-50-58-563Z/pilot-smoke-targets-report.json
+  --target-report=docs/qa-runs/pilot-smoke-targets-2026-07-21T07-12-06-279Z/pilot-smoke-targets-report.json
 ```
 
 Approved execution:
@@ -33,7 +33,7 @@ The report is written under
 supplied.
 
 The latest dry-run request packet is
-`docs/qa-runs/pilot-application-submission-2026-07-21T06-51-15-992Z/pilot-application-submission-request.md`.
+`docs/qa-runs/pilot-application-submission-2026-07-21T07-13-32-088Z/pilot-application-submission-request.md`.
 
 ## Approval File
 

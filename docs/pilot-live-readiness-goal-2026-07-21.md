@@ -102,8 +102,10 @@ before execution or before the relevant gate can pass:
 ## Current Next Step
 
 The next gate is operations rollback evidence. The latest operations audit
-already passes backup and monitoring checks, but it still needs named rollback
-owners, an approved UTC observation window, and approved rollback thresholds.
+already passes backup and monitoring checks, with monitoring channel IDs now
+explicitly recorded in `docs/production-operations-evidence-2026-07-21.json`,
+but it still needs named rollback owners, an approved UTC observation window,
+and approved rollback thresholds.
 
 Use `docs/pilot-rollback-window-proposal-2026-07-20.md` as the starting point
 for the owner/window/threshold decision, then record the accepted values in the
