@@ -267,15 +267,30 @@ async function main() {
   console.log("PASS team-member course assignments authorize from persisted team location ids");
 }
 
+async function waitForDatabaseSessionsToDrain({ timeoutMs = 10_000, intervalMs = 200 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const result = await admin.query(
+      "select count(*)::int as sessions from pg_stat_activity where datname = $1",
+      [databaseName],
+    );
+    const sessions = result.rows[0]?.sessions ?? 0;
+    if (sessions === 0) return;
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Disposable database "${databaseName}" still has ${sessions} session(s) after ${timeoutMs}ms; refusing to force-drop.`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
 try {
   await main();
 } finally {
   if (pool) await pool.end().catch(() => undefined);
   if (databaseCreated) {
-    await admin.query(
-      "select pg_terminate_backend(pid) from pg_stat_activity where datname = $1 and pid <> pg_backend_pid()",
-      [databaseName],
-    ).catch(() => undefined);
+    await waitForDatabaseSessionsToDrain().catch(() => undefined);
     await admin.query(`drop database if exists "${databaseName}"`).catch(() => undefined);
   }
   await admin.end().catch(() => undefined);
