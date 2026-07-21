@@ -14,9 +14,10 @@ JewelHire SHA without changing runtime behavior.
 
 | Product | Repository | Current head | Build/status |
 | --- | --- | --- | --- |
-| JewelHire | `Jewellinkiv/Jewelhire` | Validated through `b8ca72b2f939b1574e69c5760f6cdb41a3d638ae` | GitHub validation run `29848880452` passed; deploy skipped as expected |
-| JewelLink main | `Jewellinkiv/jewellink-app` | Current head `550e5dcf6e537926424e9234412d32b8a9ef0a0a` | PR `#246` merged the profile MFA audit closure; existing operations evidence still observes live ready revision `jewellink-dev-01156-vbn`; release-path safety remains a separate follow-up |
+| JewelHire | `Jewellinkiv/Jewelhire` | Validated through `ceb3a19d67c70b5adb9a7dffef45d54f5b9d0ee0` | GitHub validation run `29852230109` passed; deploy skipped as expected |
+| JewelLink main | `Jewellinkiv/jewellink-app` | Current head `550e5dcf6e537926424e9234412d32b8a9ef0a0a` | PR `#246` merged the profile MFA audit closure; existing operations evidence still observes live ready revision `jewellink-dev-01156-vbn`; release-path safety is isolated in open PR `#247` |
 | JewelLink PR `#246` | `Jewellinkiv/jewellink-app` | PR head `fdd8d1aa8fcf16bc3bea90d871a22089d8d535ad`, merge commit `550e5dcf6e537926424e9234412d32b8a9ef0a0a` | Merged by `JacksonSLC` at `2026-07-21T17:04:38Z`; reduced to `scripts/audit-jewelhire-sso.mjs` and `tests/profile-mfa-factor-protection.test.ts` after Jackson requested removing `cloudbuild.jewellink.yaml` |
+| JewelLink PR `#247` | `Jewellinkiv/jewellink-app` | PR head `bb3e8585a5bd2312cfada77639e849e997d89ecc` | Open for `JacksonSLC` review at `https://github.com/Jewellinkiv/jewellink-app/pull/247`; changes only `cloudbuild.jewellink.yaml` so the main trigger validates source, deploys a no-traffic candidate, and smokes the candidate login URL without migrations or traffic movement |
 
 Earlier evidence used JewelLink main `55032dbb`; that baseline still supports
 the recorded Cloud Build, migration, and operations artifacts. The translated
@@ -24,12 +25,12 @@ profile MFA audit work has now moved from the local no-push patch into
 JewelLink PR `#246`:
 `https://github.com/Jewellinkiv/jewellink-app/pull/246`, merged by
 `JacksonSLC` at `2026-07-21T17:04:38Z`. Per Jackson's review, the
-`cloudbuild.jewellink.yaml` changes were removed from the PR; the
-candidate-release Cloud Build change remains a separate follow-up. The merged
-PR refreshes the translated profile 2FA-phone audit while preserving the
+`cloudbuild.jewellink.yaml` changes were removed from the PR. The
+candidate-release Cloud Build change is now isolated in PR `#247` for Jackson's
+review. The merged PR refreshes the translated profile 2FA-phone audit while preserving the
 read-only profile-phone behavior. No JewelLink production deploy, migration,
 traffic movement, or data mutation was performed by opening, revising, or
-merging the PR.
+merging PR `#246` or opening PR `#247`.
 
 ## Green evidence
 
@@ -47,7 +48,7 @@ merging the PR.
 | JewelLink merged profile MFA audit patch | Pass | PR `#246` merged at `550e5dcf`; merged main passed profile MFA tests 3/3, committed-secret scan over 2,506 files, JewelHire SSO source audit 90/90 controls, and `git diff --check`; no production deploy, migration, traffic movement, or data mutation occurred |
 | Historical JewelLink no-push approval packet | Pass | `docs/qa-runs/jewellink-no-push-validation-2026-07-21T05-21-10-000Z/jewellink-no-push-validation-report.md` remains the pre-PR approval record for the broader combined release/profile scope. It is superseded for current PR handoff by the narrower profile-only PR `#246` |
 | Current JewelLink profile audit closure | Closed in source | The translated profile 2FA-phone audit/profile MFA guard closure merged through PR `#246` at `550e5dcf`; deployment/promotion is still a separate release-controlled action |
-| Current JewelLink release-path safety | Open / separate follow-up | Jackson requested removing the `cloudbuild.jewellink.yaml` changes from PR `#246`; candidate-only Cloud Build remains a separate JewelLink release-path item before a production code/image rollout |
+| Current JewelLink release-path safety | Open / PR ready for review | PR `#247` is open with only `cloudbuild.jewellink.yaml` changed. Local validation passed `tests/deploy-release-safety.test.ts`, `tests/jewelhire-ci-gates.test.ts`, `scripts/audit-jewelhire-sso.mjs`, and `git diff --check`. The gate remains NO-GO until the PR is merged and candidate evidence is recorded |
 | Production pilot readiness audit tooling | Pass | `scripts/production-pilot-readiness-audit.mjs` added with fixture coverage for matching and mismatched shared secrets without value leakage |
 | Production cloud access | Pass | `gcloud` authenticated with the approved operator account; JewelHire and JewelLink Cloud Run service configs are readable |
 | Production pilot readiness audit | Pass | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` reports `valuesPrinted: false`; both Cloud Run configs are readable; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
@@ -95,12 +96,13 @@ node scripts/cross-product-acceptance.mjs \
 | Admin allowlist and role cleanup | Closed | `qa:admin-allowlist` passes in `docs/qa-runs/admin-allowlist-2026-07-21T09-00-14-975Z/` with `jewelhire-admin-emails-v2:2`; no active JewelLink non-admin remains allowlisted. `qa:smoke-credential-auth` passes in `docs/qa-runs/smoke-credential-auth-2026-07-21T15-54-18-220Z/` with the dedicated JewelHire pilot smoke store-owner account, applicant native smoke, and JewelLink SSO admin marker |
 | Controlled smoke targets | Closed | `qa:pilot-application-submission` passed in `docs/qa-runs/pilot-application-submission-2026-07-21T15-52-39-694Z/` after explicit approval, and `qa:pilot-smoke-targets` passed in `docs/qa-runs/pilot-smoke-targets-2026-07-21T16-24-54-763Z/`; application `app-32dbfd01-3092-4190-9c15-cf43aa72ff46` is the controlled hire/resume target |
 | Controlled smoke-plan preflight | Closed | `docs/qa-runs/pilot-smoke-plan-2026-07-21T16-24-32-315Z/pilot-smoke-plan-report.md` passes with the approved roster, rollback window, live-email acknowledgement, JewelLink pilot rollout approval, Consultant source-policy evidence, paused-company pilot deferral, allowlisted non-admin source-test acceptance, controlled hire/JewelCert/public-fail-closed scope, and stop conditions |
-| End-to-end SSO smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T16-25-53-517Z/pilot-smoke-evidence-request.md` still requires Director, Manager, Student, and platform-admin authenticated SSO artifacts. Consultant source-policy, allowlisted non-admin source-test, and paused-company deferral now pass in that evidence draft. Browser automation against `ai.jewellink.com` is blocked by local policy, so this needs an authenticated Diamond Exchange JewelLink SSO session captured in an allowed operator environment |
+| End-to-end SSO smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T16-25-53-517Z/pilot-smoke-evidence-request.md` still requires Director, Manager, Student, and platform-admin authenticated SSO artifacts. Use `docs/live-sso-smoke-checklist-2026-07-21.md` to capture and preflight a real Diamond Exchange JewelLink SSO session. Consultant source-policy, allowlisted non-admin source-test, and paused-company deferral now pass in that evidence draft |
 | End-to-end hire smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T16-25-53-517Z/pilot-smoke-evidence-request.md` requires preview, confirm, repeat-confirm, and revoked/cancelled access artifacts |
 | End-to-end JewelCert smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T16-25-53-517Z/pilot-smoke-evidence-request.md` requires invite, completion, scoped JewelLink sync, and retry artifacts |
 | Public/fail-closed smoke | Partial / blocked | `docs/qa-runs/pilot-session-cookie-2026-07-21T16-25-16-110Z/pilot-session-cookie-report.md` rejects the available native smoke cookie because it is not JewelLink SSO and lacks the Diamond Exchange pilot store; `docs/qa-runs/public-fail-closed-smoke-2026-07-21T16-24-54-747Z/public-fail-closed-smoke-report.md` proves public resume access rejects with `401`, but same-store authenticated and team-invite rows remain blocked until a real authenticated Diamond Exchange pilot session is captured |
 | Final live-readiness manifest | Requested / Fail | `docs/qa-runs/pilot-live-readiness-2026-07-21T16-26-31-849Z/pilot-live-readiness-request.md` lists the current final evidence fields; `qa:pilot-live-readiness` must pass against an ignored manifest copied from `docs/production-pilot-live-readiness.template.json` after every individual gate has a concrete PASS artifact and the go/no-go dossier is moved to GO |
 | JewelLink profile MFA PR | Merged | User approved JewelLink repo movement for this pilot patch; PR `#246` was merged by `JacksonSLC` at `2026-07-21T17:04:38Z` after removing the Cloud Build file per review. Production deploy/promotion remains a separate release-controlled action |
+| JewelLink Cloud Build release-path PR | Open | User approved JewelLink-side pilot rollout repo movement; PR `#247` is open for `JacksonSLC` review with head `bb3e8585a5bd2312cfada77639e849e997d89ecc`. It changes only `cloudbuild.jewellink.yaml` and does not deploy, migrate, move traffic, or mutate data |
 | Rollback and monitoring evidence | Closed | `docs/qa-runs/operations-readiness-2026-07-21T16-24-54-745Z/operations-readiness-report.md` passes with current revisions, monitoring resources, encrypted logical backups, named owners, approved UTC observation window, and rollback thresholds recorded in `docs/production-operations-evidence.approval-template-2026-07-21.json` |
 
 ## JewelLink approval boundary
@@ -108,9 +110,10 @@ node scripts/cross-product-acceptance.mjs \
 The user explicitly approved JewelLink repo movement for the pilot
 profile-audit patch. PR `#246` was merged by `JacksonSLC` at
 `2026-07-21T17:04:38Z` after removing the Cloud Build file per Jackson's
-review. Production deployment, migration execution, traffic promotion, and any
-live rollout remain separate release-controlled actions and were not performed
-as part of the PR handoff.
+review. The release-path change was then isolated in PR `#247` for Jackson's
+review under the same pilot repo-movement approval. Production deployment,
+migration execution, traffic promotion, and any live rollout remain separate
+release-controlled actions and were not performed as part of either PR handoff.
 
 ## Next work order
 
@@ -118,11 +121,12 @@ as part of the PR handoff.
    audit evidence as the source closure for the translated profile 2FA-phone
    guard.
 2. Obtain or capture a real authenticated Diamond Exchange pilot session,
-   preferably through the JewelLink SSO Director or Manager path, in an
-   environment where `ai.jewellink.com` is not browser-policy blocked. Store
-   any cookie material only in ignored local files.
-3. Decide the separate JewelLink release-path follow-up for the candidate-only
-   Cloud Build change before any production code/image rollout.
+   preferably through the JewelLink SSO Director or Manager path, and follow
+   `docs/live-sso-smoke-checklist-2026-07-21.md`. Store any cookie material only
+   in ignored local files.
+3. Track JewelLink PR `#247` through Jackson review/merge, then record the
+   candidate-only Cloud Build merge evidence before any production code/image
+   rollout.
 4. With that authenticated pilot session, first run
    `qa:pilot-session-cookie`, then rerun `qa:public-fail-closed-smoke` for store
    `store-jl-58deb73ef9454405c4fe` and application

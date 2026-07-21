@@ -1,26 +1,27 @@
 # JewelLink Cloud Build Candidate Approval Packet - 2026-07-20
 
-Status: superseded by the combined local patch
-`docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md`.
-This historical Cloud-Build-only approval packet remains unpushed and should
-not be used as the current JewelLink PR plan.
+Status: superseded by live PR `#247`.
 
-User boundary: do not push, open a PR, merge, deploy, or promote JewelLink
-without explicit approval.
+The historical Cloud-Build-only patch was rebuilt on current JewelLink main,
+updated to the current release-safety test contract, and opened for Jackson as
+`https://github.com/Jewellinkiv/jewellink-app/pull/247`.
+
+User boundary: PR `#247` is approved for JewelLink repo movement. Do not merge,
+deploy, migrate, promote traffic, or open additional JewelLink PRs without
+explicit approval.
 
 ## Patch
 
 - Patch file:
   `docs/jewellink-cloudbuild-candidate-no-push-2026-07-20.patch`
-- Local JewelLink branch:
-  `codex/jewellink-cloudbuild-candidate-gate-20260720`
-- Local JewelLink commit:
-  `da53e2ab7eac45c93285c91492903aeb7c1ed52d`
-- JewelLink base:
-  `bd1f344699e97ed968a6c272277dffeaf0975479`
-- Latest JewelLink main compatibility check:
-  `55032dbbebc519d1718aa14871da2048f60d9487`; patch artifact still passes
-  `git apply --check`
+- Current JewelLink PR:
+  `#247`
+- Current PR branch:
+  `codex/jewellink-cloudbuild-candidate-gate-refresh-20260721`
+- Current PR head:
+  `bb3e8585a5bd2312cfada77639e849e997d89ecc`
+- Current JewelLink base:
+  `550e5dcf6e537926424e9234412d32b8a9ef0a0a`
 - File changed:
   `cloudbuild.jewellink.yaml`
 
@@ -32,7 +33,7 @@ trigger to validate source, build an immutable image, deploy a tagged
 no-traffic candidate, and smoke `/login` without running migrations or moving
 production traffic.
 
-This patch makes `cloudbuild.jewellink.yaml` match that candidate-release
+PR `#247` makes `cloudbuild.jewellink.yaml` match that candidate-release
 contract.
 
 ## PR title

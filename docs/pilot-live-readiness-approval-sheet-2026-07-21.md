@@ -8,6 +8,9 @@ authorize any production mutation.
 Execution goal packet:
 `docs/pilot-live-readiness-goal-2026-07-21.md`
 
+Live SSO smoke checklist:
+`docs/live-sso-smoke-checklist-2026-07-21.md`
+
 Use the goal packet as the sequenced tracker for the remaining authenticated
 persona smoke, hire/JewelCert smoke, public/fail-closed smoke, and final
 manifest work. The validators still require the concrete PASS artifacts and
@@ -267,7 +270,8 @@ merged as PR `#246`:
 
 Jackson requested removing `cloudbuild.jewellink.yaml`; the PR was revised and
 now only covers the translated profile MFA audit/test refresh. The candidate
-Cloud Build release-path change remains a separate follow-up.
+Cloud Build release-path change has been isolated in PR `#247`:
+`https://github.com/Jewellinkiv/jewellink-app/pull/247`.
 
 Current PR handoff:
 
@@ -281,8 +285,20 @@ Current PR handoff:
 | Files changed | `scripts/audit-jewelhire-sso.mjs`, `tests/profile-mfa-factor-protection.test.ts` |
 | Local post-merge validation | Profile MFA tests 3/3; JewelHire SSO audit 90/90; committed-secret scan over 2,506 files; `git diff --check` passed |
 
+Current release-path PR handoff:
+
+| Field | Value |
+| --- | --- |
+| PR | `#247` |
+| URL | `https://github.com/Jewellinkiv/jewellink-app/pull/247` |
+| Branch | `codex/jewellink-cloudbuild-candidate-gate-refresh-20260721` |
+| PR head | `bb3e8585a5bd2312cfada77639e849e997d89ecc` |
+| Status | Open, non-draft, `JacksonSLC` requested for review |
+| Files changed | `cloudbuild.jewellink.yaml` |
+| Local validation | Release safety tests 12/12; JewelHire SSO audit 90/90; `git diff --check` passed |
+
 No JewelLink production deploy, migration, traffic movement, or data mutation
-was performed for this PR handoff. Production promotion remains a separate
+was performed for either PR handoff. Production promotion remains a separate
 release-controlled action.
 
 ## Next verification commands
@@ -298,6 +314,7 @@ npm run qa:pilot-smoke-targets
 npm run qa:pilot-application-submission -- --target-report=<pilot-smoke-targets-report.json>
 npm run qa:pilot-smoke-plan -- --smoke-plan-file=.qa_tmp/production-pilot-smoke-plan.json
 npm run qa:pilot-approval-bundle
+npm run qa:pilot-session-cookie -- --base=https://app.jewelhire.com --cookie-file=.qa_tmp/diamond-exchange-pilot-jewelhire-cookie.json --expected-store-id=store-jl-58deb73ef9454405c4fe --allowed-roles=store_owner,manager --expected-auth-source=jewellink_sso
 npm run qa:pilot-session-cookie -- --cookie-file=<local-cookie-file> --expected-store-id=<pilot-store-id> --allowed-roles=store_owner,manager --expected-auth-source=jewellink_sso
 npm run qa:public-fail-closed-smoke -- --cookie-file=<local-cookie-file> --store-id=<pilot-store-id> --expected-store-id=<pilot-store-id> --resume-application-id=<application-id>
 npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=docs/production-pilot-smoke-evidence.template.json

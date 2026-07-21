@@ -20,6 +20,8 @@ closing the remaining audited gates:
 - Authenticated SSO, hire handoff, JewelCert, and public fail-closed smoke
   evidence.
 - Final GO dossier and live-readiness manifest.
+- JewelLink release-path PR `#247` merge evidence and candidate-only Cloud
+  Build evidence before any production code/image rollout.
 
 ## Authority Boundaries
 
@@ -51,7 +53,7 @@ before execution or before the relevant gate can pass:
 | Controlled hire confirm/revoke smoke | Hire handoff smoke |
 | Controlled JewelCert invite/completion/result smoke | JewelCert smoke |
 | Authenticated public fail-closed probes | Public fail-closed smoke |
-| JewelLink code PR/push/deploy beyond pilot rollout flags | Any JewelLink code movement |
+| JewelLink code PR/push/deploy beyond PR `#247` and pilot rollout flags | Any additional JewelLink code movement |
 
 ## Execution Order
 
@@ -103,13 +105,11 @@ before execution or before the relevant gate can pass:
 
 ## Current Next Step
 
-The next gate is operations rollback evidence. The latest operations audit
-already passes backup and monitoring checks, with monitoring channel IDs now
-explicitly recorded in `docs/production-operations-evidence-2026-07-21.json`,
-and mirrored into `docs/production-operations-evidence.approval-template-2026-07-21.json`,
-but it still needs named rollback owners, an approved UTC observation window,
-and approved rollback thresholds.
+The next live gate is a real authenticated Diamond Exchange JewelLink SSO
+session. Follow `docs/live-sso-smoke-checklist-2026-07-21.md`, then run the
+read-only session preflight before using the cookie for public/fail-closed,
+hire, JewelCert, or SSO smoke evidence.
 
-Use `docs/pilot-rollback-window-proposal-2026-07-20.md` as the starting point
-for the owner/window/threshold decision, then record the accepted values in the
-operations evidence template.
+In parallel, track JewelLink PR `#247` through Jackson review/merge. The PR is
+source-only and candidate-release-only; it does not deploy, migrate, promote
+traffic, or mutate production data.
