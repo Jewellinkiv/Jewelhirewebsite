@@ -1,0 +1,170 @@
+{
+  "createdAt": "2026-07-21T03:15:41.083Z",
+  "pass": true,
+  "valuesPrinted": false,
+  "tablesChecked": [
+    "company_course_visibility",
+    "course_package",
+    "feature_announcements",
+    "feature_announcement_reads"
+  ],
+  "checks": [
+    {
+      "name": "JewelLink database credential is available for read-only object-state audit",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "company_course_visibility.hiddenLessonIds matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "company_course_visibility",
+      "columnName": "hiddenLessonIds",
+      "observed": "text; nullable=true; default=none"
+    },
+    {
+      "name": "course_package.tag matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "course_package",
+      "columnName": "tag",
+      "observed": "text; nullable=false; default=present"
+    },
+    {
+      "name": "feature_announcements.id matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcements",
+      "columnName": "id",
+      "observed": "text; nullable=false; default=none"
+    },
+    {
+      "name": "feature_announcements.createdAt matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcements",
+      "columnName": "createdAt",
+      "observed": "timestamp without time zone; nullable=false; default=present"
+    },
+    {
+      "name": "feature_announcements.updatedAt matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcements",
+      "columnName": "updatedAt",
+      "observed": "timestamp without time zone; nullable=false; default=none"
+    },
+    {
+      "name": "feature_announcements.title matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcements",
+      "columnName": "title",
+      "observed": "text; nullable=false; default=none"
+    },
+    {
+      "name": "feature_announcements.body matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcements",
+      "columnName": "body",
+      "observed": "text; nullable=false; default=none"
+    },
+    {
+      "name": "feature_announcements.isActive matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcements",
+      "columnName": "isActive",
+      "observed": "boolean; nullable=false; default=present"
+    },
+    {
+      "name": "feature_announcement_reads.id matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcement_reads",
+      "columnName": "id",
+      "observed": "text; nullable=false; default=none"
+    },
+    {
+      "name": "feature_announcement_reads.readAt matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcement_reads",
+      "columnName": "readAt",
+      "observed": "timestamp without time zone; nullable=false; default=present"
+    },
+    {
+      "name": "feature_announcement_reads.userId matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcement_reads",
+      "columnName": "userId",
+      "observed": "text; nullable=false; default=none"
+    },
+    {
+      "name": "feature_announcement_reads.announcementId matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcement_reads",
+      "columnName": "announcementId",
+      "observed": "text; nullable=false; default=none"
+    },
+    {
+      "name": "feature_announcements_isActive_createdAt_idx index matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcements",
+      "indexName": "feature_announcements_isActive_createdAt_idx",
+      "observed": "nonunique (isActive, createdAt)"
+    },
+    {
+      "name": "feature_announcement_reads_userId_announcementId_key index matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcement_reads",
+      "indexName": "feature_announcement_reads_userId_announcementId_key",
+      "observed": "unique (userId, announcementId)"
+    },
+    {
+      "name": "feature_announcement_reads_userId_idx index matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcement_reads",
+      "indexName": "feature_announcement_reads_userId_idx",
+      "observed": "nonunique (userId)"
+    },
+    {
+      "name": "feature_announcements_pkey constraint matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcements",
+      "constraintName": "feature_announcements_pkey",
+      "observed": "p; columns=(id)"
+    },
+    {
+      "name": "feature_announcement_reads_pkey constraint matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcement_reads",
+      "constraintName": "feature_announcement_reads_pkey",
+      "observed": "p; columns=(id)"
+    },
+    {
+      "name": "feature_announcement_reads_userId_fkey constraint matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcement_reads",
+      "constraintName": "feature_announcement_reads_userId_fkey",
+      "observed": "f; columns=(userId); references=user(id)"
+    },
+    {
+      "name": "feature_announcement_reads_announcementId_fkey constraint matches reviewed migration object state",
+      "pass": true,
+      "valuesPrinted": false,
+      "tableName": "feature_announcement_reads",
+      "constraintName": "feature_announcement_reads_announcementId_fkey",
+      "observed": "f; columns=(announcementId); references=feature_announcements(id)"
+    }
+  ]
+}

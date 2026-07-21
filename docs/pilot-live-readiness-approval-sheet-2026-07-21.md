@@ -62,6 +62,10 @@ Current state:
   refs, Cloud Build source revision search, and reviewed-SQL CRLF recovery.
 - The seven JewelHire integration/auth migration rows remain checksum-clean and
   are the hard launch boundary.
+- Supporting live object-state audit
+  `docs/qa-runs/jewellink-migration-object-state-2026-07-21T03-16-00-000Z/jewellink-migration-object-state-report.md`
+  passes 20/20 for the schema objects implied by the 3 unrecovered rows without
+  reading customer rows or writing to JewelLink.
 
 Acceptable closure paths:
 
@@ -156,6 +160,7 @@ npm run qa:operations-readiness -- --operations-evidence-file=docs/production-op
 npm run qa:pilot-roster
 npm run qa:public-fail-closed-smoke -- --cookie-file=<local-cookie-file> --store-id=<pilot-store-id> --expected-store-id=<pilot-store-id> --resume-application-id=<application-id>
 npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=docs/production-pilot-smoke-evidence.template.json
+npm run qa:jewellink-migration-object-state
 node scripts/jewellink-migration-drift-recovery-audit.mjs \
   --jewellink-repo=/Users/sterling/.codex/tmp/jewellink-app-origin-main-20260720 \
   --review-ref=origin/main \

@@ -12,6 +12,7 @@ drift found during pilot readiness. No database rows were changed.
 | Local no-push patch head | `f12e67d7202a6a567007605f7164d141638b5dbc` |
 | Ledger evidence | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/migration-ledger-report.md` |
 | Repeatable recovery audit | `docs/qa-runs/jewellink-migration-drift-2026-07-21T03-05-00-000Z/jewellink-migration-drift-recovery-report.md` |
+| Object-state audit | `docs/qa-runs/jewellink-migration-object-state-2026-07-21T03-16-00-000Z/jewellink-migration-object-state-report.md` |
 | Owner acceptance request | `docs/qa-runs/jewellink-migration-drift-2026-07-21T03-05-00-000Z/jewellink-migration-drift-owner-acceptance-request.md` |
 
 ## Findings
@@ -47,6 +48,11 @@ drift found during pilot readiness. No database rows were changed.
   only if the accepted migration list matches those 3 rows, all required
   acknowledgements are true, and no JewelHire integration/auth row is
   unrecovered.
+- A read-only object-state audit now checks the live schema objects implied by
+  the 3 still-unrecovered rows. It passes 20/20 without reading customer rows or
+  printing secrets, verifying the expected `hiddenLessonIds` column,
+  `course_package.tag` column, and feature-announcement tables, indexes, primary
+  keys, and cascading foreign keys.
 
 ## Drift Rows
 
@@ -83,7 +89,9 @@ drift found during pilot readiness. No database rows were changed.
 This remains a NO-GO item. Because 3 applied checksums could not be matched to
 fetched git history, Cloud Build source revisions, or reviewed-SQL CRLF
 variants, the drift cannot be safely closed by a simple source-file restore from
-the current repository history.
+the current repository history. The object-state audit is supporting review
+evidence only; it does not repair the ledger or replace the named owner
+acceptance/controlled repair requirement.
 
 Acceptable closure paths:
 
