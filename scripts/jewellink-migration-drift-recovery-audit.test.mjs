@@ -94,13 +94,15 @@ test("passes when every drifted active migration has exact SQL in git history", 
     {
       migration_name: "20260712043000_add_jewelhire_sso_codes",
       checksum: sha(integrationSql),
+      started_at: "2026-07-20T00:00:00Z",
       finished_at: "2026-07-20T00:00:00Z",
       rolled_back_at: null,
     },
     {
       migration_name: "20260530033000_add_pos_register_sessions",
       checksum: sha(appliedOld),
-      finished_at: "2026-07-20T00:00:00Z",
+      started_at: "2026-05-30T03:30:00Z",
+      finished_at: "2026-05-30T03:31:00Z",
       rolled_back_at: null,
     },
   ]);
@@ -108,6 +110,9 @@ test("passes when every drifted active migration has exact SQL in git history", 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(markdown, /Result: PASS/);
   assert.match(markdown, /Drift rows with exact SQL recovered from fetched git history: 1/);
+  assert.match(markdown, /2026-05-30T03:30:00Z to 2026-05-30T03:31:00Z/);
+  assert.match(json, /"startedAt": "2026-05-30T03:30:00Z"/);
+  assert.match(json, /"finishedAt": "2026-05-30T03:31:00Z"/);
   assert.doesNotMatch(`${markdown}\n${json}`, /postgres(?:ql)?:\/\//);
   assert.doesNotMatch(`${markdown}\n${json}`, /super-secret|another-secret|password=/i);
 });
@@ -121,19 +126,22 @@ test("fails when a drifted migration cannot be recovered from git history", () =
     {
       migration_name: "20260712043000_add_jewelhire_sso_codes",
       checksum: sha(integrationSql),
+      started_at: "2026-07-20T00:00:00Z",
       finished_at: "2026-07-20T00:00:00Z",
       rolled_back_at: null,
     },
     {
       migration_name: "20260530040000_add_pos_tender_settings",
       checksum: sha(missingApplied),
-      finished_at: "2026-07-20T00:00:00Z",
+      started_at: "2026-05-30T04:00:00Z",
+      finished_at: "2026-05-30T04:01:00Z",
       rolled_back_at: null,
     },
   ]);
 
   assert.equal(result.status, 1, result.stderr || result.stdout);
   assert.match(markdown, /Result: FAIL/);
+  assert.match(markdown, /2026-05-30T04:00:00Z to 2026-05-30T04:01:00Z/);
   assert.match(markdown, /No match/);
   assert.match(markdown, /FAIL Every drifted JewelLink active migration has exact SQL recoverable from git history/);
 });

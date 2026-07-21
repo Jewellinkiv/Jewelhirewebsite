@@ -33,12 +33,13 @@ The report is written under `docs/qa-runs/jewellink-migration-drift-*` unless
   content for each drifted migration path; by default the audit also fetches
   GitHub PR-head refs under the selected JewelLink remote before searching.
 - The resulting report records which drifted rows are recoverable from git
-  history and which still need provider backups, deployment artifacts, clone
-  review plus controlled ledger repair, or named database-owner acceptance.
+  history, each drifted row's applied start/finish window, and which rows still
+  need provider backups, deployment artifacts, clone review plus controlled
+  ledger repair, or named database-owner acceptance.
 
 ## Latest Production Result
 
-`docs/qa-runs/jewellink-migration-drift-2026-07-21T00-00-41-505Z/` reviewed
+`docs/qa-runs/jewellink-migration-drift-2026-07-21T00-11-22-737Z/` reviewed
 JewelLink `origin/main` commit `55032dbbebc519d1718aa14871da2048f60d9487`,
 fetched standard and PR-head refs, searched 302 refs, and confirmed:
 
@@ -48,6 +49,8 @@ fetched standard and PR-head refs, searched 302 refs, and confirmed:
   repo.
 - FAIL: only one drifted SQL file was exactly recoverable from fetched git
   history, even after PR-ref expansion; 24 remain unrecovered.
+- The drifted applied windows now span May 20, May 30, June 4, June 12,
+  June 15, June 24, June 26, July 2, and July 8, 2026.
 
 This remains a live-pilot NO-GO item until the missing applied SQL is recovered,
 a production clone review supports controlled ledger repair, or a named

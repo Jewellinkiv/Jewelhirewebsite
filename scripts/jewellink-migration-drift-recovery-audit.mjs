@@ -141,7 +141,7 @@ async function readLedgerRows() {
     if (!ledgerExists) return [];
     return (
       await client.query(
-        `select migration_name, checksum, finished_at::text, rolled_back_at::text
+        `select migration_name, checksum, started_at::text, finished_at::text, rolled_back_at::text
          from public._prisma_migrations
          order by started_at, migration_name`,
       )
@@ -266,6 +266,8 @@ function recoverMatches(repo, driftRows) {
       migration: row.migration_name,
       appliedChecksumPrefix: shortSha(row.checksum),
       reviewedChecksumPrefix: shortSha(row.reviewedChecksum),
+      startedAt: row.started_at || "",
+      finishedAt: row.finished_at || "",
       integrationOrAuth: requiredJewelLinkIntegrationMigrations.has(row.migration_name),
       searchedPathCommits: commits.length,
       exactHistoryMatches: matches,
@@ -299,13 +301,15 @@ function markdown(report) {
     "",
     "## Drift Recovery",
     "",
-    "| Migration | Applied checksum | Reviewed checksum | History match | Path commits searched |",
-    "| --- | --- | --- | --- | --- |",
+    "| Migration | Applied checksum | Reviewed checksum | Applied window | History match | Path commits searched |",
+    "| --- | --- | --- | --- | --- | --- |",
     ...report.recovery.map((row) => {
       const match = row.exactHistoryMatches.length
         ? row.exactHistoryMatches.map((item) => `\`${item.commit}\``).join(", ")
         : "No match";
-      return `| \`${row.migration}\` | \`${row.appliedChecksumPrefix}\` | \`${row.reviewedChecksumPrefix}\` | ${match} | ${row.searchedPathCommits} |`;
+      const appliedWindow =
+        row.startedAt || row.finishedAt ? `${row.startedAt || "unknown"} to ${row.finishedAt || "unknown"}` : "unknown";
+      return `| \`${row.migration}\` | \`${row.appliedChecksumPrefix}\` | \`${row.reviewedChecksumPrefix}\` | ${appliedWindow} | ${match} | ${row.searchedPathCommits} |`;
     }),
     "",
     "## Closure Guidance",
