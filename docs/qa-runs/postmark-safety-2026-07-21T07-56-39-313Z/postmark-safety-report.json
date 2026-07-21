@@ -1,0 +1,70 @@
+{
+  "project": "jewelhire-prod-20260626",
+  "region": "us-central1",
+  "service": "jewelhire",
+  "createdAt": "2026-07-21T07:56:39.865Z",
+  "failures": 0,
+  "checks": [
+    {
+      "name": "Postmark adapter source exists",
+      "pass": true
+    },
+    {
+      "name": "adapter exposes disabled and dry-run states",
+      "pass": true
+    },
+    {
+      "name": "adapter checks notification gate before token and fetch",
+      "pass": true
+    },
+    {
+      "name": "adapter skips missing recipients before runtime send checks",
+      "pass": true
+    },
+    {
+      "name": "adapter sends through Postmark API only from central helper",
+      "pass": true
+    },
+    {
+      "name": "adapter hard-times out ambiguous provider requests",
+      "pass": true
+    },
+    {
+      "name": "adapter includes message stream and metadata controls",
+      "pass": true
+    },
+    {
+      "name": "docs keep live-send gate explicit",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run Postmark token is mounted as secret",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run Postmark sender is configured by name only",
+      "pass": true,
+      "valuePrinted": false
+    },
+    {
+      "name": "Cloud Run Postmark stream is configured by name only",
+      "pass": true,
+      "valuePrinted": false
+    },
+    {
+      "name": "Cloud Run live sends are disabled or explicitly allowed",
+      "pass": true,
+      "emailNotificationsEnabled": true,
+      "dryRun": false,
+      "allowLiveEmailSends": true
+    },
+    {
+      "name": "Cloud Run live sends are not active during default QA loop unless explicitly allowed",
+      "pass": true,
+      "emailNotificationsEnabled": true,
+      "dryRun": false,
+      "allowLiveEmailSends": true
+    }
+  ],
+  "valuesPrinted": false
+}

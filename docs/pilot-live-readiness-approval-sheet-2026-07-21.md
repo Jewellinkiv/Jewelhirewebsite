@@ -32,12 +32,19 @@ below before any gate changes to GO.
   `docs/production-operations-evidence-2026-07-21.json`; backup evidence passes
   the latest operations audit.
 - JewelHire admin allowlist cleanup passes in
-  `docs/qa-runs/admin-allowlist-2026-07-21T05-44-30-000Z/`: 9 active
+  `docs/qa-runs/admin-allowlist-2026-07-21T07-56-07-377Z/`: 9 active
   JewelLink admin-role users, 0 missing, 0 extra, and 0 active non-admins.
 - JewelHire smoke credential prerequisites pass in
-  `docs/qa-runs/smoke-credential-auth-2026-07-21T05-44-30-000Z/`, including
+  `docs/qa-runs/smoke-credential-auth-2026-07-21T07-56-07-368Z/`, including
   store-owner native smoke, applicant native smoke, and JewelLink SSO
   admin-marker cleanup.
+- JewelHire production config, auth, role readiness, and Postmark safety pass
+  in `docs/qa-runs/config-exposure-2026-07-21T07-56-39-213Z/`,
+  `docs/qa-runs/auth-readiness-2026-07-21T07-56-07-383Z/`,
+  `docs/qa-runs/role-readiness-2026-07-21T07-56-18-103Z/`, and
+  `docs/qa-runs/postmark-safety-2026-07-21T07-56-39-313Z/`; the config and
+  Postmark checks record the approved live-email QA acknowledgement without
+  sending email.
 
 ## Operations approval fields
 

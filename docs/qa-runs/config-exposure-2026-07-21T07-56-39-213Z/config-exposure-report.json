@@ -1,0 +1,449 @@
+{
+  "base": "https://app.jewelhire.com",
+  "project": "jewelhire-prod-20260626",
+  "region": "us-central1",
+  "service": "jewelhire",
+  "createdAt": "2026-07-21T07:56:40.113Z",
+  "failures": 0,
+  "mountedEnv": [
+    {
+      "name": "AUTH_MODE",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "AUTH_SECRET",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "CLOUDINARY_URL",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "DATABASE_URL",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "EMAIL_NOTIFICATIONS_ENABLED",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "FIREBASE_PROJECT_ID",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "GOOGLE_CLIENT_ID",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "GOOGLE_CLIENT_SECRET",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "JEWELHIRE_ADMIN_EMAILS",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "JEWELHIRE_ENABLE_SESSION_OVERRIDE",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "JEWELHIRE_JEWELLINK_DIRECTOR_ROLE",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "JEWELHIRE_REQUIRE_AUTH",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "JEWELHIRE_STORAGE",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "JEWELHIRE_TEAM_INVITES_ENABLED",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "JEWELHIRE_TRUSTED_PROXY_HOPS",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "JEWELLINK_INTEGRATION_SHARED_SECRET",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "JEWELLINK_SSO_SHARED_SECRET",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "JEWELLINK_URL",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "NEXT_PUBLIC_APP_URL",
+      "type": "literal",
+      "public": true
+    },
+    {
+      "name": "NEXT_PUBLIC_FIREBASE_API_KEY",
+      "type": "literal",
+      "public": true
+    },
+    {
+      "name": "NEXT_PUBLIC_FIREBASE_APP_ID",
+      "type": "literal",
+      "public": true
+    },
+    {
+      "name": "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+      "type": "literal",
+      "public": true
+    },
+    {
+      "name": "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+      "type": "literal",
+      "public": true
+    },
+    {
+      "name": "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "OUTLOOK_CLIENT_ID",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "OUTLOOK_CLIENT_SECRET",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "OUTLOOK_TENANT_ID",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "POSTMARK_DRY_RUN",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "POSTMARK_FROM_EMAIL",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "POSTMARK_MESSAGE_STREAM",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "POSTMARK_SERVER_TOKEN",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "QA_RESET_TOKEN",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "STRIPE_SECRET_KEY",
+      "type": "secret",
+      "public": false
+    },
+    {
+      "name": "STRIPE_STORE_OWNER_ANNUAL_PRICE_ID",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "STRIPE_STORE_OWNER_MONTHLY_PRICE_ID",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "STRIPE_STORE_OWNER_PAYMENT_LINK",
+      "type": "literal",
+      "public": false
+    },
+    {
+      "name": "STRIPE_WEBHOOK_SECRET",
+      "type": "secret",
+      "public": false
+    }
+  ],
+  "checks": [
+    {
+      "name": "repo ignores real env files",
+      "pass": true
+    },
+    {
+      "name": "repo keeps env example only",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run service config readable",
+      "pass": true,
+      "project": "jewelhire-prod-20260626",
+      "service": "jewelhire",
+      "region": "us-central1"
+    },
+    {
+      "name": "Cloud Run env DATABASE_URL mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env AUTH_SECRET mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env JEWELLINK_URL mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env JEWELLINK_SSO_SHARED_SECRET mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env JEWELLINK_INTEGRATION_SHARED_SECRET mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env JEWELHIRE_TEAM_INVITES_ENABLED mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env JEWELHIRE_TRUSTED_PROXY_HOPS mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env JEWELHIRE_REQUIRE_AUTH mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env AUTH_MODE mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env JEWELHIRE_STORAGE mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env JEWELHIRE_ENABLE_SESSION_OVERRIDE mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env EMAIL_NOTIFICATIONS_ENABLED mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env POSTMARK_DRY_RUN mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env POSTMARK_SERVER_TOKEN mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env POSTMARK_FROM_EMAIL mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env POSTMARK_MESSAGE_STREAM mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env STRIPE_SECRET_KEY mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env STRIPE_WEBHOOK_SECRET mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env STRIPE_STORE_OWNER_MONTHLY_PRICE_ID mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env STRIPE_STORE_OWNER_ANNUAL_PRICE_ID mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env STRIPE_STORE_OWNER_PAYMENT_LINK mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env NEXT_PUBLIC_FIREBASE_API_KEY mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env NEXT_PUBLIC_FIREBASE_PROJECT_ID mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env NEXT_PUBLIC_FIREBASE_APP_ID mounted",
+      "pass": true
+    },
+    {
+      "name": "Cloud Run env FIREBASE_PROJECT_ID mounted",
+      "pass": true
+    },
+    {
+      "name": "platform admin allowlist env mounted",
+      "pass": true,
+      "envName": "JEWELHIRE_ADMIN_EMAILS",
+      "valuesPrinted": false
+    },
+    {
+      "name": "platform admin allowlist is secret-backed",
+      "pass": true,
+      "envName": "JEWELHIRE_ADMIN_EMAILS",
+      "valuesPrinted": false
+    },
+    {
+      "name": "private launch env DATABASE_URL is secret-backed",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "private launch env AUTH_SECRET is secret-backed",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "private launch env GOOGLE_CLIENT_SECRET is secret-backed",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "private launch env JEWELLINK_SSO_SHARED_SECRET is secret-backed",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "private launch env JEWELLINK_INTEGRATION_SHARED_SECRET is secret-backed",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "private launch env POSTMARK_SERVER_TOKEN is secret-backed",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "private launch env STRIPE_SECRET_KEY is secret-backed",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "private launch env STRIPE_WEBHOOK_SECRET is secret-backed",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "database env mounted",
+      "pass": true
+    },
+    {
+      "name": "private runtime env vars are secret-backed when mounted",
+      "pass": true,
+      "offenders": [],
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink URL is HTTPS",
+      "pass": true
+    },
+    {
+      "name": "production auth is required",
+      "pass": true
+    },
+    {
+      "name": "production auth mode is Google",
+      "pass": true
+    },
+    {
+      "name": "production storage is Postgres",
+      "pass": true
+    },
+    {
+      "name": "test session override is disabled",
+      "pass": true
+    },
+    {
+      "name": "Diamond Exchange team invites are disabled",
+      "pass": true
+    },
+    {
+      "name": "trusted proxy hops is explicit and bounded",
+      "pass": true
+    },
+    {
+      "name": "Stripe recurring price ids are distinct configured ids",
+      "pass": true
+    },
+    {
+      "name": "legacy Stripe payment link is configured for drain checks",
+      "pass": true
+    },
+    {
+      "name": "verified applicant signup email is enabled",
+      "pass": true
+    },
+    {
+      "name": "Postmark dry-run is disabled for launch",
+      "pass": true
+    },
+    {
+      "name": "live email sends are explicitly acknowledged",
+      "pass": true,
+      "enabled": true,
+      "allowOverride": true
+    },
+    {
+      "name": "Postmark token is secret-backed when live email config exists",
+      "pass": true
+    },
+    {
+      "name": "public HTML does not expose private env names",
+      "pass": true,
+      "leakedNames": []
+    },
+    {
+      "name": "public pages do not return server errors during exposure check",
+      "pass": true,
+      "loginStatus": 200,
+      "applyStatus": 307
+    }
+  ],
+  "valuesPrinted": false
+}

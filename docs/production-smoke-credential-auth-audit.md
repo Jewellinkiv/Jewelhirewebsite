@@ -37,7 +37,7 @@ secret values.
 
 ## Latest Production Result
 
-`docs/qa-runs/smoke-credential-auth-2026-07-21T01-47-42-153Z/` passes. The
+`docs/qa-runs/smoke-credential-auth-2026-07-21T07-56-07-368Z/` passes. The
 controlled store-owner credential signs in as a native `store_owner` session
 with an active store, the controlled applicant credential signs in as an
 `associate` session, and the obsolete native admin password path has been

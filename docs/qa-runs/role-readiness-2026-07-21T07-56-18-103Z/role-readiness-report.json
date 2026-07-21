@@ -1,0 +1,71 @@
+{
+  "base": "https://app.jewelhire.com",
+  "project": "jewelhire-prod-20260626",
+  "region": "us-central1",
+  "service": "jewelhire",
+  "createdAt": "2026-07-21T07:56:19.665Z",
+  "failures": 0,
+  "checks": [
+    {
+      "name": "Cloud Run requires auth",
+      "pass": true,
+      "authMode": "google",
+      "requireAuth": "1"
+    },
+    {
+      "name": "Cloud Run uses Postgres storage",
+      "pass": true,
+      "storage": "postgres"
+    },
+    {
+      "name": "Cloud Run staging session override is not enabled",
+      "pass": true,
+      "mounted": true
+    },
+    {
+      "name": "Cloud Run admin email allowlist is secret-backed",
+      "pass": true,
+      "valuePrinted": false
+    },
+    {
+      "name": "live api ignores staging admin override",
+      "pass": true,
+      "status": 401
+    },
+    {
+      "name": "live store api ignores staging store override",
+      "pass": true,
+      "status": 401
+    },
+    {
+      "name": "live admin api ignores staging admin override",
+      "pass": true,
+      "status": 401
+    },
+    {
+      "name": "database URL available for role readiness",
+      "pass": true
+    },
+    {
+      "name": "database has active login users",
+      "pass": true,
+      "count": 15
+    },
+    {
+      "name": "database has active store manager mappings",
+      "pass": true,
+      "count": 6
+    },
+    {
+      "name": "every active store has an active manager login candidate",
+      "pass": true,
+      "missingStoreCount": 0,
+      "missingStoreIds": []
+    },
+    {
+      "name": "database has applicant identities for portal matching",
+      "pass": true,
+      "count": 13
+    }
+  ]
+}

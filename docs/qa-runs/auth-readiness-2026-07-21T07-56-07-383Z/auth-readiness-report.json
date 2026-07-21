@@ -1,0 +1,183 @@
+{
+  "base": "https://app.jewelhire.com",
+  "project": "jewelhire-prod-20260626",
+  "createdAt": "2026-07-21T07:56:11.297Z",
+  "checks": [
+    {
+      "name": "firebase verifier exists",
+      "pass": true
+    },
+    {
+      "name": "firebase session route exists",
+      "pass": true
+    },
+    {
+      "name": "login renders firebase button component",
+      "pass": true
+    },
+    {
+      "name": "login renders standard email password form",
+      "pass": true
+    },
+    {
+      "name": "password credential storage exists",
+      "pass": true
+    },
+    {
+      "name": "password session route exists",
+      "pass": true
+    },
+    {
+      "name": "password login routes configured admins to JewelLink MFA",
+      "pass": true
+    },
+    {
+      "name": "root dashboard redirects admin sessions",
+      "pass": true
+    },
+    {
+      "name": "setup: firebase api enabled",
+      "pass": true
+    },
+    {
+      "name": "setup: identity toolkit api enabled",
+      "pass": true
+    },
+    {
+      "name": "setup: gcp project is attached to firebase",
+      "pass": true,
+      "status": 200
+    },
+    {
+      "name": "setup: firebase web app exists",
+      "pass": true,
+      "status": 200,
+      "count": 1
+    },
+    {
+      "name": "setup: firebase auth is initialized",
+      "pass": true,
+      "status": 200
+    },
+    {
+      "name": "setup: app domain authorized in firebase auth",
+      "pass": true,
+      "authorized": true
+    },
+    {
+      "name": "setup: firebase google provider enabled",
+      "pass": true,
+      "status": 200,
+      "enabled": true,
+      "clientId": "[present]"
+    },
+    {
+      "name": "setup: cloud run env NEXT_PUBLIC_FIREBASE_API_KEY mounted",
+      "pass": true
+    },
+    {
+      "name": "setup: cloud run env NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN mounted",
+      "pass": true
+    },
+    {
+      "name": "setup: cloud run env NEXT_PUBLIC_FIREBASE_PROJECT_ID mounted",
+      "pass": true
+    },
+    {
+      "name": "setup: cloud run env NEXT_PUBLIC_FIREBASE_APP_ID mounted",
+      "pass": true
+    },
+    {
+      "name": "setup: cloud run env FIREBASE_PROJECT_ID mounted",
+      "pass": true
+    },
+    {
+      "name": "live login loads",
+      "pass": true,
+      "status": 200
+    },
+    {
+      "name": "live login has Google sign-in",
+      "pass": true
+    },
+    {
+      "name": "live login has standard email password form",
+      "pass": true
+    },
+    {
+      "name": "live firebase login visible when expected",
+      "pass": true,
+      "expected": false,
+      "visible": true
+    },
+    {
+      "name": "firebase invalid token rejected",
+      "pass": true,
+      "status": 401
+    },
+    {
+      "name": "password invalid credentials rejected on public app host",
+      "pass": true,
+      "status": 303,
+      "location": "https://app.jewelhire.com/login?next=%2F&error=[redacted]"
+    }
+  ],
+  "setup": [
+    {
+      "name": "firebase api enabled",
+      "pass": true
+    },
+    {
+      "name": "identity toolkit api enabled",
+      "pass": true
+    },
+    {
+      "name": "gcp project is attached to firebase",
+      "pass": true,
+      "status": 200
+    },
+    {
+      "name": "firebase web app exists",
+      "pass": true,
+      "status": 200,
+      "count": 1
+    },
+    {
+      "name": "firebase auth is initialized",
+      "pass": true,
+      "status": 200
+    },
+    {
+      "name": "app domain authorized in firebase auth",
+      "pass": true,
+      "authorized": true
+    },
+    {
+      "name": "firebase google provider enabled",
+      "pass": true,
+      "status": 200,
+      "enabled": true,
+      "clientId": "[present]"
+    },
+    {
+      "name": "cloud run env NEXT_PUBLIC_FIREBASE_API_KEY mounted",
+      "pass": true
+    },
+    {
+      "name": "cloud run env NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN mounted",
+      "pass": true
+    },
+    {
+      "name": "cloud run env NEXT_PUBLIC_FIREBASE_PROJECT_ID mounted",
+      "pass": true
+    },
+    {
+      "name": "cloud run env NEXT_PUBLIC_FIREBASE_APP_ID mounted",
+      "pass": true
+    },
+    {
+      "name": "cloud run env FIREBASE_PROJECT_ID mounted",
+      "pass": true
+    }
+  ]
+}
