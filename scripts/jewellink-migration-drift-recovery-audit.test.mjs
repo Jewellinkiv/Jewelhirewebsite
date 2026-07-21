@@ -105,10 +105,30 @@ function runAudit(repo, rows, extraArgs = [], extraFiles = {}) {
   );
   const markdownPath = path.join(artifacts, "jewellink-migration-drift-recovery-report.md");
   const jsonPath = path.join(artifacts, "jewellink-migration-drift-recovery-report.json");
+  const acceptanceRequestPath = path.join(artifacts, "jewellink-migration-drift-owner-acceptance-request.md");
+  const acceptanceRequestJsonPath = path.join(artifacts, "jewellink-migration-drift-owner-acceptance-request.json");
   return {
     result,
     markdown: fs.existsSync(markdownPath) ? fs.readFileSync(markdownPath, "utf8") : "",
     json: fs.existsSync(jsonPath) ? fs.readFileSync(jsonPath, "utf8") : "",
+    acceptanceRequest: fs.existsSync(acceptanceRequestPath) ? fs.readFileSync(acceptanceRequestPath, "utf8") : "",
+    acceptanceRequestJson: fs.existsSync(acceptanceRequestJsonPath) ? fs.readFileSync(acceptanceRequestJsonPath, "utf8") : "",
+  };
+}
+
+function ownerAcceptance(migrations) {
+  return {
+    owner: "DB Owner Name",
+    ownerRole: "Database owner approval channel",
+    acceptedAt: "2026-07-21T00:00:00Z",
+    reviewArtifact: "approval-ticket-123",
+    acceptanceStatement: "Accept historical non-integration drift for controlled pilot readiness.",
+    acknowledgements: {
+      acceptsHistoricalNonIntegrationDrift: true,
+      confirmsIntegrationAuthRowsRemainHardLaunchBoundary: true,
+      confirmsNoLedgerRepairAuthorizedByThisAcceptance: true,
+    },
+    acceptedUnrecoveredMigrations: migrations,
   };
 }
 
@@ -149,7 +169,7 @@ test("fails when a drifted migration cannot be recovered from git history", () =
   const integrationSql = "-- integration\ncreate table sso_codes(id text);\n";
   const missingApplied = "-- applied missing\ncreate table tender_settings(id text);\n";
 
-  const { result, markdown } = runAudit(repo, [
+  const { result, markdown, acceptanceRequest, acceptanceRequestJson } = runAudit(repo, [
     {
       migration_name: "20260712043000_add_jewelhire_sso_codes",
       checksum: sha(integrationSql),
@@ -172,8 +192,90 @@ test("fails when a drifted migration cannot be recovered from git history", () =
   assert.match(markdown, /No match/);
   assert.match(
     markdown,
-    /FAIL Every drifted JewelLink active migration has exact SQL recoverable from git history or Cloud Build source revisions/,
+    /FAIL Every drifted JewelLink active migration has exact SQL recovered or named database-owner acceptance/,
   );
+  assert.match(markdown, /FAIL Unrecovered JewelLink historical drift has valid named owner acceptance/);
+  assert.match(acceptanceRequest, /JewelLink Migration Drift Owner Acceptance Request/);
+  assert.match(acceptanceRequest, /20260530040000_add_pos_tender_settings/);
+  assert.match(acceptanceRequestJson, /"acceptsHistoricalNonIntegrationDrift": false/);
+});
+
+test("passes when unrecovered historical non-integration drift has exact named owner acceptance", () => {
+  const repo = buildRepo({ includeRecoveredDrift: false });
+  const integrationSql = "-- integration\ncreate table sso_codes(id text);\n";
+  const missingApplied = "-- applied missing\ncreate table tender_settings(id text);\n";
+  const migration = "20260530040000_add_pos_tender_settings";
+
+  const { result, markdown, json } = runAudit(
+    repo,
+    [
+      {
+        migration_name: "20260712043000_add_jewelhire_sso_codes",
+        checksum: sha(integrationSql),
+        started_at: "2026-07-20T00:00:00Z",
+        finished_at: "2026-07-20T00:00:00Z",
+        rolled_back_at: null,
+      },
+      {
+        migration_name: migration,
+        checksum: sha(missingApplied),
+        started_at: "2026-05-30T04:00:00Z",
+        finished_at: "2026-05-30T04:01:00Z",
+        rolled_back_at: null,
+      },
+    ],
+    [],
+    { "database_owner_acceptance_file.json": ownerAcceptance([migration]) },
+  );
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(markdown, /Result: PASS/);
+  assert.match(markdown, /Database owner acceptance valid: true/);
+  assert.match(markdown, /PASS Unrecovered JewelLink historical drift has valid named owner acceptance/);
+  assert.match(json, /"ownerRecorded": true/);
+  assert.match(json, /"acceptedMigrationCount": 1/);
+  assert.doesNotMatch(`${markdown}\n${json}`, /DB Owner Name/);
+  assert.doesNotMatch(`${markdown}\n${json}`, /postgres(?:ql)?:\/\//);
+});
+
+test("fails cleanly when owner acceptance migration list is malformed", () => {
+  const repo = buildRepo({ includeRecoveredDrift: false });
+  const integrationSql = "-- integration\ncreate table sso_codes(id text);\n";
+  const missingApplied = "-- applied missing\ncreate table tender_settings(id text);\n";
+  const migration = "20260530040000_add_pos_tender_settings";
+
+  const { result, markdown, json } = runAudit(
+    repo,
+    [
+      {
+        migration_name: "20260712043000_add_jewelhire_sso_codes",
+        checksum: sha(integrationSql),
+        started_at: "2026-07-20T00:00:00Z",
+        finished_at: "2026-07-20T00:00:00Z",
+        rolled_back_at: null,
+      },
+      {
+        migration_name: migration,
+        checksum: sha(missingApplied),
+        started_at: "2026-05-30T04:00:00Z",
+        finished_at: "2026-05-30T04:01:00Z",
+        rolled_back_at: null,
+      },
+    ],
+    [],
+    {
+      "database_owner_acceptance_file.json": {
+        ...ownerAcceptance([migration]),
+        acceptedUnrecoveredMigrations: migration,
+      },
+    },
+  );
+
+  assert.equal(result.status, 1, result.stderr || result.stdout);
+  assert.match(markdown, /Result: FAIL/);
+  assert.match(markdown, /Accepted migration list matches unrecovered rows: no/);
+  assert.match(json, /"acceptedMigrationCount": 0/);
+  assert.doesNotMatch(result.stderr, /TypeError/);
 });
 
 test("passes when a drifted migration is recovered from a Cloud Build source revision", () => {

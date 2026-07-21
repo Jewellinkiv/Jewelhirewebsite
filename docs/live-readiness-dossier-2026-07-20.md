@@ -14,7 +14,7 @@ JewelHire SHA without changing runtime behavior.
 
 | Product | Repository | Current head | Build/status |
 | --- | --- | --- | --- |
-| JewelHire | `Jewellinkiv/Jewelhire` | Current evidence change set | Previous pushed evidence base `6ceea5b` passed GitHub validation run `29791037145`; roster-action and go/no-go hardening tests pass locally in this change set |
+| JewelHire | `Jewellinkiv/Jewelhire` | Current evidence change set | Previous pushed evidence base `bb8909a` passed GitHub validation run `29791414954`; drift owner-acceptance, roster-action, and go/no-go hardening tests pass locally in this change set |
 | JewelLink | `Jewellinkiv/jewellink-app` | `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` passed and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have NO-GO findings below |
 | JewelLink local no-push patch | research checkout only | `f12e67d7202a6a567007605f7164d141638b5dbc` | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`; combines candidate-only Cloud Build and profile MFA audit refresh; not pushed |
 
@@ -62,7 +62,7 @@ still requires explicit approval before it can be pushed to
 | JewelHire admin allowlist | Pass | `docs/qa-runs/admin-allowlist-2026-07-20T22-22-44-403Z/` passes after rotating `jewelhire-admin-emails-v2` to version `2`; 9 active JewelLink admin-role users, 0 missing, 0 extra, 0 active non-admins |
 | JewelHire production migration ledger | Pass | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/` shows 25/25 applied, 0 pending, and no checksum/order issues |
 | JewelLink JewelHire migration rows | Pass | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/` reviews JewelLink commit `55032dbb` and shows all seven JewelHire integration/auth migrations active with matching checksums |
-| JewelLink full migration checksum audit | Fail | The ledger report shows 25 older non-integration active Prisma rows whose checksums drift from the reviewed repo; repeatable recovery audit `docs/qa-runs/jewellink-migration-drift-2026-07-21T00-23-40-099Z/` reviewed `origin/main` `55032dbb`, fetched standard and PR-head refs, searched 302 refs plus 489 successful Cloud Build records / 258 reachable source revisions, recovered 1 exact SQL file, left 24 unrecovered, and records each drifted row's applied window, so this remains a GO blocker until applied SQL is recovered, repaired, or explicitly accepted by a named database owner |
+| JewelLink full migration checksum audit | Fail | The ledger report shows 25 older non-integration active Prisma rows whose checksums drift from the reviewed repo; repeatable recovery audit `docs/qa-runs/jewellink-migration-drift-2026-07-21T00-55-59-144Z/` reviewed `origin/main` `55032dbb`, fetched standard and PR-head refs, searched 302 refs plus 489 successful Cloud Build records / 258 reachable source revisions, recovered 1 exact SQL file, left 24 unrecovered, and generated `jewellink-migration-drift-owner-acceptance-request.md`, so this remains a GO blocker until applied SQL is recovered, repaired with approval, or covered by a valid named database-owner acceptance file |
 | Operations readiness audit | Partial / Fail | `docs/qa-runs/operations-readiness-2026-07-21T00-40-25-894Z/` confirms alert policies, readable and enabled attached notification channels, log metrics, live rollback targets, external database hosts, and the JewelLink health scheduler; backup method/ID/completion/verification/retention/restore evidence, rollback owners, observation window, and thresholds remain missing. `docs/production-operations-evidence.template.json` is now the non-secret packet path for those fields |
 | Production pilot roster audit | Partial / Fail | `docs/qa-runs/pilot-roster-2026-07-21T00-48-18-328Z/` confirms Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, Director/Manager/Student SSO candidates, a platform-admin candidate, clean admin allowlist, and JewelHire smoke credential roles; Consultant-denial and paused-company denial accounts are missing. The run also writes `pilot-roster-provisioning-packet.md` with the two approval-required production account actions |
 | Live public and fail-closed QA | Pass | `docs/qa-runs/live-2026-07-20T22-23-20-818Z/` passes public login/signup/forgot/verify/legal/careers/apply checks, logged-out API denials, and desktop/mobile browser smoke with no warnings |
@@ -87,7 +87,7 @@ node scripts/cross-product-acceptance.mjs \
 | JewelHire integration env | Closed | `qa:config` passed after explicit live-email acknowledgement |
 | JewelLink integration env | Closed | `qa:pilot-readiness` passed after approved pilot rollout config update for Diamond Exchange `comp_1` |
 | Integration smoke preflight | Closed | `qa:integration-smoke-preflight` passed read-only against production; mutating authenticated smokes are still separate gates |
-| Migration ledger state | Partial | JewelHire is closed; JewelLink integration/auth rows are closed; 25 older JewelLink full-ledger checksum drifts remain open |
+| Migration ledger state | Partial | JewelHire is closed; JewelLink integration/auth rows are closed; 25 older JewelLink full-ledger checksum drifts remain open. The latest drift audit generated `docs/qa-runs/jewellink-migration-drift-2026-07-21T00-55-59-144Z/jewellink-migration-drift-owner-acceptance-request.md` for the 24 unrecovered historical rows |
 | Authenticated pilot roster | Partial | `qa:pilot-roster` verifies Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, and Director/Manager/Student/platform-admin candidates; Consultant-denial and paused-company denial aliases remain missing. Use `docs/qa-runs/pilot-roster-2026-07-21T00-48-18-328Z/pilot-roster-provisioning-packet.md` for the approval-required production account actions |
 | Admin allowlist and role cleanup | Closed | `qa:admin-allowlist` passes with `jewelhire-admin-emails-v2:2`; no active JewelLink non-admin remains allowlisted |
 | End-to-end SSO smoke | Not run | Director, Manager, Student, Consultant denial, platform-admin allowlist, allowlisted non-admin denial |
@@ -113,7 +113,8 @@ without explicit approval.
 1. Close the 24 unrecovered older JewelLink active migration checksum drifts by
    recovering applied SQL, repairing the ledger with approval after clone
    review, or recording named database-owner acceptance of the historical
-   non-integration drift.
+   non-integration drift with the generated acceptance request packet and a
+   passing `--database-owner-acceptance-file` rerun.
 2. Review and explicitly approve the combined local JewelLink patch
    `f12e67d7` if we want to close the source-audit/profile 2FA guard failure
    and unpatched Cloud Build direct-deploy failure through a JewelLink PR.

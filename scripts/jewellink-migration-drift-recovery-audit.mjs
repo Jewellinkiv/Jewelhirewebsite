@@ -38,6 +38,9 @@ Options:
   --cloud-build-region=<region>  Default: us-central1
   --cloud-build-window-hours=<n> Default: 24 hours before/after drift rows
   --cloud-build-limit=<n>        Default: 1000
+  --database-owner-acceptance-file=<path>
+                                  Validate named owner acceptance for unrecovered
+                                  historical non-integration drift
 `);
   process.exit(0);
 }
@@ -65,6 +68,11 @@ const INCLUDE_CLOUD_BUILD_SOURCE_SEARCH =
 const CLOUD_BUILD_REGION = args.get("cloud-build-region") || process.env.JEWELLINK_CLOUD_BUILD_REGION || "us-central1";
 const CLOUD_BUILD_WINDOW_HOURS = Number(args.get("cloud-build-window-hours") || "24");
 const CLOUD_BUILD_LIMIT = Number(args.get("cloud-build-limit") || "1000");
+const DATABASE_OWNER_ACCEPTANCE_FILE = args.get("database-owner-acceptance-file")
+  ? path.resolve(process.cwd(), args.get("database-owner-acceptance-file"))
+  : process.env.JEWELLINK_MIGRATION_DRIFT_OWNER_ACCEPTANCE_FILE
+    ? path.resolve(process.cwd(), process.env.JEWELLINK_MIGRATION_DRIFT_OWNER_ACCEPTANCE_FILE)
+    : "";
 
 const requiredJewelLinkIntegrationMigrations = new Set([
   "20260712043000_add_jewelhire_sso_codes",
@@ -314,6 +322,25 @@ function rowTimeRange(row) {
   };
 }
 
+function isoLike(value) {
+  return Number.isFinite(parseTimestampMs(value));
+}
+
+function sortedUnique(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))].sort();
+}
+
+function loadJsonFile(file) {
+  try {
+    return { ok: true, data: JSON.parse(fs.readFileSync(file, "utf8")), error: "" };
+  } catch (error) {
+    return { ok: false, data: null, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 function extractBuildRevisions(build) {
   return [
     build?.sourceProvenance?.resolvedGitSource?.revision,
@@ -478,6 +505,166 @@ function recoverMatches(repo, driftRows, cloudBuildSearch) {
   });
 }
 
+function validateOwnerAcceptance(unrecovered) {
+  const unrecoveredNames = sortedUnique(unrecovered.map((row) => row.migration));
+  const integrationOrAuthUnrecovered = unrecovered.filter((row) => row.integrationOrAuth).map((row) => row.migration);
+  if (!DATABASE_OWNER_ACCEPTANCE_FILE) {
+    return {
+      attempted: false,
+      valid: unrecoveredNames.length === 0,
+      fileProvided: false,
+      file: "",
+      error: "",
+      ownerRecorded: false,
+      ownerRoleRecorded: false,
+      acceptedAt: "",
+      acceptedMigrationCount: 0,
+      expectedMigrationCount: unrecoveredNames.length,
+      listMatches: unrecoveredNames.length === 0,
+      requiredAcknowledgements: false,
+      integrationOrAuthUnrecovered,
+    };
+  }
+
+  if (!fs.existsSync(DATABASE_OWNER_ACCEPTANCE_FILE)) {
+    return {
+      attempted: true,
+      valid: false,
+      fileProvided: true,
+      file: DATABASE_OWNER_ACCEPTANCE_FILE,
+      error: "Acceptance file not found",
+      ownerRecorded: false,
+      ownerRoleRecorded: false,
+      acceptedAt: "",
+      acceptedMigrationCount: 0,
+      expectedMigrationCount: unrecoveredNames.length,
+      listMatches: false,
+      requiredAcknowledgements: false,
+      integrationOrAuthUnrecovered,
+    };
+  }
+
+  const loaded = loadJsonFile(DATABASE_OWNER_ACCEPTANCE_FILE);
+  if (!loaded.ok || !loaded.data || typeof loaded.data !== "object" || Array.isArray(loaded.data)) {
+    return {
+      attempted: true,
+      valid: false,
+      fileProvided: true,
+      file: DATABASE_OWNER_ACCEPTANCE_FILE,
+      error: loaded.error || "Acceptance file must contain a JSON object",
+      ownerRecorded: false,
+      ownerRoleRecorded: false,
+      acceptedAt: "",
+      acceptedMigrationCount: 0,
+      expectedMigrationCount: unrecoveredNames.length,
+      listMatches: false,
+      requiredAcknowledgements: false,
+      integrationOrAuthUnrecovered,
+    };
+  }
+
+  const data = loaded.data;
+  const acceptedNames = sortedUnique(data.acceptedUnrecoveredMigrations || data.migrations || []);
+  const listMatches =
+    acceptedNames.length === unrecoveredNames.length &&
+    acceptedNames.every((migration, index) => migration === unrecoveredNames[index]);
+  const acknowledgements = data.acknowledgements || {};
+  const requiredAcknowledgements =
+    acknowledgements.acceptsHistoricalNonIntegrationDrift === true &&
+    acknowledgements.confirmsIntegrationAuthRowsRemainHardLaunchBoundary === true &&
+    acknowledgements.confirmsNoLedgerRepairAuthorizedByThisAcceptance === true;
+  const ownerRecorded = Boolean(String(data.owner || "").trim());
+  const ownerRoleRecorded = Boolean(String(data.ownerRole || data.owner_role || "").trim());
+  const acceptedAt = String(data.acceptedAt || data.accepted_at || "").trim();
+  const valid =
+    unrecoveredNames.length > 0 &&
+    integrationOrAuthUnrecovered.length === 0 &&
+    ownerRecorded &&
+    ownerRoleRecorded &&
+    isoLike(acceptedAt) &&
+    listMatches &&
+    requiredAcknowledgements;
+
+  return {
+    attempted: true,
+    valid,
+    fileProvided: true,
+    file: DATABASE_OWNER_ACCEPTANCE_FILE,
+    error: "",
+    ownerRecorded,
+    ownerRoleRecorded,
+    acceptedAt: isoLike(acceptedAt) ? acceptedAt : "",
+    acceptedMigrationCount: acceptedNames.length,
+    expectedMigrationCount: unrecoveredNames.length,
+    listMatches,
+    requiredAcknowledgements,
+    integrationOrAuthUnrecovered,
+  };
+}
+
+function ownerAcceptanceRequest(unrecovered) {
+  return {
+    createdAt: new Date().toISOString(),
+    valuesPrinted: false,
+    status: unrecovered.length ? "needed" : "not-needed",
+    scope: "historical non-integration JewelLink Prisma checksum drift",
+    instructions:
+      "Copy this JSON to a local approval file, fill owner fields and acknowledgements, then rerun the audit with --database-owner-acceptance-file=<path>. Do not put secrets or customer data in the file.",
+    owner: "",
+    ownerRole: "",
+    acceptedAt: "",
+    reviewArtifact: "",
+    acceptanceStatement: "",
+    acknowledgements: {
+      acceptsHistoricalNonIntegrationDrift: false,
+      confirmsIntegrationAuthRowsRemainHardLaunchBoundary: false,
+      confirmsNoLedgerRepairAuthorizedByThisAcceptance: false,
+    },
+    acceptedUnrecoveredMigrations: unrecovered.map((row) => row.migration),
+  };
+}
+
+function ownerAcceptanceRequestMarkdown(packet, unrecovered) {
+  const lines = [
+    "# JewelLink Migration Drift Owner Acceptance Request",
+    "",
+    `Created: ${packet.createdAt}`,
+    "Values printed: false",
+    "",
+    "This packet is an approval aid only. It does not repair the ledger, edit JewelLink, run migrations, create backups, restore data, or write to either production database.",
+    "",
+    `Status: ${packet.status}`,
+    `Scope: ${packet.scope}`,
+    `Unrecovered migration count: ${unrecovered.length}`,
+    "",
+    "## Required Acceptance Fields",
+    "",
+    "- Named database owner",
+    "- Owner role or approval channel",
+    "- UTC acceptance timestamp",
+    "- Review artifact or ticket reference",
+    "- Acceptance statement",
+    "- All three acknowledgements set to true in the JSON file",
+    "",
+    "## Unrecovered Rows",
+    "",
+    "| Migration | Applied checksum | Reviewed checksum | Applied window |",
+    "| --- | --- | --- | --- |",
+    ...unrecovered.map((row) => {
+      const appliedWindow =
+        row.startedAt || row.finishedAt ? `${row.startedAt || "unknown"} to ${row.finishedAt || "unknown"}` : "unknown";
+      return `| \`${row.migration}\` | \`${row.appliedChecksumPrefix}\` | \`${row.reviewedChecksumPrefix}\` | ${appliedWindow} |`;
+    }),
+    "",
+    "## Verification",
+    "",
+    "Run the drift audit again with `--database-owner-acceptance-file=<path>` and require the owner-acceptance check to pass.",
+    "",
+    "Do not place database URLs, bearer tokens, passwords, cookies, customer data, secret values, or full production data extracts in the acceptance file.",
+  ];
+  return lines.join("\n");
+}
+
 function markdown(report) {
   return [
     "# JewelLink Migration Drift Recovery Audit",
@@ -514,6 +701,9 @@ function markdown(report) {
     `- Cloud Build exact SQL matches: ${report.jewelLink.cloudBuildSourceSearch.matchCount}`,
     `- Drift rows with exact SQL recovered from any searched source: ${report.jewelLink.recoveredCount}`,
     `- Drift rows still unrecovered: ${report.jewelLink.unrecoveredCount}`,
+    `- Database owner acceptance attempted: ${report.jewelLink.databaseOwnerAcceptance.attempted}`,
+    `- Database owner acceptance valid: ${report.jewelLink.databaseOwnerAcceptance.valid}`,
+    `- Database owner accepted migration count: ${report.jewelLink.databaseOwnerAcceptance.acceptedMigrationCount}`,
     "",
     "## Drift Recovery",
     "",
@@ -533,10 +723,27 @@ function markdown(report) {
       return `| \`${row.migration}\` | \`${row.appliedChecksumPrefix}\` | \`${row.reviewedChecksumPrefix}\` | ${appliedWindow} | ${match} | ${cloudBuildMatch} | ${row.searchedPathCommits} |`;
     }),
     "",
+    "## Database Owner Acceptance",
+    "",
+    `- Acceptance file provided: ${report.jewelLink.databaseOwnerAcceptance.fileProvided ? "yes" : "no"}`,
+    `- Owner recorded: ${report.jewelLink.databaseOwnerAcceptance.ownerRecorded ? "yes" : "no"}`,
+    `- Owner role recorded: ${report.jewelLink.databaseOwnerAcceptance.ownerRoleRecorded ? "yes" : "no"}`,
+    `- Accepted at: ${report.jewelLink.databaseOwnerAcceptance.acceptedAt || "missing"}`,
+    `- Accepted migration list matches unrecovered rows: ${report.jewelLink.databaseOwnerAcceptance.listMatches ? "yes" : "no"}`,
+    `- Required acknowledgements recorded: ${report.jewelLink.databaseOwnerAcceptance.requiredAcknowledgements ? "yes" : "no"}`,
+    `- Integration/auth unrecovered rows: ${
+      report.jewelLink.databaseOwnerAcceptance.integrationOrAuthUnrecovered.length
+        ? report.jewelLink.databaseOwnerAcceptance.integrationOrAuthUnrecovered.join(", ")
+        : "none"
+    }`,
+    `- Acceptance request artifact: ${
+      report.jewelLink.ownerAcceptanceRequest.artifact || "not generated"
+    }`,
+    "",
     "## Closure Guidance",
     "",
     report.pass
-      ? "All active drifted SQL was recovered from fetched git history. Close this gate by restoring the exact files in a reviewed JewelLink PR or by recording named database-owner acceptance before any ledger repair."
+      ? "All active drifted SQL is either recovered from searched sources or covered by validated named database-owner acceptance for historical non-integration drift. Do not repair the ledger without the recorded backup/restore/approval process."
       : "This remains a NO-GO item. Close it by recovering the missing applied SQL from provider backups/deployment artifacts, restoring and reviewing a production clone before controlled ledger repair, or recording named database-owner acceptance of historical non-integration drift.",
     "",
     "## Checks",
@@ -578,18 +785,26 @@ async function main() {
   const unrecovered = recovery.filter(
     (row) => row.exactHistoryMatches.length === 0 && row.cloudBuildSourceMatches.length === 0,
   );
+  const databaseOwnerAcceptance = validateOwnerAcceptance(unrecovered);
 
   record("JewelLink active integration/auth migration rows have no checksum drift", integrationDrift.length === 0, {
     driftCount: integrationDrift.length,
   });
   record(
-    "Every drifted JewelLink active migration has exact SQL recoverable from git history or Cloud Build source revisions",
-    unrecovered.length === 0,
+    "Every drifted JewelLink active migration has exact SQL recovered or named database-owner acceptance",
+    unrecovered.length === 0 || databaseOwnerAcceptance.valid,
     {
       driftCount: driftRows.length,
       unrecoveredCount: unrecovered.length,
+      ownerAcceptanceValid: databaseOwnerAcceptance.valid,
     },
   );
+  if (unrecovered.length > 0) {
+    record("Unrecovered JewelLink historical drift has valid named owner acceptance", databaseOwnerAcceptance.valid, {
+      acceptedMigrationCount: databaseOwnerAcceptance.acceptedMigrationCount,
+      expectedMigrationCount: databaseOwnerAcceptance.expectedMigrationCount,
+    });
+  }
 
   const report = {
     createdAt: new Date().toISOString(),
@@ -610,6 +825,11 @@ async function main() {
       ).length,
       unrecoveredCount: unrecovered.length,
       integrationDriftCount: integrationDrift.length,
+      databaseOwnerAcceptance,
+      ownerAcceptanceRequest: {
+        artifact: unrecovered.length ? "jewellink-migration-drift-owner-acceptance-request.md" : "",
+        json: unrecovered.length ? "jewellink-migration-drift-owner-acceptance-request.json" : "",
+      },
       cloudBuildSourceSearch: {
         attempted: cloudBuildSource.attempted,
         ok: cloudBuildSource.ok,
@@ -628,6 +848,17 @@ async function main() {
   };
 
   fs.mkdirSync(OUT, { recursive: true });
+  if (unrecovered.length > 0) {
+    const acceptanceRequest = ownerAcceptanceRequest(unrecovered);
+    fs.writeFileSync(
+      path.join(OUT, "jewellink-migration-drift-owner-acceptance-request.json"),
+      `${JSON.stringify(acceptanceRequest, null, 2)}\n`,
+    );
+    fs.writeFileSync(
+      path.join(OUT, "jewellink-migration-drift-owner-acceptance-request.md"),
+      `${ownerAcceptanceRequestMarkdown(acceptanceRequest, unrecovered)}\n`,
+    );
+  }
   fs.writeFileSync(path.join(OUT, "jewellink-migration-drift-recovery-report.json"), `${JSON.stringify(report, null, 2)}\n`);
   fs.writeFileSync(path.join(OUT, "jewellink-migration-drift-recovery-report.md"), `${markdown(report)}\n`);
   console.log(`Report: ${path.relative(process.cwd(), path.join(OUT, "jewellink-migration-drift-recovery-report.md"))}`);

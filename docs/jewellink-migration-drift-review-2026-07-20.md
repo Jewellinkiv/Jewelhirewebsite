@@ -11,7 +11,8 @@ drift found during pilot readiness. No database rows were changed.
 | Reviewed live baseline | `55032dbbebc519d1718aa14871da2048f60d9487` |
 | Local no-push patch head | `f12e67d7202a6a567007605f7164d141638b5dbc` |
 | Ledger evidence | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/migration-ledger-report.md` |
-| Repeatable recovery audit | `docs/qa-runs/jewellink-migration-drift-2026-07-21T00-23-40-099Z/jewellink-migration-drift-recovery-report.md` |
+| Repeatable recovery audit | `docs/qa-runs/jewellink-migration-drift-2026-07-21T00-55-59-144Z/jewellink-migration-drift-recovery-report.md` |
+| Owner acceptance request | `docs/qa-runs/jewellink-migration-drift-2026-07-21T00-55-59-144Z/jewellink-migration-drift-owner-acceptance-request.md` |
 
 ## Findings
 
@@ -38,6 +39,12 @@ drift found during pilot readiness. No database rows were changed.
   run reviewed `origin/main` at `55032dbbebc519d1718aa14871da2048f60d9487`,
   searched 302 refs plus Cloud Build source revisions, and reproduced the same
   1 recovered / 24 unrecovered result without printing secrets.
+- The latest repeatable audit also generated a database-owner acceptance
+  request packet for the 24 unrecovered historical non-integration rows. The
+  gate can pass by supplying an exact owner acceptance file to the audit, but
+  only if the accepted migration list matches those 24 rows, all required
+  acknowledgements are true, and no JewelHire integration/auth row is
+  unrecovered.
 
 ## Drift Rows
 
@@ -84,8 +91,9 @@ Acceptable closure paths:
    review proving the active database shape matches the intended reviewed
    schema, then approve a controlled ledger repair.
 3. If the drift is accepted as historical non-integration drift, record a named
-   database owner approval and keep the seven JewelHire integration/auth rows as
-   the hard launch boundary.
+   database owner approval with the generated acceptance request packet, rerun
+   the audit with `--database-owner-acceptance-file=<path>`, and keep the seven
+   JewelHire integration/auth rows as the hard launch boundary.
 
 Do not update `_prisma_migrations` checksums directly without a provider backup,
 restore plan, named database owner, and explicit approval.
