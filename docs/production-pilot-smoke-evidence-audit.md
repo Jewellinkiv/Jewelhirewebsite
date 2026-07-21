@@ -10,11 +10,20 @@ write to the JewelHire production database.
 Run from the JewelHire repository:
 
 ```bash
+npm run qa:pilot-smoke-plan -- \
+  --smoke-plan-file=.qa_tmp/production-pilot-smoke-plan.json
+
 npm run qa:pilot-smoke-evidence -- \
   --smoke-evidence-file=.qa_tmp/production-pilot-smoke-evidence.json
 ```
 
-For the current pilot matrix, copy
+For the live smoke preflight, copy
+`docs/production-pilot-smoke-plan.template.json` to an ignored local path and
+fill it only after approvals, roster, rollback, and prerequisite PASS artifacts
+exist. Require `qa:pilot-smoke-plan` to pass before any authenticated SSO, hire,
+JewelCert, team-invite, or resume privacy smoke runs in production.
+
+For the current pilot evidence matrix, copy
 `docs/production-pilot-smoke-evidence.template.json` to an ignored local path
 and fill each row only after the corresponding authenticated smoke has a
 non-secret `docs/qa-runs` artifact.
@@ -60,6 +69,8 @@ also writes `pilot-smoke-evidence-request.md` and
 - Team-invite fail-closed and resume privacy evidence exists.
 - Smoke evidence is concrete and local to `docs/qa-runs/`, not a loose note like
   "done", "approved", or "not run".
+- The live smoke plan preflight has a separate auditable gate in
+  `docs/production-pilot-smoke-plan-audit.md`.
 
 ## Latest Production Result
 
@@ -83,6 +94,7 @@ it does not print raw operator notes.
 Fixture coverage runs without production access:
 
 ```bash
+node --test scripts/production-pilot-smoke-plan-audit.test.mjs
 node --test scripts/production-public-fail-closed-smoke.test.mjs
 node --test scripts/production-pilot-smoke-evidence-audit.test.mjs
 ```

@@ -55,6 +55,7 @@ config-only pilot flag update recorded below.
 | JewelHire smoke credential auth | PASS | `docs/qa-runs/smoke-credential-auth-2026-07-21T01-47-42-153Z/smoke-credential-auth-report.md` passes after refreshing a dedicated JewelHire pilot smoke store-owner account with a short `comped` entitlement, rotating the native password, and replacing the obsolete native admin password entry with a JewelLink SSO marker; values printed: false |
 | Rollback owners | MISSING | `docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/operations-readiness-report.md` confirms the only remaining operations failures are named JewelHire traffic rollback owner, JewelLink traffic rollback owner, JewelLink IAM rollback owner, database recovery owner, approved observation window, and approved rollback thresholds; `docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/operations-readiness-evidence-request.md` lists the exact required fields |
 | Pilot roster | PARTIAL / NO-GO | `docs/qa-runs/pilot-roster-2026-07-21T02-31-32-809Z/pilot-roster-report.md` verifies Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, Director/Manager/Student SSO candidates, a platform-admin candidate, clean admin allowlist, and JewelHire smoke credential auth prerequisites; Consultant-denial and paused-company denial accounts are missing. The same run writes `docs/qa-runs/pilot-roster-2026-07-21T02-31-32-809Z/pilot-roster-provisioning-packet.md` with the two approval-required production account actions |
+| Controlled smoke plan preflight | REQUESTED / NO-GO | `docs/qa-runs/pilot-smoke-plan-2026-07-21T03-28-26-058Z/pilot-smoke-plan-report.md` was generated from `docs/production-pilot-smoke-plan.template.json`; 13/53 checks pass and 40 approval, prerequisite artifact, persona, and scope fields remain missing before authenticated SSO, hire, JewelCert, team-invite, or resume privacy smokes can run in production |
 | Authenticated SSO smoke | NOT RUN | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` requires 7 concrete authenticated SSO evidence rows before GO |
 | Hire handoff smoke | NOT RUN | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` requires 4 concrete hire handoff evidence rows before GO |
 | JewelCert smoke | NOT RUN | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md` requires 4 concrete JewelCert evidence rows before GO |
@@ -83,6 +84,9 @@ config-only pilot flag update recorded below.
 
 | Field | Value |
 | --- | --- |
+| Smoke plan preflight template | `docs/production-pilot-smoke-plan.template.json` |
+| Smoke plan request packet | `docs/qa-runs/pilot-smoke-plan-2026-07-21T03-28-26-058Z/pilot-smoke-plan-request.md` |
+| Smoke plan preflight command | `npm run qa:pilot-smoke-plan -- --smoke-plan-file=<path>` |
 | Evidence request packet | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` |
 | Required rows | 17 |
 | Passing rows | 0 |
@@ -152,9 +156,10 @@ The decision can move from **NO-GO** to **GO for controlled pilot** only when:
 5. Pilot roster audit passes with a concrete `docs/qa-runs/` artifact.
 6. JewelHire smoke credentials pass auth cleanup before they are used for live
    pilot evidence.
-7. Authenticated SSO, hire, and JewelCert smokes pass for the approved roster.
-8. Rollback owners and revision targets are recorded.
-9. No stop condition is open.
+7. Controlled smoke plan preflight passes before mutating live smokes run.
+8. Authenticated SSO, hire, and JewelCert smokes pass for the approved roster.
+9. Rollback owners and revision targets are recorded.
+10. No stop condition is open.
 
 ## Stop conditions
 

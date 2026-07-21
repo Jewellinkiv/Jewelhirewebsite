@@ -110,11 +110,20 @@ authenticated SSO smoke matrix proceed.
 The remaining authenticated smoke evidence packet is
 `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md`.
 
+Fillable smoke plan preflight template:
+`docs/production-pilot-smoke-plan.template.json`
+
+Latest smoke plan request:
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T03-28-26-058Z/pilot-smoke-plan-request.md`
+
 Fillable smoke evidence template:
 `docs/production-pilot-smoke-evidence.template.json`
 
-Before running mutating live smokes, confirm the controlled roster and exact
-scope for:
+Before running mutating live smokes, copy the smoke plan template to an ignored
+local path, fill the non-secret approval/persona/scope fields, and require
+`qa:pilot-smoke-plan` to pass. The plan preflight must confirm the controlled
+roster, rollback window approval, prerequisite PASS artifacts, and exact scope
+for:
 
 - Director, Manager, Student, Consultant-denial, platform-admin, allowlisted
   non-admin denial, and paused-company denial SSO evidence.
@@ -158,6 +167,7 @@ place:
 ```bash
 npm run qa:operations-readiness -- --operations-evidence-file=docs/production-operations-evidence.approval-template-2026-07-21.json
 npm run qa:pilot-roster
+npm run qa:pilot-smoke-plan -- --smoke-plan-file=.qa_tmp/production-pilot-smoke-plan.json
 npm run qa:public-fail-closed-smoke -- --cookie-file=<local-cookie-file> --store-id=<pilot-store-id> --expected-store-id=<pilot-store-id> --resume-application-id=<application-id>
 npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=docs/production-pilot-smoke-evidence.template.json
 npm run qa:jewellink-migration-object-state

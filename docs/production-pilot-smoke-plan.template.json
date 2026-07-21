@@ -1,0 +1,71 @@
+{
+  "approvals": {
+    "approver": "",
+    "approvalChannel": "",
+    "approvedAt": "",
+    "scopeStatement": "",
+    "liveEmailSendsAcknowledged": false,
+    "jewelLinkPilotFlagMovementApproved": false,
+    "productionUserCreationApproved": false,
+    "hireConfirmationApproved": false,
+    "jewelCertProductionMutationApproved": false,
+    "publicFailClosedProbeApproved": false,
+    "rollbackWindowApproved": false
+  },
+  "prerequisites": {
+    "operationsReadinessReport": "",
+    "pilotRosterReport": "",
+    "integrationSmokePreflightReport": "",
+    "smokeCredentialAuthReport": ""
+  },
+  "personas": {
+    "directorAlias": "",
+    "managerAlias": "",
+    "studentAlias": "",
+    "consultantDenialAlias": "",
+    "platformAdminAlias": "",
+    "allowlistedNonAdminDenialAlias": "",
+    "pausedCompanyDenialAlias": ""
+  },
+  "scopes": {
+    "authenticatedSso": {
+      "enabled": true,
+      "operatorAlias": "",
+      "approvedPersonaMatrix": false,
+      "nonPilotDataAvoidance": false
+    },
+    "hireHandoff": {
+      "enabled": true,
+      "applicationAlias": "",
+      "controlledMailboxAlias": "",
+      "targetCompanyId": "comp_1",
+      "previewBeforeConfirm": false,
+      "repeatConfirmIdempotencyCheck": false,
+      "revokeOrCancelCheck": false
+    },
+    "jewelCert": {
+      "enabled": true,
+      "inviteSourceAlias": "",
+      "controlledMailboxAlias": "",
+      "resultSyncTarget": "comp_1",
+      "retryFailureMode": "",
+      "liveEmailExpected": false
+    },
+    "publicFailClosed": {
+      "enabled": true,
+      "storeId": "",
+      "expectedStoreId": "",
+      "resumeApplicationId": "",
+      "cookieFileLocalIgnored": false,
+      "teamInvitesDisabledPrecheckRequired": false
+    }
+  },
+  "stopConditions": [
+    "Cross-store or cross-company data exposure",
+    "Unexpected role elevation or Consultant access",
+    "Duplicate hire provisioning or wrong JewelLink user link",
+    "JewelCert result sync to the wrong store/company/user",
+    "Email/provider delivery to an unintended recipient",
+    "Any evidence artifact prints a secret, token, cookie, password, database URL, or customer data"
+  ]
+}
