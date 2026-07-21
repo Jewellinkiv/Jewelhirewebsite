@@ -1,6 +1,6 @@
 # Two-database backup and rollback runbook
 
-Updated: 2026-07-20
+Updated: 2026-07-21
 
 Use this runbook for the JewelLink/JewelHire cutover. It is an operator checklist,
 not authorization to access credentials, create backups, restore data, deploy,
@@ -43,6 +43,18 @@ runtime rollback targets, monitoring resources, enabled attached notification
 channels, and JewelLink health scheduler, but still fails because the backup
 evidence fields and named rollback owner approval fields below are not complete.
 
+2026-07-21T02:21Z encrypted logical backup evidence:
+`docs/production-operations-evidence-2026-07-21.json` records verified
+encrypted logical backups for both production databases. The encrypted backup
+artifacts are retained outside the repositories in the operator backup folder;
+the shared passphrase is stored in Secret Manager secret
+`jewelhire-pilot-logical-backup-passphrase-20260721` version `1`, and no
+plaintext dump is retained. The operations audit in
+`docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/` now passes all
+backup, monitoring, live rollback target, external database host, and JewelLink
+health scheduler checks. The remaining failures are the six approval fields for
+rollback owners, the exact observation window, and rollback thresholds.
+
 2026-07-21 operator evidence packet: copy
 `docs/production-operations-evidence.template.json` to a local ignored path such
 as `.qa_tmp/production-operations-evidence.json`, fill it with only non-secret
@@ -55,18 +67,18 @@ or secret manager values.
 | Evidence | JewelHire | JewelLink |
 | --- | --- | --- |
 | Named operator |  |  |
-| Provider and project/account |  |  |
-| Database resource/cluster ID |  |  |
-| Current database/schema name |  |  |
-| Backup method (`provider-snapshot`/`pitr`/`encrypted-logical`) |  |  |
-| Backup/snapshot ID |  |  |
-| Backup completed UTC |  |  |
-| Point-in-time recovery enabled and retention |  |  |
-| Logical dump encrypted location, if used |  |  |
-| SHA-256 of encrypted logical artifact |  |  |
-| Restore/list verification completed UTC |  |  |
-| Restore target/drill evidence |  |  |
-| Approved retention/deletion date |  |  |
+| Provider and project/account | External `pg.psdb.cloud` production PostgreSQL | External `pg.psdb.cloud` production PostgreSQL |
+| Database resource/cluster ID | External production database; full connection details intentionally omitted | External production database; full connection details intentionally omitted |
+| Current database/schema name | Production database name intentionally omitted from committed evidence | Production database name intentionally omitted from committed evidence |
+| Backup method (`provider-snapshot`/`pitr`/`encrypted-logical`) | `encrypted-logical` | `encrypted-logical` |
+| Backup/snapshot ID | `jewelhire-postgres-2026-07-21T02-02-42Z.dump.enc` | `jewellink-postgres-2026-07-21T02-02-42Z.dump.enc` |
+| Backup completed UTC | `2026-07-21T02:04:43.051Z` | `2026-07-21T02:19:00Z` |
+| Point-in-time recovery enabled and retention | Encrypted logical backup retained in operator backup folder for pilot rollback evidence; passphrase stored in Secret Manager secret `jewelhire-pilot-logical-backup-passphrase-20260721` version `1` | Encrypted logical backup retained in operator backup folder for pilot rollback evidence; passphrase stored in Secret Manager secret `jewelhire-pilot-logical-backup-passphrase-20260721` version `1` |
+| Logical dump encrypted location, if used | Operator backup folder outside both repositories; artifact ID above | Operator backup folder outside both repositories; artifact ID above |
+| SHA-256 of encrypted logical artifact | `3cbb0a1f6a9d511842b3864f1bb13274b0d7b9c750869eb3b168b28a2692b4a0` | `524d079ae12e47a931bd4b449cd88379f1f780fa6c129415ca92f98e35fbf7b8` |
+| Restore/list verification completed UTC | `2026-07-21T02:04:43.174Z` | `2026-07-21T02:20:06.050Z` |
+| Restore target/drill evidence | `pg_restore --list` verified 602 archive entries; restore-list SHA-256 `bba55a29024f4b065787d18d0de2d84d1c03cf62469ddf47b643d3a4ebdb6eec` | `pg_restore --list` verified 2640 archive entries; restore-list SHA-256 `d975df3c2bdf09b2ce6956fba7c634cf9787a0432fc712afe6761d466f008ae1` |
+| Approved retention/deletion date | Pending named owner approval | Pending named owner approval |
 
 Also record immediately before deployment:
 

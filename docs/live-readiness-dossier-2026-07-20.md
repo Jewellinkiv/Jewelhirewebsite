@@ -63,7 +63,7 @@ still requires explicit approval before it can be pushed to
 | JewelHire production migration ledger | Pass | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/` shows 25/25 applied, 0 pending, and no checksum/order issues |
 | JewelLink JewelHire migration rows | Pass | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/` reviews JewelLink commit `55032dbb` and shows all seven JewelHire integration/auth migrations active with matching checksums |
 | JewelLink full migration checksum audit | Fail | The ledger report shows 25 older non-integration active Prisma rows whose checksums drift from the reviewed repo; repeatable recovery audit `docs/qa-runs/jewellink-migration-drift-2026-07-21T00-55-59-144Z/` reviewed `origin/main` `55032dbb`, fetched standard and PR-head refs, searched 302 refs plus 489 successful Cloud Build records / 258 reachable source revisions, recovered 1 exact SQL file, left 24 unrecovered, and generated `jewellink-migration-drift-owner-acceptance-request.md`, so this remains a GO blocker until applied SQL is recovered, repaired with approval, or covered by a valid named database-owner acceptance file |
-| Operations readiness audit | Partial / Fail | `docs/qa-runs/operations-readiness-2026-07-21T01-06-24-623Z/` confirms alert policies, readable and enabled attached notification channels, log metrics, live rollback targets, external database hosts, and the JewelLink health scheduler; backup method/ID/completion/verification/retention/restore evidence, rollback owners, observation window, and thresholds remain missing. Use `docs/qa-runs/operations-readiness-2026-07-21T01-06-24-623Z/operations-readiness-evidence-request.md` or `docs/production-operations-evidence.template.json` for the non-secret fields |
+| Operations readiness audit | Partial / Fail | `docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/` confirms alert policies, readable and enabled attached notification channels, log metrics, live rollback targets, external database hosts, the JewelLink health scheduler, and encrypted logical backups for both production databases. Only rollback owners, observation window, and rollback thresholds remain missing; use `docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/operations-readiness-evidence-request.md` for the exact remaining fields |
 | Production pilot roster audit | Partial / Fail | `docs/qa-runs/pilot-roster-2026-07-21T01-47-56-756Z/` confirms Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`, Director/Manager/Student SSO candidates, a platform-admin candidate, clean admin allowlist, and JewelHire smoke credential auth prerequisites; Consultant-denial and paused-company denial accounts are missing. The run also writes `pilot-roster-provisioning-packet.md` with the two approval-required JewelLink production account actions |
 | Production smoke credential auth audit | Pass | `docs/qa-runs/smoke-credential-auth-2026-07-21T01-47-42-153Z/` passes after refreshing a dedicated JewelHire pilot smoke store-owner account with a short `comped` entitlement, rotating the native password, and replacing the obsolete native admin password entry with a JewelLink SSO marker; values printed: false |
 | Production pilot smoke evidence audit | Fail | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/` generated the 17-row smoke evidence request packet for authenticated SSO, hire handoff, JewelCert, team-invite fail-closed, and resume privacy evidence |
@@ -96,7 +96,7 @@ node scripts/cross-product-acceptance.mjs \
 | End-to-end hire smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` requires preview, confirm, repeat-confirm, and revoked/cancelled access artifacts |
 | End-to-end JewelCert smoke | Not run | `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md` requires invite, completion, scoped JewelLink sync, and retry artifacts |
 | JewelLink release-path patch approval | Open for future code/image deploys | Config-only pilot flag update was approved and completed; the Cloud Build candidate-release patch remains local and unpushed |
-| Rollback and monitoring evidence | Partial | Current revisions and admin-secret version are recorded; monitoring resources are now installed and attached; `docs/pilot-rollback-window-proposal-2026-07-20.md` proposes the window/thresholds, but backups and named owner approvals remain open. The latest operations audit generated `docs/qa-runs/operations-readiness-2026-07-21T01-06-24-623Z/operations-readiness-evidence-request.md` with the exact missing fields |
+| Rollback and monitoring evidence | Partial | Current revisions and admin-secret version are recorded; monitoring resources are installed and attached; encrypted logical backups are recorded in `docs/production-operations-evidence-2026-07-21.json`; `docs/pilot-rollback-window-proposal-2026-07-20.md` proposes the window/thresholds, but named owner approvals, exact UTC observation window, and rollback thresholds remain open. The latest operations audit generated `docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/operations-readiness-evidence-request.md` with the exact missing fields |
 
 ## JewelLink approval boundary
 
@@ -120,12 +120,11 @@ without explicit approval.
 2. Review and explicitly approve the combined local JewelLink patch
    `f12e67d7` if we want to close the source-audit/profile 2FA guard failure
    and unpatched Cloud Build direct-deploy failure through a JewelLink PR.
-3. Capture provider-native backup method/IDs, completion times, retention/PITR
-   posture, and restore/list verification, or explicitly approve an encrypted
-   logical backup flow with SHA-256 evidence for both external Postgres
-   databases. Use
-   `docs/qa-runs/operations-readiness-2026-07-21T01-06-24-623Z/operations-readiness-evidence-request.md`
-   as the fill-in request packet.
+3. Record the six remaining operations approvals from
+   `docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/operations-readiness-evidence-request.md`:
+   JewelHire rollback owner, JewelLink rollback owner, JewelLink IAM rollback
+   owner, database recovery owner, approved UTC observation window, and
+   rollback thresholds.
 4. Push/open a JewelLink PR only after explicit approval; the combined patch is
    staged locally and also preserved at
    `docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch`.
