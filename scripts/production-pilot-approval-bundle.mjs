@@ -22,6 +22,7 @@ move traffic, or write to either production database.
 Options:
   --artifacts=<dir>                 Report output directory
   --operations-request=<path>       operations-readiness-evidence-request.json
+  --operations-evidence=<path>      non-secret production operations evidence JSON
   --roster-packet=<path>            pilot-roster-provisioning-packet.json
   --application-request=<path>      pilot-application-submission-request.json
   --smoke-plan-request=<path>       pilot-smoke-plan-request.json
@@ -138,6 +139,29 @@ function readTemplate(relativeTemplatePath, fallback) {
   }
 }
 
+function readOptionalJson(relativeOrAbsolutePath) {
+  const fullPath = path.resolve(process.cwd(), relativeOrAbsolutePath);
+  if (!fs.existsSync(fullPath)) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(fullPath, "utf8"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function operationsEvidenceDraft(inputs) {
+  const fallbackEvidence = {
+    backups: inputs.operations?.evidence?.backups || {},
+    rollback: inputs.operations?.evidence?.rollback || {},
+    monitoring: inputs.operations?.evidence?.monitoring || {},
+  };
+  return (
+    readOptionalJson(args.get("operations-evidence") || "docs/production-operations-evidence-2026-07-21.json") ||
+    readTemplate("docs/production-operations-evidence.approval-template-2026-07-21.json", fallbackEvidence)
+  );
+}
+
 function labelForSmokeField(field) {
   const pathText = field.path || field.check || "";
   if (pathText.startsWith("approvals.")) return "Approval";
@@ -147,17 +171,11 @@ function labelForSmokeField(field) {
   return "Smoke plan";
 }
 
-function buildBundle(inputs, sourceArtifacts) {
+function buildBundle(inputs, sourceArtifacts, operationsEvidence) {
   const operationsMissing = Array.isArray(inputs.operations?.missingFields) ? inputs.operations.missingFields : [];
   const rosterActions = Array.isArray(inputs.roster?.actions) ? inputs.roster.actions : [];
   const applicationMissing = Array.isArray(inputs.application?.missingEvidence) ? inputs.application.missingEvidence : [];
   const smokeMissing = Array.isArray(inputs.smokePlan?.missingFields) ? inputs.smokePlan.missingFields : [];
-
-  const operationsEvidence = readTemplate("docs/production-operations-evidence.approval-template-2026-07-21.json", {
-    backups: inputs.operations?.evidence?.backups || {},
-    rollback: inputs.operations?.evidence?.rollback || {},
-    monitoring: inputs.operations?.evidence?.monitoring || {},
-  });
 
   const bundle = {
     createdAt: new Date().toISOString(),
@@ -421,15 +439,16 @@ function main() {
     smokePlan: parsed["smoke-plan-request"],
   };
 
-  const unsafe = allParsed ? unsafeFindings(normalizedInputs) : [];
-  record("source request packets contain no unsafe secret or PII values", allParsed && unsafe.length === 0, {
+  const operationsEvidence = allParsed ? operationsEvidenceDraft(normalizedInputs) : null;
+  const unsafe = allParsed ? unsafeFindings({ ...normalizedInputs, operationsEvidence: operationsEvidence || {} }) : [];
+  record("source request packets and operations evidence contain no unsafe secret or PII values", allParsed && unsafe.length === 0, {
     required: "No full emails, passwords, database URLs, bearer tokens, cookies, tokens, secret values, or customer data",
     unsafeFieldPaths: unsafe.map((finding) => finding.path),
     unsafeReasons: [...new Set(unsafe.map((finding) => finding.reason))],
   });
 
   const pass = checks.every((check) => check.pass);
-  const bundle = pass ? buildBundle(normalizedInputs, sourceArtifacts) : null;
+  const bundle = pass ? buildBundle(normalizedInputs, sourceArtifacts, operationsEvidence) : null;
   const report = {
     createdAt: new Date().toISOString(),
     pass,

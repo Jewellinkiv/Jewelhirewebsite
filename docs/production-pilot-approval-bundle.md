@@ -16,8 +16,10 @@ The report is written under `docs/qa-runs/pilot-approval-bundle-*` unless
 `--artifacts=<dir>` is supplied.
 
 The latest production result is
-`docs/qa-runs/pilot-approval-bundle-2026-07-21T09-00-45-288Z/`. It passes and
-writes `pilot-approval-bundle.md`.
+`docs/qa-runs/pilot-approval-bundle-2026-07-21T09-17-40-733Z/`. It passes,
+writes `pilot-approval-bundle.md`, and preserves the already-recorded
+monitoring evidence in the local operations evidence skeleton while leaving
+the six rollback approval fields empty.
 
 ## What It Combines
 
@@ -31,7 +33,8 @@ writes `pilot-approval-bundle.md`.
 - A companion intake path for validating a filled reply and drafting the local
   ignored audit files without printing approval values.
 - Local ignored file skeletons for the operations evidence file, controlled
-  application approval file, and pilot smoke plan.
+  application approval file, and pilot smoke plan; the operations skeleton
+  reuses the current non-secret operations evidence file when present.
 - The recommended command sequence from approval collection through final
   live-readiness validation.
 
@@ -53,10 +56,11 @@ the operations-readiness, controlled-application, and smoke-plan gates.
 
 ## Secret Handling
 
-The bundle refuses source request packets containing full email addresses,
-database URLs, bearer token values, cookie values, password values, token values,
-secret values, or customer data. It writes only non-secret artifact paths,
-required field names, local ignored file skeletons, and command references.
+The bundle refuses source request packets and operations evidence drafts
+containing full email addresses, database URLs, bearer token values, cookie
+values, password values, token values, secret values, or customer data. It
+writes only non-secret artifact paths, required field names, local ignored file
+skeletons, and command references.
 
 Do not commit filled approval files. Use the generated skeletons only in local
 ignored paths such as `.qa_tmp/production-operations-evidence.json`,

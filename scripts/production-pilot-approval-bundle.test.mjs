@@ -80,11 +80,20 @@ function fixturePackets(dir, overrides = {}) {
 
   const files = {
     operations: path.join(dir, "operations.json"),
+    operationsEvidence: path.join(dir, "operations-evidence.json"),
     roster: path.join(dir, "roster.json"),
     application: path.join(dir, "application.json"),
     smokePlan: path.join(dir, "smoke-plan.json"),
   };
   writeJson(files.operations, overrides.operations || operations);
+  writeJson(
+    files.operationsEvidence,
+    overrides.operationsEvidence || {
+      backups: {},
+      rollback: { jewelhireOwner: "" },
+      monitoring: { channel: "GCP alert policy channel ids are recorded in the operations evidence file." },
+    },
+  );
   writeJson(files.roster, overrides.roster || roster);
   writeJson(files.application, overrides.application || application);
   writeJson(files.smokePlan, overrides.smokePlan || smokePlan);
@@ -97,6 +106,7 @@ function runBundle(files, artifacts) {
     [
       script,
       `--operations-request=${files.operations}`,
+      `--operations-evidence=${files.operationsEvidence}`,
       `--roster-packet=${files.roster}`,
       `--application-request=${files.application}`,
       `--smoke-plan-request=${files.smokePlan}`,
@@ -135,6 +145,10 @@ test("approval bundle assembles current safe request packets into one non-secret
   assert.match(bundleJson.operatorReplyTemplate, /Approved at: <UTC timestamp>/);
   assert.match(bundleJson.operatorReplyTemplate, /Stable controlled application submission ID: <idempotency key>/);
   assert.match(bundleJson.operatorReplyTemplate, /Public\/fail-closed expected store ID: <same store id>/);
+  assert.match(
+    bundleJson.localIgnoredFileSkeletons.operationsEvidenceFile.value.monitoring.channel,
+    /GCP alert policy channel ids are recorded/,
+  );
   assert.equal(bundleJson.localIgnoredFileSkeletons.applicationApprovalFile.value.approvals.submissionId, "");
 });
 
@@ -160,7 +174,7 @@ test("approval bundle fails closed when source packets contain unsafe values", (
   const reportJson = fs.readFileSync(path.join(artifacts, "pilot-approval-bundle-report.json"), "utf8");
 
   assert.notEqual(result.status, 0);
-  assert.match(report, /FAIL source request packets contain no unsafe secret or PII values/);
+  assert.match(report, /FAIL source request packets and operations evidence contain no unsafe secret or PII values/);
   assert.match(reportJson, /unsafeFieldPaths/);
   assert.equal(fs.existsSync(path.join(artifacts, "pilot-approval-bundle.md")), false);
   assert.doesNotMatch(report, /abcdefghijklmnop/);

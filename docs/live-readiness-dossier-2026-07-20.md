@@ -14,7 +14,7 @@ JewelHire SHA without changing runtime behavior.
 
 | Product | Repository | Current head | Build/status |
 | --- | --- | --- | --- |
-| JewelHire | `Jewellinkiv/Jewelhire` | Validated through `70905c29451269d6516cf5986b8f05ba94d4196c` | GitHub validation run `29816135866` passed after adding the pilot operator reply intake helper; deploy skipped as expected |
+| JewelHire | `Jewellinkiv/Jewelhire` | Validated through `79b895fba1265f2f47ef8c59bf0e726627b9994e` | GitHub validation run `29817256191` passed after hardening applicant-signup Postgres test cleanup; deploy skipped as expected |
 | JewelLink | `Jewellinkiv/jewellink-app` | `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` passed and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have NO-GO findings below |
 | JewelLink local no-push patch | research checkout only | `f12e67d7202a6a567007605f7164d141638b5dbc` | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`; combines candidate-only Cloud Build and profile MFA audit refresh; not pushed |
 
@@ -143,7 +143,7 @@ without explicit approval.
    `docs/qa-runs/pilot-smoke-targets-2026-07-21T09-00-14-951Z/pilot-smoke-targets-request.md`,
    rerun `qa:pilot-roster` and `qa:pilot-smoke-targets`, close the 15 remaining items in
    `docs/qa-runs/pilot-smoke-plan-2026-07-21T09-00-14-980Z/pilot-smoke-plan-request.md`,
-   generate `docs/qa-runs/pilot-approval-bundle-2026-07-21T09-00-45-288Z/pilot-approval-bundle.md`
+   generate `docs/qa-runs/pilot-approval-bundle-2026-07-21T09-17-40-733Z/pilot-approval-bundle.md`
    or a fresher `qa:pilot-approval-bundle` packet to keep the local approval
    files aligned, pass `qa:pilot-smoke-plan`, run the authenticated end-to-end smoke matrix,
    then fill and pass
