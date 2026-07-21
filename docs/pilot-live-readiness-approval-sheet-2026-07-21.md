@@ -196,7 +196,22 @@ ignored approval file, live-email acknowledgement, controlled mailbox approval,
 and stable idempotency `submissionId`.
 
 The team-invite and resume privacy rows now have a dedicated JewelHire-side
-producer:
+session preflight and producer:
+
+Session preflight helper:
+`docs/production-pilot-session-cookie-audit.md`
+
+```bash
+npm run qa:pilot-session-cookie -- \
+  --cookie-file=<local-cookie-file> \
+  --expected-store-id=<pilot-store-id> \
+  --allowed-roles=store_owner,manager \
+  --expected-auth-source=jewellink_sso
+```
+
+This read-only helper calls `/api/me` only and confirms the cookie came from a
+JewelLink SSO Director or Manager session scoped to the Diamond Exchange pilot
+store before any smoke row uses it.
 
 ```bash
 npm run qa:public-fail-closed-smoke -- \
@@ -263,6 +278,7 @@ npm run qa:pilot-smoke-targets
 npm run qa:pilot-application-submission -- --target-report=<pilot-smoke-targets-report.json>
 npm run qa:pilot-smoke-plan -- --smoke-plan-file=.qa_tmp/production-pilot-smoke-plan.json
 npm run qa:pilot-approval-bundle
+npm run qa:pilot-session-cookie -- --cookie-file=<local-cookie-file> --expected-store-id=<pilot-store-id> --allowed-roles=store_owner,manager --expected-auth-source=jewellink_sso
 npm run qa:public-fail-closed-smoke -- --cookie-file=<local-cookie-file> --store-id=<pilot-store-id> --expected-store-id=<pilot-store-id> --resume-application-id=<application-id>
 npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=docs/production-pilot-smoke-evidence.template.json
 npm run qa:pilot-live-readiness -- --readiness-file=.qa_tmp/production-pilot-live-readiness.json

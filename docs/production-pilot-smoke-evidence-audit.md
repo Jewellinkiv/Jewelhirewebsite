@@ -39,6 +39,18 @@ The dedicated public/fail-closed producer for `publicFailClosed.teamInvites` and
 `publicFailClosed.resumePrivacy` is:
 
 ```bash
+npm run qa:pilot-session-cookie -- \
+  --cookie-file=<local-cookie-file> \
+  --expected-store-id=<pilot-store-id> \
+  --allowed-roles=store_owner,manager \
+  --expected-auth-source=jewellink_sso
+```
+
+Run this read-only preflight first. It proves the local cookie is a JewelLink
+SSO Director or Manager session scoped to the Diamond Exchange pilot store
+before any smoke row uses it.
+
+```bash
 npm run qa:public-fail-closed-smoke -- \
   --cookie-file=<local-cookie-file> \
   --store-id=<pilot-store-id> \

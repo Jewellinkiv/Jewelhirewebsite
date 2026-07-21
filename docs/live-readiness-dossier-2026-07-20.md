@@ -132,8 +132,8 @@ without explicit approval.
 3. Push/open a JewelLink PR only after explicit approval; the combined patch is
    staged locally and also preserved at
    `docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch`.
-4. With that authenticated pilot session, rerun
-   `qa:public-fail-closed-smoke` for store
+4. With that authenticated pilot session, first run
+   `qa:pilot-session-cookie`, then rerun `qa:public-fail-closed-smoke` for store
    `store-jl-58deb73ef9454405c4fe` and application
    `app-32dbfd01-3092-4190-9c15-cf43aa72ff46`, then run the authenticated SSO,
    hire handoff, and JewelCert smoke matrix.
