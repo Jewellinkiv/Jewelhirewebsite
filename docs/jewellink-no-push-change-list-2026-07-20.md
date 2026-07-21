@@ -5,12 +5,13 @@ Status: superseded by JewelLink PR `#246`.
 User instruction at the time of this record: inspect and prepare JewelLink
 work, but do not push anything to `Jewellinkiv/jewellink-app` without explicit
 approval. The user later approved JewelLink repo movement for this pilot patch.
-PR `#246` is now open for Jackson to review and merge:
+PR `#246` was merged by `JacksonSLC` at `2026-07-21T17:04:38Z`:
 `https://github.com/Jewellinkiv/jewellink-app/pull/246`. Jackson requested
-removing `cloudbuild.jewellink.yaml`, so the current PR scope is limited to
+removing `cloudbuild.jewellink.yaml`, so the merged PR scope is limited to
 `scripts/audit-jewelhire-sso.mjs` and
-`tests/profile-mfa-factor-protection.test.ts` at
-`fdd8d1aa8fcf16bc3bea90d871a22089d8d535ad`. Production deployment, migration
+`tests/profile-mfa-factor-protection.test.ts` at PR head
+`fdd8d1aa8fcf16bc3bea90d871a22089d8d535ad`, merge commit
+`550e5dcf6e537926424e9234412d32b8a9ef0a0a`. Production deployment, migration
 execution, traffic promotion, and live rollout remain separate
 release-controlled actions.
 

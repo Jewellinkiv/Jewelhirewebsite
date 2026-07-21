@@ -47,8 +47,8 @@ const requiredMarkers = [
 
 const jewelLinkApprovalBoundaryPatterns = [
   /JewelLink repo movement for PR `#246` was explicitly approved/i,
-  /Jackson may review\/merge that(?: profile-audit)? PR/i,
-  /Production deployment,\s+migration execution,\s+traffic promotion, and any live rollout remain separate\s+release-controlled\s+actions/i,
+  /PR `#246` was merged by `JacksonSLC`/i,
+  /Production deployment,\s+migration\s+execution,\s+traffic promotion, and any live rollout remain separate\s+release-controlled\s+actions/i,
   /were not performed as part of the PR handoff/i,
 ];
 

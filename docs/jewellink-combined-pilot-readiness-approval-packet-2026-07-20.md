@@ -3,8 +3,8 @@
 Status: superseded by JewelLink PR `#246`.
 
 User boundary: the user explicitly approved JewelLink repo movement for this
-pilot patch after this packet was prepared. PR `#246` is now open for Jackson
-to review and merge after removing the Cloud Build file per Jackson's review.
+pilot patch after this packet was prepared. PR `#246` was merged by
+`JacksonSLC` after removing the Cloud Build file per Jackson's review.
 Production deployment, migration execution, traffic promotion, and live rollout
 remain separate release-controlled actions.
 
@@ -14,6 +14,13 @@ Current PR title: `Refresh profile MFA audit`
 
 Current PR head:
 `fdd8d1aa8fcf16bc3bea90d871a22089d8d535ad`
+
+Current PR merge commit:
+`550e5dcf6e537926424e9234412d32b8a9ef0a0a`
+
+Merged by: `JacksonSLC`
+
+Merged at: `2026-07-21T17:04:38Z`
 
 Current PR scope:
 `scripts/audit-jewelhire-sso.mjs` and
