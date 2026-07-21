@@ -14,7 +14,7 @@ JewelHire SHA without changing runtime behavior.
 
 | Product | Repository | Current head | Build/status |
 | --- | --- | --- | --- |
-| JewelHire | `Jewellinkiv/Jewelhire` | Validated through `5311fd8d705b05a05f5ab6f6a8bd05b6ca565dbf` | GitHub validation run `29818244827` passed after preserving monitoring evidence in the operations template; deploy skipped as expected |
+| JewelHire | `Jewellinkiv/Jewelhire` | Validated through `912e26a853943ce763dd14c612fdcfe026395f03` | GitHub validation run `29819720115` passed after adding controlled smoke-target gaps to the approval bundle; deploy skipped as expected |
 | JewelLink | `Jewellinkiv/jewellink-app` | `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` passed and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have NO-GO findings below |
 | JewelLink local no-push patch | research checkout only | `f12e67d7202a6a567007605f7164d141638b5dbc` | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`; combines candidate-only Cloud Build and profile MFA audit refresh; not pushed |
 
