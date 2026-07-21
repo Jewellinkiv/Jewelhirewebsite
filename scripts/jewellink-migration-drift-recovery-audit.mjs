@@ -31,6 +31,7 @@ Options:
   --jewellink-db-secret=<name>   Default: DATABASE_URL
   --fixture-ledger=<path>        Read ledger rows from JSON instead of gcloud/DB
   --skip-fetch=1                 Do not fetch remote refs before history search
+  --skip-pull-ref-fetch=1        Do not fetch GitHub PR-head refs before search
 `);
   process.exit(0);
 }
@@ -47,6 +48,7 @@ const JEWELLINK_PROJECT = args.get("jewellink-project") || process.env.JEWELLINK
 const JEWELLINK_DB_SECRET = args.get("jewellink-db-secret") || process.env.JEWELLINK_DATABASE_SECRET || "DATABASE_URL";
 const FIXTURE_LEDGER = args.get("fixture-ledger") ? path.resolve(process.cwd(), args.get("fixture-ledger")) : "";
 const REVIEW_REF = args.get("review-ref") || process.env.JEWELLINK_REVIEW_REF || "HEAD";
+const JEWELLINK_REMOTE = args.get("jewellink-remote") || process.env.JEWELLINK_REMOTE || "origin";
 
 const requiredJewelLinkIntegrationMigrations = new Set([
   "20260712043000_add_jewelhire_sso_codes",
@@ -161,9 +163,8 @@ function runGit(commandArgs, options = {}) {
   return result.stdout;
 }
 
-function fetchHistory(repo) {
-  if (args.get("skip-fetch") === "1") return { attempted: false, ok: true, error: "" };
-  const result = spawnSync("git", ["fetch", "--all", "--tags", "--prune"], {
+function fetchGit(repo, commandArgs) {
+  const result = spawnSync("git", commandArgs, {
     cwd: repo,
     encoding: "utf8",
     maxBuffer: 1024 * 1024 * 32,
@@ -173,6 +174,35 @@ function fetchHistory(repo) {
     attempted: true,
     ok: result.status === 0,
     error: result.status === 0 ? "" : sanitizeError(result.stderr || result.stdout),
+  };
+}
+
+function fetchHistory(repo) {
+  if (args.get("skip-fetch") === "1") {
+    return {
+      attempted: false,
+      ok: true,
+      error: "",
+      standardRefs: { attempted: false, ok: true, error: "" },
+      pullRefs: { attempted: false, ok: true, error: "" },
+    };
+  }
+  const standardRefs = fetchGit(repo, ["fetch", "--all", "--tags", "--prune"]);
+  const pullRefs =
+    args.get("skip-pull-ref-fetch") === "1"
+      ? { attempted: false, ok: true, error: "" }
+      : fetchGit(repo, [
+          "fetch",
+          JEWELLINK_REMOTE,
+          `+refs/pull/*/head:refs/remotes/${JEWELLINK_REMOTE}/pr/*`,
+          "--prune",
+        ]);
+  return {
+    attempted: true,
+    ok: standardRefs.ok && pullRefs.ok,
+    error: [standardRefs.error, pullRefs.error].filter(Boolean).join(" "),
+    standardRefs,
+    pullRefs,
   };
 }
 
@@ -258,6 +288,8 @@ function markdown(report) {
     `- Reviewed repo commit: ${report.jewelLink.reviewedRepoCommit}`,
     `- Git fetch attempted: ${report.jewelLink.fetch.attempted}`,
     `- Git fetch status: ${report.jewelLink.fetch.ok ? "ok" : "failed"}`,
+    `- Pull-ref fetch attempted: ${report.jewelLink.fetch.pullRefs.attempted}`,
+    `- Pull-ref fetch status: ${report.jewelLink.fetch.pullRefs.ok ? "ok" : "failed"}`,
     `- Refs searched: ${report.jewelLink.refsSearched}`,
     `- Active production migrations: ${report.jewelLink.activeAppliedCount}`,
     `- Reviewed repo migrations: ${report.jewelLink.reviewedMigrationCount}`,
