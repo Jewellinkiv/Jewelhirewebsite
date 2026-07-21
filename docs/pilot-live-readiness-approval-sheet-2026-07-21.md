@@ -16,9 +16,9 @@ below before any gate changes to GO.
 ## Current closed evidence
 
 - JewelHire production migration ledger is clean in
-  `docs/qa-runs/migration-ledgers-2026-07-21T06-57-54-316Z/`.
+  `docs/qa-runs/migration-ledgers-2026-07-21T08-03-57-979Z/`.
 - JewelLink migration ledger evidence passes in
-  `docs/qa-runs/migration-ledgers-2026-07-21T06-57-54-316Z/`: all 127
+  `docs/qa-runs/migration-ledgers-2026-07-21T08-03-57-979Z/`: all 127
   reviewed migrations are active, the seven JewelHire integration/auth rows
   are checksum-clean, and historical non-integration drift is covered by the
   matching recovery/object-state reports.
