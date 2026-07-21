@@ -191,6 +191,24 @@ test("pilot smoke plan fails when a prerequisite artifact is not passing", () =>
   assert.match(markdown, /FAIL Pilot roster report is a concrete PASS artifact/);
 });
 
+test("pilot smoke plan rejects placeholder field values without echoing them", () => {
+  const { result, json, markdown, requestMarkdown } = runAudit({
+    plan: (cwd) => {
+      const plan = completePlan(cwd);
+      plan.approvals.approver = "TBD";
+      plan.personas.directorAlias = "Pending";
+      plan.scopes.hireHandoff.applicationAlias = "N/A";
+      return plan;
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(markdown, /FAIL Named pilot smoke approver is recorded/);
+  assert.match(markdown, /FAIL Director SSO persona alias is recorded/);
+  assert.match(markdown, /FAIL Hire handoff controlled application alias is recorded/);
+  assert.doesNotMatch(`${json}\n${markdown}\n${requestMarkdown}`, /TBD|Pending|N\/A/);
+});
+
 test("pilot smoke plan fails when public fail-closed store IDs diverge", () => {
   const { result, markdown } = runAudit({
     plan: (cwd) => {

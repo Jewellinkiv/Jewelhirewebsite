@@ -69,7 +69,11 @@ function get(object, dottedPath) {
 }
 
 function stringPresent(value) {
-  return Boolean(String(value || "").trim());
+  const text = String(value || "").trim();
+  if (!text) return false;
+  return !/^(?:tbd|todo|pending|proposed|approved|yes|no|n\/a|na|none|missing|not run|requested|partial|candidate selected|completed)$/i.test(
+    text,
+  );
 }
 
 function artifactPath(value) {
@@ -231,7 +235,7 @@ function evaluateManifest(manifest) {
   for (const [dottedPath, label] of requiredApprovals) {
     record(`${label} is recorded`, stringPresent(get(manifest, dottedPath)), {
       path: dottedPath,
-      required: "Non-secret approval reference, ticket, or artifact path",
+      required: "Concrete non-placeholder approval reference, ticket, or artifact path",
     });
   }
 }

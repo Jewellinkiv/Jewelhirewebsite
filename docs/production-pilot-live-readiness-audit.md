@@ -20,6 +20,10 @@ Copy `docs/production-pilot-live-readiness.template.json` to an ignored local
 path and fill it only after every prerequisite gate has a concrete PASS artifact
 and the go/no-go dossier has been moved to GO.
 
+Approval references must be concrete non-placeholder values. Values such as
+`TBD`, `pending`, `approved`, `N/A`, `not run`, or `candidate selected` do not
+count as final live-readiness approval evidence.
+
 ## What It Proves
 
 - The go/no-go dossier exists, has the expected GO decision, and no unresolved
@@ -29,7 +33,7 @@ and the go/no-go dossier has been moved to GO.
   smoke plan, smoke evidence, JewelLink no-push validation, and JewelLink
   approval packet each link to an existing PASS artifact under `docs/qa-runs/`.
 - JewelLink repo movement, rollback window, controlled application submission,
-  and mutating smoke approvals are recorded as non-secret references.
+  and mutating smoke approvals are recorded as concrete non-secret references.
 - The manifest contains no full emails, passwords, database URLs, bearer tokens,
   cookies, tokens, secret values, or customer data.
 

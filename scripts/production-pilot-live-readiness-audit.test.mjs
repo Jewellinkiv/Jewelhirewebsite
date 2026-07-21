@@ -110,6 +110,22 @@ test("live-readiness audit fails when a required artifact is not passing", () =>
   assert.match(markdown, /FAIL Pilot smoke evidence report is a concrete PASS artifact/);
 });
 
+test("live-readiness audit rejects placeholder approval references without echoing them", () => {
+  const { result, json, markdown, requestMarkdown } = runAudit({
+    manifest: (cwd) => {
+      const manifest = completeManifest(cwd);
+      manifest.approvals.rollbackWindowApproval = "TODO";
+      manifest.approvals.mutatingSmokeApproval = "N/A";
+      return manifest;
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(markdown, /FAIL Rollback window approval reference is recorded/);
+  assert.match(markdown, /FAIL Mutating smoke approval reference is recorded/);
+  assert.doesNotMatch(`${json}\n${markdown}\n${requestMarkdown}`, /TODO|N\/A/);
+});
+
 test("live-readiness audit fails while the dossier remains NO-GO", () => {
   const { result, markdown } = runAudit({
     manifest: (cwd) => {

@@ -18,6 +18,10 @@ Copy `docs/production-pilot-smoke-plan.template.json` to an ignored local path
 and fill it only after the operator has the final non-secret approval scope and
 the prerequisite PASS artifacts.
 
+Text fields must be concrete non-placeholder values. Values such as `TBD`,
+`pending`, `approved`, `N/A`, `not run`, or `candidate selected` do not count as
+approval references, persona aliases, application IDs, or scope evidence.
+
 Run `npm run qa:pilot-smoke-targets` before filling the hire and resume smoke
 target fields. That read-only helper finds the controlled application IDs or
 writes an evidence request when the controlled pilot application is not ready.
@@ -87,7 +91,8 @@ approval references.
 For `personas.allowlistedNonAdminDenialEvidence.strategy =
 "source-test-plus-clean-allowlist"`, record only safe artifact paths and
 non-secret acceptance metadata. The audit rejects full emails, tokens, cookies,
-passwords, database URLs, secret values, and unsafe artifact paths.
+passwords, database URLs, secret values, unsafe artifact paths, and placeholder
+acceptance values.
 
 ## Local Verification
 

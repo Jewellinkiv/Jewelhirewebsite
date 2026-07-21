@@ -99,7 +99,11 @@ function isoLike(value) {
 }
 
 function stringPresent(value) {
-  return Boolean(String(value || "").trim());
+  const text = String(value || "").trim();
+  if (!text) return false;
+  return !/^(?:tbd|todo|pending|proposed|approved|yes|no|n\/a|na|none|missing|not run|requested|partial|candidate selected|completed)$/i.test(
+    text,
+  );
 }
 
 function booleanTrue(value) {
@@ -186,7 +190,7 @@ function loadPlanFile() {
 
 function checkField(plan, dottedPath, label) {
   const pass = stringPresent(get(plan, dottedPath));
-  record(`${label} is recorded`, pass, { path: dottedPath, required: "Non-secret value" });
+  record(`${label} is recorded`, pass, { path: dottedPath, required: "Concrete non-placeholder non-secret value" });
 }
 
 function checkBoolean(plan, dottedPath, label) {
