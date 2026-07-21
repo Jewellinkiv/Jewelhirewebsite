@@ -24,7 +24,7 @@ artifact. Candidate notes without a passing roster report are not sufficient.
 
 | Product | State | Evidence |
 | --- | --- | --- |
-| JewelHire | Source-ready, validated through `a0c3f68baf3d44ca15172455e6ba6fbe3c789123` | GitHub validation run `29805847936` passed after adding the allowlisted non-admin source evidence; deploy skipped as expected |
+| JewelHire | Source-ready, validated through `8d35c71762eb4913fd55f97e7fe9205090f19952` | GitHub validation run `29806512412` passed after stabilizing hybrid location Postgres cleanup; deploy skipped as expected |
 | JewelLink main | Current live baseline `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have open findings |
 | JewelLink release/profile patch | Prepared locally, not pushed | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`, commit `f12e67d7202a6a567007605f7164d141638b5dbc`; patch artifact `docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch` |
 
@@ -41,7 +41,7 @@ config-only pilot flag update recorded below.
 
 | Gate | Current status | Evidence required for GO |
 | --- | --- | --- |
-| JewelHire CI | PASS | GitHub validation run `29805847936` passed for `a0c3f68`; deploy skipped as expected. The latest evidence refresh keeps release-control, lint, build, audit, and integration source checks green in hosted validation |
+| JewelHire CI | PASS | GitHub validation run `29806512412` passed for `8d35c71`; deploy skipped as expected. The latest evidence refresh keeps release-control, lint, build, audit, and integration source checks green in hosted validation |
 | JewelLink CI/build | PARTIAL / NO-GO | Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` succeeded for commit `55032dbb`, but unpatched main fails 1 profile 2FA-phone guard; local combined patch `f12e67d7` is refreshed by `docs/qa-runs/jewellink-no-push-validation-2026-07-21T05-21-10-000Z/jewellink-no-push-validation-report.md` and makes JewelHire SSO source audit and profile/release tests pass, but it is not pushed |
 | JewelLink release-path safety | PARTIAL / NO-GO | Config-only Cloud Run update was explicitly approved and completed; current `cloudbuild.jewellink.yaml` still direct-deploys live service and `tests/deploy-release-safety.test.ts` fails 1/8 against unpatched `55032dbb`; combined candidate-release/profile patch remains local/unpushed, though the latest no-push validation confirms the saved patch applies to current `origin/main` and performs no JewelLink push/PR/deploy/mutation |
 | Production integration secrets | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
