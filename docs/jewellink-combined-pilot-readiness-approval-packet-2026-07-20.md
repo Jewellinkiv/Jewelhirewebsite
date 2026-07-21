@@ -41,13 +41,13 @@ git diff --check
 ```
 
 Latest no-push validation:
-`docs/qa-runs/jewellink-no-push-validation-2026-07-21T04-00-50-000Z/jewellink-no-push-validation-report.md`
+`docs/qa-runs/jewellink-no-push-validation-2026-07-21T05-21-10-000Z/jewellink-no-push-validation-report.md`
 
 Results on 2026-07-21:
 
 - Release/profile tests passed 11/11.
 - Secret scan passed 2,515 repository files.
-- JewelHire SSO source audit passed all controls.
+- JewelHire SSO source audit passed 90/90 controls.
 - Patch artifact passed `git apply --check` against a fresh `origin/main`
   worktree at `55032dbbebc519d1718aa14871da2048f60d9487`.
 - `git diff --check` passed.
