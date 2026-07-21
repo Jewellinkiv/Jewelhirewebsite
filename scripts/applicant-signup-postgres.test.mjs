@@ -24,6 +24,7 @@ testUrl.searchParams.set("sslmode", "disable");
 const admin = new Client({ connectionString: adminUrl.toString(), ssl: false });
 let databaseCreated = false;
 let pool;
+let poolError;
 const originalFetch = globalThis.fetch;
 const originalConsoleError = console.error;
 const deliveries = [];
@@ -166,6 +167,11 @@ async function main() {
   const legal = await import("../lib/legal.ts");
   const postgresReadiness = await import("../lib/server/postgres-readiness.ts");
   pool = postgres.getPostgresPool();
+  pool.on("error", (error) => {
+    // Capture asynchronous pool failures so cleanup can finish and report the
+    // original error deterministically.
+    if (!poolError) poolError = error;
+  });
   const legalPayload = legal.currentLegalConsentPayload();
 
   const initialReadiness = await postgresReadiness.checkPostgresReadiness();
@@ -552,18 +558,73 @@ async function main() {
   console.log("PASS applicant signup PostgreSQL hardening suite");
 }
 
-try {
-  await main();
-} finally {
+async function waitForDatabaseSessionsToDrain({ timeoutMs = 10_000, intervalMs = 200 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const result = await admin.query(
+      "select count(*)::int as sessions from pg_stat_activity where datname = $1",
+      [databaseName],
+    );
+    const sessions = result.rows[0]?.sessions ?? 0;
+    if (sessions === 0) return;
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Disposable database "${databaseName}" still has ${sessions} session(s) after ${timeoutMs}ms; refusing to force-drop.`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
+async function cleanup() {
+  let primaryCleanupError;
+  try {
+    if (pool) await pool.end();
+    if (databaseCreated) {
+      await waitForDatabaseSessionsToDrain();
+      await admin.query(`drop database if exists "${databaseName}"`);
+    }
+  } catch (error) {
+    primaryCleanupError = error;
+  }
+
   globalThis.fetch = originalFetch;
   console.error = originalConsoleError;
-  if (pool) await pool.end().catch(() => undefined);
-  if (databaseCreated) {
-    await admin.query(
-      "select pg_terminate_backend(pid) from pg_stat_activity where datname = $1 and pid <> pg_backend_pid()",
-      [databaseName],
-    ).catch(() => undefined);
-    await admin.query(`drop database if exists "${databaseName}"`).catch(() => undefined);
+
+  try {
+    await admin.end();
+  } catch (error) {
+    if (primaryCleanupError) {
+      console.error("Closing the admin client also failed during cleanup:", error);
+    } else {
+      primaryCleanupError = error;
+    }
   }
-  await admin.end().catch(() => undefined);
+
+  if (primaryCleanupError) throw primaryCleanupError;
 }
+
+let testError;
+try {
+  await main();
+} catch (error) {
+  testError = error;
+}
+
+let cleanupError;
+try {
+  await cleanup();
+} catch (error) {
+  cleanupError = error;
+}
+
+if (testError) {
+  if (poolError) console.error("An asynchronous pool error also occurred during the test:", poolError);
+  if (cleanupError) console.error("Cleanup also failed after the test failure:", cleanupError);
+  throw testError;
+}
+if (poolError) {
+  if (cleanupError) console.error("Cleanup also failed after the pool error:", cleanupError);
+  throw poolError;
+}
+if (cleanupError) throw cleanupError;
