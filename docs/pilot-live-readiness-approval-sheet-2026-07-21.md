@@ -73,7 +73,7 @@ ledger repair is authorized or needed for this closure evidence.
 ## JewelLink pilot persona approvals
 
 Latest roster audit:
-`docs/qa-runs/pilot-roster-2026-07-21T02-31-32-809Z/pilot-roster-report.md`
+`docs/qa-runs/pilot-roster-2026-07-21T03-54-09-000Z/pilot-roster-report.md`
 
 The roster is blocked only on these JewelLink production personas:
 
