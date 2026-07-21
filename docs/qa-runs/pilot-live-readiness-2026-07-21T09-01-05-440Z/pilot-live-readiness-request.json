@@ -1,0 +1,94 @@
+{
+  "createdAt": "2026-07-21T09:01:05.446Z",
+  "valuesPrinted": false,
+  "status": "needed",
+  "instructions": "Fill this non-secret live-readiness manifest only after every prerequisite gate has a concrete PASS artifact and the go/no-go dossier is changed to GO.",
+  "verificationCommand": "npm run qa:pilot-live-readiness -- --readiness-file=<path>",
+  "missingFields": [
+    {
+      "check": "Go/no-go dossier decision is GO",
+      "path": "decision.expectedDecision",
+      "required": "GO for controlled pilot"
+    },
+    {
+      "check": "Go/no-go dossier has no unresolved GO placeholders",
+      "path": "decision.goNoGoDossier",
+      "required": "No TBD, MISSING, NOT RUN, WAITING APPROVAL, PARTIAL, or PROPOSED markers, and no blocked table statuses"
+    },
+    {
+      "check": "Operations readiness report is a concrete PASS artifact",
+      "path": "evidence.operationsReadinessReport",
+      "required": "Existing PASS artifact under docs/qa-runs/"
+    },
+    {
+      "check": "Pilot roster report is a concrete PASS artifact",
+      "path": "evidence.pilotRosterReport",
+      "required": "Existing PASS artifact under docs/qa-runs/"
+    },
+    {
+      "check": "Pilot smoke targets report is a concrete PASS artifact",
+      "path": "evidence.pilotSmokeTargetsReport",
+      "required": "Existing PASS artifact under docs/qa-runs/"
+    },
+    {
+      "check": "Pilot application submission report is a concrete PASS artifact",
+      "path": "evidence.pilotApplicationSubmissionReport",
+      "required": "Existing PASS artifact under docs/qa-runs/"
+    },
+    {
+      "check": "Pilot smoke plan report is a concrete PASS artifact",
+      "path": "evidence.pilotSmokePlanReport",
+      "required": "Existing PASS artifact under docs/qa-runs/"
+    },
+    {
+      "check": "Pilot smoke evidence report is a concrete PASS artifact",
+      "path": "evidence.pilotSmokeEvidenceReport",
+      "required": "Existing PASS artifact under docs/qa-runs/"
+    },
+    {
+      "check": "JewelLink repo movement approval reference is recorded",
+      "path": "approvals.jewelLinkRepoMovementApproval",
+      "required": "Concrete non-placeholder approval reference, ticket, or artifact path"
+    },
+    {
+      "check": "Rollback window approval reference is recorded",
+      "path": "approvals.rollbackWindowApproval",
+      "required": "Concrete non-placeholder approval reference, ticket, or artifact path"
+    },
+    {
+      "check": "Controlled application submission approval reference is recorded",
+      "path": "approvals.controlledApplicationSubmissionApproval",
+      "required": "Concrete non-placeholder approval reference, ticket, or artifact path"
+    },
+    {
+      "check": "Mutating smoke approval reference is recorded",
+      "path": "approvals.mutatingSmokeApproval",
+      "required": "Concrete non-placeholder approval reference, ticket, or artifact path"
+    }
+  ],
+  "manifest": {
+    "decision": {
+      "goNoGoDossier": "docs/production-pilot-go-no-go-dossier-2026-07-20.md",
+      "expectedDecision": "GO for controlled pilot"
+    },
+    "evidence": {
+      "productionPilotReadinessReport": "",
+      "integrationSmokePreflightReport": "",
+      "operationsReadinessReport": "",
+      "pilotRosterReport": "",
+      "pilotSmokeTargetsReport": "",
+      "pilotApplicationSubmissionReport": "",
+      "pilotSmokePlanReport": "",
+      "pilotSmokeEvidenceReport": "",
+      "jewellinkNoPushValidationReport": "",
+      "jewellinkApprovalPacketReport": ""
+    },
+    "approvals": {
+      "jewelLinkRepoMovementApproval": "",
+      "rollbackWindowApproval": "",
+      "controlledApplicationSubmissionApproval": "",
+      "mutatingSmokeApproval": ""
+    },
+    "notes": ""
+  }
+}

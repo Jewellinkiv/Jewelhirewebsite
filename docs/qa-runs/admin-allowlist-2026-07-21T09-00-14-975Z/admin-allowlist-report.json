@@ -1,0 +1,64 @@
+{
+  "createdAt": "2026-07-21T09:00:17.670Z",
+  "pass": true,
+  "failures": 0,
+  "valuesPrinted": false,
+  "jewelHire": {
+    "project": "jewelhire-prod-20260626",
+    "region": "us-central1",
+    "service": "jewelhire",
+    "latestReadyRevision": "jewelhire-00111-dup",
+    "adminSecret": {
+      "name": "jewelhire-admin-emails-v2",
+      "version": "2"
+    }
+  },
+  "jewelLink": {
+    "project": "academy-460316",
+    "databaseSecret": "DATABASE_URL"
+  },
+  "counts": {
+    "allowlistEntries": 9,
+    "activeAdminUsers": 9,
+    "missingAdmins": 0,
+    "extraAllowlistEntries": 0,
+    "allowlistedNonAdmins": 0
+  },
+  "checks": [
+    {
+      "name": "JewelHire admin allowlist secret is mounted",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire admin allowlist secret is readable for comparison",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink database credential is available for allowlist comparison",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "active JewelLink admin-role user set is non-empty",
+      "pass": true,
+      "count": 9
+    },
+    {
+      "name": "JewelHire allowlist includes every active JewelLink admin-role user",
+      "pass": true,
+      "missingCount": 0
+    },
+    {
+      "name": "JewelHire allowlist has no extra entries outside active JewelLink admin roles",
+      "pass": true,
+      "extraCount": 0
+    },
+    {
+      "name": "JewelHire allowlist contains no active JewelLink non-admin users",
+      "pass": true,
+      "nonAdminCount": 0
+    }
+  ]
+}

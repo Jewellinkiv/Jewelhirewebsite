@@ -1,0 +1,190 @@
+{
+  "createdAt": "2026-07-21T09:00:18.001Z",
+  "valuesPrinted": false,
+  "pilotCompanyId": "comp_1",
+  "expectedLocationIds": [
+    "loc_1",
+    "loc_2",
+    "loc_3",
+    "loc_4",
+    "loc_5",
+    "loc_6"
+  ],
+  "linkedCompany": {
+    "companyId": "company-jl-58deb73ef9454405c4fe",
+    "companyName": "Diamond Exchange",
+    "companyStatus": "active",
+    "storeId": "store-jl-58deb73ef9454405c4fe",
+    "storeName": "Diamond Exchange",
+    "storeStatus": "active"
+  },
+  "linkedLocations": [
+    {
+      "locationId": "location-jl-067b31658a0fcad5ac23",
+      "locationName": "Downtown Flagship",
+      "jewelLinkLocationId": "loc_1"
+    },
+    {
+      "locationId": "location-jl-638efb116587784c56fe",
+      "locationName": "Conway",
+      "jewelLinkLocationId": "loc_2"
+    },
+    {
+      "locationId": "location-jl-dd7f424a97bab7d0b3cd",
+      "locationName": "Fort Smith",
+      "jewelLinkLocationId": "loc_3"
+    },
+    {
+      "locationId": "location-jl-19e8d34d0678831a5b16",
+      "locationName": "Jonesboro",
+      "jewelLinkLocationId": "loc_4"
+    },
+    {
+      "locationId": "location-jl-d9e3b921b7607ee66ead",
+      "locationName": "West Little Rock",
+      "jewelLinkLocationId": "loc_5"
+    },
+    {
+      "locationId": "location-jl-6d0e03e154ee8ba9e9ce",
+      "locationName": "Memphis",
+      "jewelLinkLocationId": "loc_6"
+    }
+  ],
+  "missingLocationIds": [],
+  "unexpectedLocationIds": [],
+  "jewelHire": {
+    "project": "jewelhire-prod-20260626",
+    "latestReadyRevision": "jewelhire-00111-dup",
+    "storage": "postgres",
+    "databaseSecretMounted": true,
+    "jewelLinkUrlConfigured": true,
+    "integrationSecretBacked": true,
+    "hireSyncStatusCounts": {
+      "synced": 1
+    },
+    "hireResidue": {
+      "unresolvedHires": 0,
+      "failedHires": 0,
+      "latestUnresolvedAt": null
+    },
+    "jewelCertResidue": {
+      "unresolvedResults": 0,
+      "failedResults": 0,
+      "latestUnresolvedAt": null
+    },
+    "externalInviteStatusCounts": {},
+    "unauthenticatedJewelCertInviteStatus": 401
+  },
+  "jewelLink": {
+    "project": "academy-460316",
+    "latestReadyRevision": "jewellink-dev-01154-xpx",
+    "jewelHireUrlConfigured": true,
+    "integrationSecretBacked": true,
+    "hireEmailMode": "disabled",
+    "hireEmailAllowlistConfigured": false,
+    "hireLedgerStatusCounts": {
+      "succeeded": 1
+    },
+    "hireProblemCounts": {
+      "failedHires": 0,
+      "staleProcessing": 0,
+      "staleInvitation": 0,
+      "latestProblemAt": null
+    },
+    "jewelCertResultActivity": {
+      "completed_results": 0,
+      "latest_result_at": null
+    },
+    "unauthenticatedHireStatus": 401,
+    "unauthenticatedJewelCertResultStatus": 401
+  },
+  "checks": [
+    {
+      "name": "JewelHire runtime uses Postgres storage",
+      "pass": true
+    },
+    {
+      "name": "JewelHire database secret is mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire points at JewelLink",
+      "pass": true
+    },
+    {
+      "name": "JewelHire integration secret is secret-backed",
+      "pass": true
+    },
+    {
+      "name": "JewelLink points at JewelHire",
+      "pass": true
+    },
+    {
+      "name": "JewelLink integration secret is secret-backed",
+      "pass": true
+    },
+    {
+      "name": "JewelLink hire email mode is explicit",
+      "pass": true,
+      "mode": "disabled"
+    },
+    {
+      "name": "JewelLink allowlist email mode has an allowlist",
+      "pass": true
+    },
+    {
+      "name": "JewelHire pilot company link exists",
+      "pass": true
+    },
+    {
+      "name": "JewelHire pilot company is active",
+      "pass": true
+    },
+    {
+      "name": "JewelHire pilot store is active",
+      "pass": true
+    },
+    {
+      "name": "JewelHire linked location IDs match the pilot roster",
+      "pass": true,
+      "missingLocationIds": [],
+      "unexpectedLocationIds": []
+    },
+    {
+      "name": "JewelHire has no unresolved outbound hire syncs for pilot",
+      "pass": true,
+      "unresolvedHires": 0,
+      "failedHires": 0,
+      "latestUnresolvedAt": null
+    },
+    {
+      "name": "JewelHire has no unresolved JewelCert result syncs for pilot",
+      "pass": true,
+      "unresolvedResults": 0,
+      "failedResults": 0,
+      "latestUnresolvedAt": null
+    },
+    {
+      "name": "JewelLink has no failed or stale hire provisioning rows for pilot",
+      "pass": true,
+      "failedHires": 0,
+      "staleProcessing": 0,
+      "staleInvitation": 0,
+      "latestProblemAt": null
+    },
+    {
+      "name": "JewelHire JewelCert invite endpoint rejects unauthenticated requests",
+      "pass": true
+    },
+    {
+      "name": "JewelLink hire endpoint rejects unauthenticated requests",
+      "pass": true
+    },
+    {
+      "name": "JewelLink JewelCert result endpoint rejects unauthenticated requests",
+      "pass": true
+    }
+  ],
+  "pass": true,
+  "failures": 0
+}

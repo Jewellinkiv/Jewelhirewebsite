@@ -1,0 +1,243 @@
+{
+  "createdAt": "2026-07-21T09:00:18.091Z",
+  "valuesPrinted": false,
+  "pilotCompany": {
+    "id": "comp_1",
+    "name": "Diamond Exchange",
+    "isActive": true,
+    "isPaused": false
+  },
+  "pilotLocations": [
+    {
+      "id": "loc_1",
+      "name": "Downtown Flagship"
+    },
+    {
+      "id": "loc_2",
+      "name": "Conway"
+    },
+    {
+      "id": "loc_3",
+      "name": "Fort Smith"
+    },
+    {
+      "id": "loc_4",
+      "name": "Jonesboro"
+    },
+    {
+      "id": "loc_5",
+      "name": "West Little Rock"
+    },
+    {
+      "id": "loc_6",
+      "name": "Memphis"
+    }
+  ],
+  "expectedLocationIds": [
+    "loc_1",
+    "loc_2",
+    "loc_3",
+    "loc_4",
+    "loc_5",
+    "loc_6"
+  ],
+  "missingLocationIds": [],
+  "unexpectedLocationIds": [],
+  "roleCounts": {
+    "DIRECTOR": 3,
+    "MANAGER": 7,
+    "STUDENT": 22
+  },
+  "selectedCandidates": {
+    "director": {
+      "userId": "cmnjh2zrj0000p6y8axdo1608",
+      "role": "DIRECTOR",
+      "emailAlias": "a***@jewellink.com",
+      "emailDomain": "jewellink.com",
+      "companyId": "comp_1",
+      "primaryLocationId": "loc_1",
+      "accessibleLocationCount": 1
+    },
+    "manager": {
+      "userId": "cmnjh2zw40002p6y81ytmlxqb",
+      "role": "MANAGER",
+      "emailAlias": "m***@jewellink.com",
+      "emailDomain": "jewellink.com",
+      "companyId": "comp_1",
+      "primaryLocationId": "loc_1",
+      "accessibleLocationCount": 1
+    },
+    "student": {
+      "userId": "cmqekv8h700017ey8jwsme7kg",
+      "role": "STUDENT",
+      "emailAlias": "n***@jewellink.com",
+      "emailDomain": "jewellink.com",
+      "companyId": "comp_1",
+      "primaryLocationId": "loc_1",
+      "accessibleLocationCount": 1
+    },
+    "consultant": null
+  },
+  "platformAdmin": {
+    "activeAdminUsers": 9,
+    "allowlistEntries": 9,
+    "allowlistedAdminUsers": 9,
+    "selectedCandidate": {
+      "userId": "cmp7ggpps000201s6kd8zn4no",
+      "role": "SUPER_ADMIN",
+      "emailAlias": "c***@jewelrysalesacademy.com",
+      "emailDomain": "jewelrysalesacademy.com",
+      "companyId": "cmntokaln0000epy8jqsujw12",
+      "primaryLocationId": null,
+      "accessibleLocationCount": 0
+    },
+    "allowlistedActiveNonAdmins": 0
+  },
+  "pausedCompanyDenial": {
+    "activePausedCompanyUsers": 0,
+    "selectedCandidate": null
+  },
+  "smokeCredentials": [
+    {
+      "role": "admin",
+      "emailAlias": "",
+      "emailDomain": "",
+      "hasPassword": false,
+      "authMethod": "jewellink_sso",
+      "authSource": "",
+      "sso": ""
+    },
+    {
+      "role": "applicant",
+      "emailAlias": "m***@email.com",
+      "emailDomain": "email.com",
+      "hasPassword": true,
+      "authMethod": "",
+      "authSource": "",
+      "sso": ""
+    },
+    {
+      "role": "store_owner",
+      "emailAlias": "j***@email.com",
+      "emailDomain": "email.com",
+      "hasPassword": true,
+      "authMethod": "native",
+      "authSource": "",
+      "sso": ""
+    }
+  ],
+  "credentialAliases": {
+    "jewelHireAdmin": {
+      "role": "admin",
+      "emailAlias": "",
+      "emailDomain": "",
+      "hasPassword": false,
+      "authMethod": "jewellink_sso",
+      "authSource": "",
+      "sso": ""
+    },
+    "controlledApplicantSignup": {
+      "role": "applicant",
+      "emailAlias": "m***@email.com",
+      "emailDomain": "email.com",
+      "hasPassword": true,
+      "authMethod": "",
+      "authSource": "",
+      "sso": ""
+    },
+    "controlledHireJewelCertMailbox": {
+      "role": "applicant",
+      "emailAlias": "m***@email.com",
+      "emailDomain": "email.com",
+      "hasPassword": true,
+      "authMethod": "",
+      "authSource": "",
+      "sso": ""
+    },
+    "storeOwner": {
+      "role": "store_owner",
+      "emailAlias": "j***@email.com",
+      "emailDomain": "email.com",
+      "hasPassword": true,
+      "authMethod": "native",
+      "authSource": "",
+      "sso": ""
+    }
+  },
+  "readyChecks": {
+    "companyReady": true,
+    "locationsReady": true,
+    "directorReady": true,
+    "managerReady": true,
+    "studentReady": true,
+    "consultantReady": false,
+    "platformAdminReady": true,
+    "allowlistClean": true,
+    "pausedCompanyDenialCandidateReady": false,
+    "jewelHireSmokeCredentialsReady": true
+  },
+  "checks": [
+    {
+      "name": "pilot JewelLink company exists",
+      "pass": true,
+      "companyId": "comp_1"
+    },
+    {
+      "name": "pilot JewelLink company is active and not paused",
+      "pass": true
+    },
+    {
+      "name": "pilot location IDs match expected roster",
+      "pass": true,
+      "missingLocationIds": [],
+      "unexpectedLocationIds": []
+    },
+    {
+      "name": "Director SSO candidate exists",
+      "pass": true
+    },
+    {
+      "name": "Manager SSO candidate exists",
+      "pass": true
+    },
+    {
+      "name": "Student SSO candidate exists",
+      "pass": true
+    },
+    {
+      "name": "Consultant denial candidate exists",
+      "pass": false
+    },
+    {
+      "name": "allowlisted JewelLink platform-admin candidate exists",
+      "pass": true,
+      "allowlistedAdminUsers": 9
+    },
+    {
+      "name": "JewelHire admin allowlist contains no active JewelLink non-admin candidates",
+      "pass": true,
+      "allowlistedActiveNonAdmins": 0
+    },
+    {
+      "name": "paused-company denial candidate exists",
+      "pass": false,
+      "activePausedCompanyUsers": 0
+    },
+    {
+      "name": "JewelHire smoke credential auth prerequisites are present",
+      "pass": true
+    }
+  ],
+  "remainingGaps": [
+    "Create or approve a controlled JewelLink CONSULTANT test account for denial smoke.",
+    "Create or approve a controlled active user in a paused JewelLink company for stale-access denial smoke.",
+    "Live allowlisted-non-admin elevation denial still needs a controlled temporary config window, or explicit acceptance of source-test plus clean-allowlist evidence."
+  ],
+  "pass": false,
+  "failures": 2,
+  "provisioningPacket": {
+    "actionCount": 2,
+    "markdown": "pilot-roster-provisioning-packet.md",
+    "json": "pilot-roster-provisioning-packet.json"
+  }
+}
