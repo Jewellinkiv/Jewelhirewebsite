@@ -1,0 +1,110 @@
+{
+  "createdAt": "2026-07-21T06:09:29.486Z",
+  "pass": false,
+  "execute": false,
+  "productionWritePerformed": false,
+  "liveEmailSideEffectPossible": false,
+  "approvalChecksDeferred": true,
+  "valuesPrinted": false,
+  "target": {
+    "storeId": "store-jl-58deb73ef9454405c4fe",
+    "endpointPath": "/api/public/stores/diamond-exchange-58deb73e/applications",
+    "jobId": "job-d389b48d-3bd4-463f-9151-4ff7ed947e8f",
+    "publicPageStatus": "published",
+    "jobStatus": "open",
+    "controlledApplicationCount": 0
+  },
+  "controlledApplicantAlias": "m***@email.com",
+  "submissionIdRecorded": false,
+  "submission": {
+    "status": 0,
+    "ok": false,
+    "duplicate": false,
+    "applicationId": "",
+    "storeId": "",
+    "jobId": "",
+    "errorCode": ""
+  },
+  "checks": [
+    {
+      "name": "target report is provided",
+      "pass": true,
+      "required": "pilot-smoke-targets-report.json"
+    },
+    {
+      "name": "public application submission target is available",
+      "pass": true,
+      "required": "Target report has endpoint path and job ID"
+    },
+    {
+      "name": "public page is published and job is open",
+      "pass": true,
+      "required": "Published public page and open public job"
+    },
+    {
+      "name": "controlled application is still missing before submission",
+      "pass": true,
+      "required": "No controlled pilot application exists yet; rerun qa:pilot-smoke-targets if this changed"
+    },
+    {
+      "name": "controlled applicant credential is available",
+      "pass": true,
+      "required": "Masked controlled applicant alias in target report"
+    },
+    {
+      "name": "execution mode is explicitly requested",
+      "pass": false,
+      "required": "--execute for production write; dry-run is safe by default"
+    },
+    {
+      "name": "approval file is provided for execution or deferred in dry-run",
+      "pass": true,
+      "required": "Local ignored approval file path"
+    },
+    {
+      "name": "named approver is recorded for execution or deferred in dry-run",
+      "pass": true,
+      "required": "approvals.approver"
+    },
+    {
+      "name": "approval channel is recorded for execution or deferred in dry-run",
+      "pass": true,
+      "required": "approvals.approvalChannel"
+    },
+    {
+      "name": "approval timestamp is ISO-like for execution or deferred in dry-run",
+      "pass": true,
+      "required": "approvals.approvedAt"
+    },
+    {
+      "name": "controlled public application submission approval is recorded for execution or deferred in dry-run",
+      "pass": true,
+      "required": "approvals.controlledPublicApplicationSubmissionApproved true"
+    },
+    {
+      "name": "live application notification email acknowledgement is recorded for execution or deferred in dry-run",
+      "pass": true,
+      "required": "approvals.liveEmailSendsAcknowledged true"
+    },
+    {
+      "name": "controlled applicant mailbox approval is recorded for execution or deferred in dry-run",
+      "pass": true,
+      "required": "approvals.controlledApplicantMailboxApproved true"
+    },
+    {
+      "name": "stable idempotency submission ID is recorded for execution or deferred in dry-run",
+      "pass": true,
+      "required": "approvals.submissionId with 16-128 letters, numbers, underscores, or hyphens"
+    },
+    {
+      "name": "current legal consent policy version is available",
+      "pass": true,
+      "required": "LEGAL_POLICY_VERSION in lib/legal.ts"
+    },
+    {
+      "name": "raw controlled applicant email is available only after approval gates pass",
+      "pass": true,
+      "required": "Approval gates must pass before reading the production credential"
+    }
+  ]
+}
