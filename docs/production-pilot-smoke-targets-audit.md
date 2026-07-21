@@ -46,6 +46,14 @@ has approved a pilot-store application with a private resume attachment, then
 `qa:pilot-smoke-targets` passes and the resulting non-secret application IDs are
 copied into the ignored pilot smoke plan.
 
+The guarded JewelHire-side setup helper is documented in
+`docs/production-pilot-controlled-application-submission.md` and exposed as
+`npm run qa:pilot-application-submission`. It defaults to a dry-run/request
+packet. Execute mode requires a local ignored approval file, a stable
+idempotency submission ID, explicit controlled-mailbox approval, and explicit
+acknowledgement that the normal production route can send live application
+notification emails.
+
 ## Secret Handling
 
 Do not commit full email addresses, applicant names, passwords, database URLs,
@@ -59,4 +67,5 @@ Fixture coverage runs without production access:
 
 ```bash
 node --test scripts/production-pilot-smoke-targets-audit.test.mjs
+node --test scripts/production-pilot-controlled-application-submission.test.mjs
 ```

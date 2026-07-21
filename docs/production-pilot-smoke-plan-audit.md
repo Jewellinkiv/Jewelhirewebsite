@@ -21,6 +21,11 @@ the prerequisite PASS artifacts.
 Run `npm run qa:pilot-smoke-targets` before filling the hire and resume smoke
 target fields. That read-only helper finds the controlled application IDs or
 writes an evidence request when the controlled pilot application is not ready.
+If the target report has a public submission target but no controlled
+application yet, use `npm run qa:pilot-application-submission` in dry-run mode
+to generate the setup request, then execute it only with the local ignored
+approval file described in
+`docs/production-pilot-controlled-application-submission.md`.
 
 ## What It Proves
 
@@ -57,6 +62,10 @@ open public job are available, but no controlled pilot application exists yet.
 Create or approve that controlled application with a private resume attachment
 before copying hire/resume IDs into the smoke plan.
 
+The approved setup path is `qa:pilot-application-submission`; execute mode can
+send live application notification emails and must retain the same idempotency
+submission ID on retry.
+
 ## Secret Handling
 
 Do not put full email addresses, passwords, database URLs, bearer tokens,
@@ -70,5 +79,6 @@ approval references.
 Fixture coverage runs without production access:
 
 ```bash
+node --test scripts/production-pilot-controlled-application-submission.test.mjs
 node --test scripts/production-pilot-smoke-plan-audit.test.mjs
 ```

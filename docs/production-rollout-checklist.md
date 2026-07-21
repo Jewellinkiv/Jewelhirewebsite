@@ -288,7 +288,9 @@ in `production-launch-control-2026-07-13.md`.
   returns branded `team_invites_disabled` without a database mutation.
 - [ ] A published careers page loads on mobile with no horizontal overflow and its open job can reach step 2 of the application flow.
 - [ ] A private draft preview is `noindex`, cannot submit, and a modified preview token returns `404`.
-- [ ] One controlled application with a small PDF résumé creates exactly one application; retrying the same idempotency key creates no duplicate.
+- [ ] `qa:pilot-application-submission` creates one controlled application with
+  a small PDF resume only after the local approval file is complete; retrying
+  the same idempotency key creates no duplicate.
 - [ ] The résumé returns `401` publicly and downloads only for an authorized user in the same store/location scope.
 - [ ] The careers dashboard shows real page views, apply starts, submissions, locations, and activity with no demo counts.
 - [ ] A JewelHire hire sync creates or links the expected JewelLink user and records the external ID.

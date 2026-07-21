@@ -29,6 +29,10 @@ before filling the smoke plan. The latest production run
 controlled applicant credential, pilot store, published public store page, and
 open public job, but it still needs a controlled pilot application with a
 private resume attachment before those smoke rows can proceed.
+Use `npm run qa:pilot-application-submission` in dry-run mode to generate the
+setup request, and execute it only after the local ignored approval file records
+the controlled public application write, controlled mailbox use, live email
+acknowledgement, and stable idempotency submission ID.
 
 For the current pilot evidence matrix, copy
 `docs/production-pilot-smoke-evidence.template.json` to an ignored local path
@@ -101,6 +105,7 @@ it does not print raw operator notes.
 Fixture coverage runs without production access:
 
 ```bash
+node --test scripts/production-pilot-controlled-application-submission.test.mjs
 node --test scripts/production-pilot-smoke-plan-audit.test.mjs
 node --test scripts/production-public-fail-closed-smoke.test.mjs
 node --test scripts/production-pilot-smoke-evidence-audit.test.mjs

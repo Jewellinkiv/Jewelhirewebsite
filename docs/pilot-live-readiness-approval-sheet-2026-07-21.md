@@ -127,6 +127,16 @@ application for that applicant with a private resume attachment, then rerun
 `qa:pilot-smoke-targets` and copy only the non-secret application IDs into the
 ignored smoke plan.
 
+Guarded setup helper:
+`docs/production-pilot-controlled-application-submission.md`
+
+Use `npm run qa:pilot-application-submission` first in dry-run mode. Execute
+mode must use a local ignored approval file that records the approver, approval
+channel, timestamp, `controlledPublicApplicationSubmissionApproved: true`,
+`liveEmailSendsAcknowledged: true`, `controlledApplicantMailboxApproved: true`,
+and a stable idempotency `submissionId`. That helper must not be executed until
+the controlled public application write is explicitly approved.
+
 The team-invite and resume privacy rows now have a dedicated JewelHire-side
 producer:
 
@@ -170,6 +180,7 @@ place:
 npm run qa:operations-readiness -- --operations-evidence-file=docs/production-operations-evidence.approval-template-2026-07-21.json
 npm run qa:pilot-roster
 npm run qa:pilot-smoke-targets
+npm run qa:pilot-application-submission -- --target-report=<pilot-smoke-targets-report.json>
 npm run qa:pilot-smoke-plan -- --smoke-plan-file=.qa_tmp/production-pilot-smoke-plan.json
 npm run qa:public-fail-closed-smoke -- --cookie-file=<local-cookie-file> --store-id=<pilot-store-id> --expected-store-id=<pilot-store-id> --resume-application-id=<application-id>
 npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=docs/production-pilot-smoke-evidence.template.json
