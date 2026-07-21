@@ -1,6 +1,9 @@
 # JewelLink Cloud Build Candidate Approval Packet - 2026-07-20
 
-Status: prepared for review, not pushed.
+Status: superseded by the combined local patch
+`docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md`.
+This historical Cloud-Build-only approval packet remains unpushed and should
+not be used as the current JewelLink PR plan.
 
 User boundary: do not push, open a PR, merge, deploy, or promote JewelLink
 without explicit approval.
@@ -82,7 +85,9 @@ node scripts/check-committed-secrets.mjs
 git diff --check
 ```
 
-Then commit, push, and open a PR only after explicit approval.
+Do not use this historical packet to commit, push, or open a JewelLink PR. Use
+the combined local patch packet instead after explicit JewelLink repository
+approval.
 
 ## Expected controls
 

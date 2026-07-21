@@ -13,27 +13,28 @@ const args = new Map(
 
 const packetPath = path.resolve(
   process.cwd(),
-  args.get("packet") || "docs/jewellink-cloudbuild-candidate-approval-packet-2026-07-20.md",
+  args.get("packet") || "docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md",
 );
 const patchPath = path.resolve(
   process.cwd(),
-  args.get("patch") || "docs/jewellink-cloudbuild-candidate-no-push-2026-07-20.patch",
+  args.get("patch") || "docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch",
 );
 
 const requiredPacketMarkers = [
-  "not pushed",
-  "do not push",
+  "prepared locally, not pushed",
+  "do not push, open a PR, merge, deploy, or promote JewelLink",
   "without explicit approval",
-  "Gate Cloud Build behind candidate release",
-  "bd1f344699e97ed968a6c272277dffeaf0975479",
+  "Gate Cloud Build and refresh profile MFA audit",
   "55032dbbebc519d1718aa14871da2048f60d9487",
-  "da53e2ab7eac45c93285c91492903aeb7c1ed52d",
+  "f12e67d7202a6a567007605f7164d141638b5dbc",
   "cloudbuild.jewellink.yaml",
+  "scripts/audit-jewelhire-sso.mjs",
+  "tests/profile-mfa-factor-protection.test.ts",
 ];
 
 const requiredPatchMarkers = [
-  "From da53e2ab7eac45c93285c91492903aeb7c1ed52d",
-  "Subject: [PATCH] Gate Cloud Build behind candidate release",
+  "From f12e67d7202a6a567007605f7164d141638b5dbc",
+  "Subject: [PATCH] Gate Cloud Build and refresh profile MFA audit",
   "npm run security:secrets",
   "npm run lint:jewelhire-integration",
   "npm run audit:jewelhire-sso",
@@ -42,6 +43,15 @@ const requiredPatchMarkers = [
   "--no-traffic",
   "candidate-$${candidate_sha:0:12}",
   "$${candidate_url}/login",
+  "src/lib/i18n/translations.ts",
+  "profile.securityPhone",
+  "Security phone (2FA)",
+];
+
+const expectedTouchedFiles = [
+  "cloudbuild.jewellink.yaml",
+  "scripts/audit-jewelhire-sso.mjs",
+  "tests/profile-mfa-factor-protection.test.ts",
 ];
 
 const forbiddenAddedLinePatterns = [
@@ -70,10 +80,19 @@ function addedLines(patch) {
     .map((line) => line.slice(1));
 }
 
+function touchedFiles(patch) {
+  return patch
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith("diff --git a/"))
+    .map((line) => line.replace(/^diff --git a\//, "").replace(/ b\/.*$/, ""))
+    .sort();
+}
+
 function main() {
   const packet = read(packetPath);
   const patch = read(patchPath);
   const patchAddedLines = addedLines(patch);
+  const patchTouchedFiles = touchedFiles(patch);
   const dangerousAddedLines = patchAddedLines.filter((line) =>
     forbiddenAddedLinePatterns.some((pattern) => pattern.test(line)),
   );
@@ -86,7 +105,10 @@ function main() {
   record("patch contains candidate-release controls", requiredPatchMarkers.every((marker) => patch.includes(marker)), {
     missingMarkers: requiredPatchMarkers.filter((marker) => !patch.includes(marker)),
   });
-  record("patch touches only cloudbuild.jewellink.yaml", /--- a\/cloudbuild\.jewellink\.yaml[\s\S]*\+\+\+ b\/cloudbuild\.jewellink\.yaml/.test(patch) && !/diff --git a\/(?!cloudbuild\.jewellink\.yaml)/.test(patch));
+  record("patch touches only expected candidate/profile-audit files", JSON.stringify(patchTouchedFiles) === JSON.stringify(expectedTouchedFiles), {
+    expectedTouchedFiles,
+    patchTouchedFiles,
+  });
   record("patch added lines do not run migrations or move traffic", dangerousAddedLines.length === 0, {
     dangerousAddedLines,
   });

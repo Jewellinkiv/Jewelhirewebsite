@@ -46,8 +46,8 @@ still requires explicit approval before it can be pushed to
 | Cross-product acceptance with local JewelHire server | Pass | Included source audits, local tenant/location access-control, and live JewelLink fail-closed probes |
 | Live public pages | Pass | `app.jewelhire.com/login`, `/privacy`, `/terms`, and `ai.jewellink.com/login` return `200` |
 | Live unauthenticated endpoint posture | Pass | JewelLink SSO exchange/introspection, hire provisioning, JewelCert results, and JewelHire inbound JewelCert invite all reject without bearer auth |
-| JewelLink no-push release-path patch | Pass | Local commit `da53e2ab`; `node --test tests/deploy-release-safety.test.ts` passed 8/8 on the prepared patch branch; secret scan passed 2,505 files; Cloud Build embedded bash syntax checked |
-| JewelLink durable approval packet | Pass | Patch artifact applies cleanly to JewelLink bases `bd1f3446` and `55032dbb`; packet audit preserves no-push boundary and candidate-only controls |
+| JewelLink no-push release-path/profile patch | Pass | Local combined commit `f12e67d7`; `docs/qa-runs/jewellink-no-push-validation-2026-07-21T04-00-50-000Z/jewellink-no-push-validation-report.md` confirms release/profile tests pass 11/11, committed-secret scan passes 2,515 files, JewelHire SSO source audit passes, patch artifact applies to current `origin/main`, and no JewelLink push/PR/deploy/mutation occurred |
+| JewelLink durable approval packet | Pass | `docs/qa-runs/jewellink-no-push-validation-2026-07-21T04-00-50-000Z/jewellink-no-push-validation-report.md` confirms the prepared local patch still applies cleanly to current JewelLink `origin/main` `55032dbb`, release/profile tests pass 11/11, committed-secret scan passes 2,515 files, JewelHire SSO source audit passes, and no JewelLink push/PR/deploy/mutation occurred |
 | JewelLink combined no-push pilot patch | Pass | Local commit `f12e67d7`; release/profile tests passed 11/11, secret scan passed 2,515 files, JewelHire SSO source audit passed, and `git diff --check` passed; not pushed |
 | Current JewelLink source audit | Fail | Against `55032dbb`, `scripts/audit-jewelhire-sso.mjs` fails 1 control for the translated profile 2FA-phone label/read-only guard, and `tests/profile-mfa-factor-protection.test.ts` fails the same literal-label check |
 | Current JewelLink release-path safety | Fail | Against unpatched `55032dbb`, `node --test tests/deploy-release-safety.test.ts` passes 7/8 and fails because `cloudbuild.jewellink.yaml` still updates the live service directly |
@@ -115,7 +115,9 @@ without explicit approval.
 
 1. Review and explicitly approve the combined local JewelLink patch
    `f12e67d7` if we want to close the source-audit/profile 2FA guard failure
-   and unpatched Cloud Build direct-deploy failure through a JewelLink PR.
+   and unpatched Cloud Build direct-deploy failure through a JewelLink PR. The
+   latest no-push validation is
+   `docs/qa-runs/jewellink-no-push-validation-2026-07-21T04-00-50-000Z/jewellink-no-push-validation-report.md`.
 2. Record the six remaining operations approvals from
    `docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/operations-readiness-evidence-request.md`:
    JewelHire rollback owner, JewelLink rollback owner, JewelLink IAM rollback

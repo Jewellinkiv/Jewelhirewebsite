@@ -1,6 +1,9 @@
 # JewelLink Cloud Build Candidate Patch - 2026-07-20
 
-Status: prepared locally, not pushed.
+Status: superseded by the combined local patch
+`docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md`.
+This historical Cloud-Build-only patch remains unpushed and should not be used
+as the current JewelLink candidate.
 
 User boundary: do not push or open a JewelLink PR without explicit approval.
 
@@ -51,7 +54,9 @@ create a validated, no-traffic candidate revision.
 
 ## Approval gate
 
-This is ready to turn into a JewelLink PR after approval. Until then, the
-repository patch remains unpushed. Current JewelLink `main` is
-`55032dbbebc519d1718aa14871da2048f60d9487`, and production currently serves
+This historical patch should not be turned into a JewelLink PR. Use the
+combined local patch in
+`docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md`
+instead after explicit JewelLink repository approval. Current JewelLink `main`
+is `55032dbbebc519d1718aa14871da2048f60d9487`, and production currently serves
 revision `jewellink-dev-01154-xpx` from that commit.

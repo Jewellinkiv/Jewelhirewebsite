@@ -7,8 +7,8 @@ import test from "node:test";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 const script = path.join(root, "scripts/jewellink-approval-packet-audit.mjs");
-const packet = path.join(root, "docs/jewellink-cloudbuild-candidate-approval-packet-2026-07-20.md");
-const patch = path.join(root, "docs/jewellink-cloudbuild-candidate-no-push-2026-07-20.patch");
+const packet = path.join(root, "docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md");
+const patch = path.join(root, "docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch");
 
 function runAudit(packetPath = packet, patchPath = patch) {
   return spawnSync(process.execPath, [script, `--packet=${packetPath}`, `--patch=${patchPath}`], {
@@ -20,6 +20,7 @@ function runAudit(packetPath = packet, patchPath = patch) {
 test("current JewelLink approval packet passes", () => {
   const result = runAudit();
   assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /PASS patch touches only expected candidate\/profile-audit files/);
   assert.match(result.stdout, /PASS patch added lines do not run migrations or move traffic/);
 });
 

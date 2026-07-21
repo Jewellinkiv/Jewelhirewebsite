@@ -40,7 +40,10 @@ node scripts/audit-jewelhire-sso.mjs
 git diff --check
 ```
 
-Results on 2026-07-20:
+Latest no-push validation:
+`docs/qa-runs/jewellink-no-push-validation-2026-07-21T04-00-50-000Z/jewellink-no-push-validation-report.md`
+
+Results on 2026-07-21:
 
 - Release/profile tests passed 11/11.
 - Secret scan passed 2,515 repository files.
@@ -48,6 +51,8 @@ Results on 2026-07-20:
 - Patch artifact passed `git apply --check` against a fresh `origin/main`
   worktree at `55032dbbebc519d1718aa14871da2048f60d9487`.
 - `git diff --check` passed.
+- No JewelLink push, PR, merge, deploy, promotion, migration, or production
+  mutation was performed.
 
 ## PR Title
 

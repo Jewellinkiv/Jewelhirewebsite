@@ -14,6 +14,8 @@ unpushed.
   `codex/jewellink-profile-mfa-audit-refresh-20260720`
 - Durable review artifact:
   `docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md`
+- Latest no-push validation:
+  `docs/qa-runs/jewellink-no-push-validation-2026-07-21T04-00-50-000Z/jewellink-no-push-validation-report.md`
 - Latest Cloud Build: regional build `ae63d668-2ad0-435d-805f-0290460ebdb6`
   completed successfully on 2026-07-20 for branch `main`, commit
   `55032dbbebc519d1718aa14871da2048f60d9487`, and produced live revision
@@ -35,15 +37,12 @@ unpushed.
   `JEWELHIRE_INTEGRATION_ENABLED=true`, `JEWELHIRE_ROLLOUT_MODE=pilot`, and
   `JEWELHIRE_PILOT_COMPANY_IDS=comp_1`. Current production traffic later moved
   to `jewellink-dev-01154-xpx` from commit `55032dbb`.
-- Local patch verification: `node --test tests/deploy-release-safety.test.ts`
-  passed 8/8, `scripts/check-committed-secrets.mjs` passed 2,505 files, and
-  embedded Cloud Build bash blocks passed syntax checks after simulated
-  substitutions on the prepared patch branch. Against current unpatched
-  `origin/main`, `tests/deploy-release-safety.test.ts` fails 1/8 because
-  `cloudbuild.jewellink.yaml` still updates the live service directly. On the
-  combined local branch, release/profile tests pass 11/11, secret scan passes
-  2,515 files, JewelHire SSO source audit passes, and `git diff --check`
-  passes.
+- Local patch verification refreshed on 2026-07-21: release/profile tests pass
+  11/11, committed-secret scan passes 2,515 files, JewelHire SSO source audit
+  passes, saved patch artifact applies cleanly to a temporary clean worktree at
+  `origin/main`, and `git diff --check` passes. Against current unpatched
+  `origin/main`, `tests/deploy-release-safety.test.ts` still fails 1/8 because
+  `cloudbuild.jewellink.yaml` updates the live service directly.
 
 ## Recommended JewelLink actions before pilot
 
@@ -57,7 +56,9 @@ unpushed.
 
 ## Prepared local patch
 
-The local JewelLink patch changes `cloudbuild.jewellink.yaml` only.
+The local JewelLink patch changes three files:
+`cloudbuild.jewellink.yaml`, `scripts/audit-jewelhire-sso.mjs`, and
+`tests/profile-mfa-factor-protection.test.ts`.
 
 - Adds source validation before image build: deterministic install, Prisma
   client generation, committed-secret scan, JewelHire integration lint,
