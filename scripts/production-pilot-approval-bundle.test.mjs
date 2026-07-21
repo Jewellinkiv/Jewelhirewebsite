@@ -124,9 +124,13 @@ test("approval bundle assembles current safe request packets into one non-secret
   assert.match(bundleMarkdown, /Production Pilot Live Approval Bundle/);
   assert.match(bundleMarkdown, /rollback\.jewelhireOwner/);
   assert.match(bundleMarkdown, /consultant-denial/);
+  assert.match(bundleMarkdown, /Operator Reply Template/);
+  assert.match(bundleMarkdown, /I approve the controlled JewelHire\/JewelLink pilot readiness work/);
+  assert.match(bundleMarkdown, /I do not approve a JewelLink code push or code deploy unless I state that separately/);
   assert.match(bundleMarkdown, /production-pilot-application-approval\.json/);
   assert.equal(bundleJson.productionMutationPerformed, false);
   assert.equal(bundleJson.jewelLinkRepoPushOrDeployPerformed, false);
+  assert.match(bundleJson.operatorReplyTemplate, /Stable controlled application submission ID: <idempotency key>/);
   assert.equal(bundleJson.localIgnoredFileSkeletons.applicationApprovalFile.value.approvals.submissionId, "");
 });
 

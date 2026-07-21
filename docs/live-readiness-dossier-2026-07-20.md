@@ -143,7 +143,7 @@ without explicit approval.
    `docs/qa-runs/pilot-smoke-targets-2026-07-21T08-30-56-900Z/pilot-smoke-targets-request.md`,
    rerun `qa:pilot-roster` and `qa:pilot-smoke-targets`, close the 15 remaining items in
    `docs/qa-runs/pilot-smoke-plan-2026-07-21T08-13-07-305Z/pilot-smoke-plan-request.md`,
-   generate `docs/qa-runs/pilot-approval-bundle-2026-07-21T08-31-38-716Z/pilot-approval-bundle.md`
+   generate `docs/qa-runs/pilot-approval-bundle-2026-07-21T08-40-36-554Z/pilot-approval-bundle.md`
    or a fresher `qa:pilot-approval-bundle` packet to keep the local approval
    files aligned, pass `qa:pilot-smoke-plan`, run the authenticated end-to-end smoke matrix,
    then fill and pass

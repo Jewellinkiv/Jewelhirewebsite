@@ -159,7 +159,7 @@ function buildBundle(inputs, sourceArtifacts) {
     monitoring: inputs.operations?.evidence?.monitoring || {},
   });
 
-  return {
+  const bundle = {
     createdAt: new Date().toISOString(),
     valuesPrinted: false,
     status: "approval-needed",
@@ -236,6 +236,41 @@ function buildBundle(inputs, sourceArtifacts) {
     secretHandling:
       "Do not place full email addresses, passwords, database URLs, bearer tokens, cookies, customer data, secret values, full production extracts, or raw resume content in any committed evidence or local approval file.",
   };
+  bundle.operatorReplyTemplate = operatorReplyTemplate(bundle);
+  return bundle;
+}
+
+function operatorReplyTemplate(bundle) {
+  const hasField = (field) => bundle.openApprovals.some((item) => item.field === field);
+  const lines = [
+    "I approve the controlled JewelHire/JewelLink pilot readiness work to proceed only within the documented pilot scope and stop conditions.",
+    "",
+    "Rollback and observation window:",
+    `- JewelHire rollback owner: ${hasField("rollback.jewelhireOwner") ? "<name/channel>" : "already recorded"}`,
+    `- JewelLink rollback owner: ${hasField("rollback.jewellinkOwner") ? "<name/channel>" : "already recorded"}`,
+    `- JewelLink IAM/config rollback owner: ${hasField("rollback.jewellinkIamOwner") ? "<name/channel>" : "already recorded"}`,
+    `- Database recovery owner: ${hasField("rollback.databaseRecoveryOwner") ? "<name/channel>" : "already recorded"}`,
+    `- Observation window: ${hasField("rollback.observationWindow") ? "<UTC start/end>" : "already recorded"}`,
+    `- Rollback thresholds: ${hasField("rollback.rollbackThresholds") ? "approve the proposal or provide revised thresholds" : "already recorded"}`,
+    "",
+    "Controlled setup:",
+    "- I approve creating or approving the controlled JewelLink CONSULTANT denial persona for the pilot SSO denial smoke.",
+    "- I approve creating or approving the controlled active paused-company JewelLink user for stale-access denial smoke.",
+    "- I approve executing exactly one controlled JewelHire public application submission through the guarded helper, using a local ignored approval file, with live application notification emails acknowledged and controlled applicant mailbox access approved.",
+    "- Stable controlled application submission ID: <idempotency key>",
+    "",
+    "Mutating smoke scope:",
+    "- I approve controlled production user/persona creation only for the documented pilot QA personas.",
+    "- I approve controlled hire preview, confirm, repeat-confirm, and revoke/cancel access smoke for the pilot application.",
+    "- I approve controlled JewelCert invite, completion, result sync, and retry/failure-mode smoke for the pilot mailbox and company.",
+    "- I approve authenticated public/fail-closed probes, including team-invite-disabled and resume privacy checks, using local ignored session artifacts only.",
+    "- I approve the SSO persona matrix for Director, Manager, Student, Consultant denial, platform admin, allowlisted non-admin denial, and paused-company denial.",
+    "- I accept the source-test plus clean-allowlist strategy for allowlisted non-admin denial, or I will provide a controlled production non-admin denial persona instead.",
+    "",
+    "JewelLink boundary:",
+    "- I do not approve a JewelLink code push or code deploy unless I state that separately. This approval covers only the already-approved pilot flag/config movement and the controlled pilot smoke setup.",
+  ];
+  return lines.join("\n");
 }
 
 function jsonBlock(value) {
@@ -274,6 +309,14 @@ function bundleMarkdown(bundle) {
     "## Open Approvals And Actions",
     "",
     approvalsTable,
+    "",
+    "## Operator Reply Template",
+    "",
+    "Use this as the approval/owner intake text. Replace placeholders before treating it as approval evidence; leaving placeholders means the gate remains NO-GO.",
+    "",
+    "```text",
+    bundle.operatorReplyTemplate,
+    "```",
     "",
     "## Local Ignored File Skeletons",
     "",

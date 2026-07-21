@@ -16,7 +16,7 @@ The report is written under `docs/qa-runs/pilot-approval-bundle-*` unless
 `--artifacts=<dir>` is supplied.
 
 The latest production result is
-`docs/qa-runs/pilot-approval-bundle-2026-07-21T08-31-38-716Z/`. It passes and
+`docs/qa-runs/pilot-approval-bundle-2026-07-21T08-40-36-554Z/`. It passes and
 writes `pilot-approval-bundle.md`.
 
 ## What It Combines
@@ -25,6 +25,9 @@ writes `pilot-approval-bundle.md`.
 - JewelLink controlled persona provisioning actions.
 - Controlled public application submission approval-file requirements.
 - Smoke-plan approval, persona, acceptance, application, and resume ID gaps.
+- A single operator reply template that collects rollback owners, controlled
+  setup approval, mutating smoke approval, source-test acceptance, and the
+  JewelLink no-code-push boundary.
 - Local ignored file skeletons for the operations evidence file, controlled
   application approval file, and pilot smoke plan.
 - The recommended command sequence from approval collection through final

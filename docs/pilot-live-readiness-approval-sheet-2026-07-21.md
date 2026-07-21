@@ -166,7 +166,7 @@ Latest guarded dry-run request:
 `docs/qa-runs/pilot-application-submission-2026-07-21T08-31-25-486Z/pilot-application-submission-request.md`
 
 Consolidated approval bundle:
-`docs/qa-runs/pilot-approval-bundle-2026-07-21T08-31-38-716Z/pilot-approval-bundle.md`
+`docs/qa-runs/pilot-approval-bundle-2026-07-21T08-40-36-554Z/pilot-approval-bundle.md`
 
 Use `npm run qa:pilot-application-submission` first in dry-run mode. Execute
 mode must use a local ignored approval file that records the approver, approval
