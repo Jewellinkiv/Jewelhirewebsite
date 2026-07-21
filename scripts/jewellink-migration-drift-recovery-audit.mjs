@@ -134,6 +134,26 @@ function toCrlf(text) {
   return String(text || "").replace(/\r?\n/g, "\r\n");
 }
 
+function withTerminalCrlf(text) {
+  return String(text || "").replace(/\r?\n?$/, "\r\n");
+}
+
+function reviewedSqlByteVariants(text, checksum) {
+  const variants = [
+    { variant: "CRLF line endings", text: toCrlf(text) },
+    { variant: "terminal CRLF line ending", text: withTerminalCrlf(text) },
+  ];
+  const seen = new Set();
+  const matches = [];
+  for (const candidate of variants) {
+    const candidateChecksum = hashSql(candidate.text);
+    if (candidateChecksum !== checksum || seen.has(candidateChecksum)) continue;
+    seen.add(candidateChecksum);
+    matches.push({ variant: candidate.variant });
+  }
+  return matches;
+}
+
 function shortSha(value) {
   return value ? String(value).slice(0, 12) : "";
 }
@@ -505,7 +525,7 @@ function recoverMatches(repo, driftRows, cloudBuildSearch) {
       searchedPathCommits: commits.length,
       exactHistoryMatches: matches,
       cloudBuildSourceMatches: cloudBuildSearch.matchesByMigration?.get(row.migration_name) || [],
-      reviewedSqlByteVariants: hashSql(toCrlf(row.reviewedSql)) === row.checksum ? [{ variant: "CRLF line endings" }] : [],
+      reviewedSqlByteVariants: reviewedSqlByteVariants(row.reviewedSql, row.checksum),
     };
   });
 }
@@ -705,6 +725,8 @@ function markdown(report) {
     `- Cloud Build source revisions unreachable locally: ${report.jewelLink.cloudBuildSourceSearch.unreachableRevisionCount}`,
     `- Cloud Build exact SQL matches: ${report.jewelLink.cloudBuildSourceSearch.matchCount}`,
     `- Drift rows matching reviewed SQL with CRLF line endings: ${report.jewelLink.lineEndingRecoveredCount}`,
+    `- Drift rows matching reviewed SQL with terminal CRLF line ending: ${report.jewelLink.terminalCrlfRecoveredCount}`,
+    `- Drift rows matching reviewed SQL byte variants: ${report.jewelLink.reviewedSqlByteVariantRecoveredCount}`,
     `- Drift rows with exact SQL recovered from any searched source: ${report.jewelLink.recoveredCount}`,
     `- Drift rows still unrecovered: ${report.jewelLink.unrecoveredCount}`,
     `- Database owner acceptance attempted: ${report.jewelLink.databaseOwnerAcceptance.attempted}`,
@@ -836,6 +858,10 @@ async function main() {
       lineEndingRecoveredCount: recovery.filter((row) =>
         row.reviewedSqlByteVariants.some((item) => item.variant === "CRLF line endings"),
       ).length,
+      terminalCrlfRecoveredCount: recovery.filter((row) =>
+        row.reviewedSqlByteVariants.some((item) => item.variant === "terminal CRLF line ending"),
+      ).length,
+      reviewedSqlByteVariantRecoveredCount: recovery.filter((row) => row.reviewedSqlByteVariants.length > 0).length,
       recoveredCount: recovery.filter(
         (row) =>
           row.exactHistoryMatches.length > 0 ||

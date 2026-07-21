@@ -1,0 +1,517 @@
+{
+  "createdAt": "2026-07-21T03:37:32.281Z",
+  "pass": true,
+  "valuesPrinted": false,
+  "jewelLink": {
+    "reviewedRepo": "/Users/sterling/.codex/tmp/jewellink-app-origin-main-20260720",
+    "reviewedRef": "origin/main",
+    "reviewedRepoCommit": "55032dbbebc519d1718aa14871da2048f60d9487",
+    "fetch": {
+      "attempted": true,
+      "ok": true,
+      "error": "",
+      "standardRefs": {
+        "attempted": true,
+        "ok": true,
+        "error": ""
+      },
+      "pullRefs": {
+        "attempted": true,
+        "ok": true,
+        "error": ""
+      }
+    },
+    "refsSearched": 302,
+    "activeAppliedCount": 127,
+    "reviewedMigrationCount": 127,
+    "driftCount": 25,
+    "historyRecoveredCount": 1,
+    "lineEndingRecoveredCount": 21,
+    "terminalCrlfRecoveredCount": 3,
+    "reviewedSqlByteVariantRecoveredCount": 24,
+    "recoveredCount": 25,
+    "unrecoveredCount": 0,
+    "integrationDriftCount": 0,
+    "databaseOwnerAcceptance": {
+      "attempted": false,
+      "valid": true,
+      "fileProvided": false,
+      "file": "",
+      "error": "",
+      "ownerRecorded": false,
+      "ownerRoleRecorded": false,
+      "acceptedAt": "",
+      "acceptedMigrationCount": 0,
+      "expectedMigrationCount": 0,
+      "listMatches": true,
+      "requiredAcknowledgements": false,
+      "integrationOrAuthUnrecovered": []
+    },
+    "ownerAcceptanceRequest": {
+      "artifact": "",
+      "json": ""
+    },
+    "cloudBuildSourceSearch": {
+      "attempted": true,
+      "ok": true,
+      "error": "",
+      "range": {
+        "start": "2026-05-19T20:30:14.778Z",
+        "end": "2026-07-09T20:05:53.030Z"
+      },
+      "buildCount": 515,
+      "successfulBuildCount": 489,
+      "sourceRevisionCount": 258,
+      "reachableRevisionCount": 258,
+      "unreachableRevisionCount": 0,
+      "matchCount": 0
+    }
+  },
+  "recovery": [
+    {
+      "migration": "20260520152458_add_hidden_lesson_ids",
+      "appliedChecksumPrefix": "2758166eab11",
+      "reviewedChecksumPrefix": "f6a5195d9e4e",
+      "startedAt": "2026-05-20 20:30:14.778153+00",
+      "finishedAt": "2026-05-20 20:30:14.989886+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "terminal CRLF line ending"
+        }
+      ]
+    },
+    {
+      "migration": "20260530033000_add_pos_register_sessions",
+      "appliedChecksumPrefix": "18f8d8e457a2",
+      "reviewedChecksumPrefix": "011414aa4dbe",
+      "startedAt": "2026-05-30 21:42:54.727668+00",
+      "finishedAt": "2026-05-30 21:42:54.727668+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260530040000_add_pos_tender_settings",
+      "appliedChecksumPrefix": "597a1ab51c31",
+      "reviewedChecksumPrefix": "a3941a32c12e",
+      "startedAt": "2026-05-30 21:43:17.727105+00",
+      "finishedAt": "2026-05-30 21:43:17.727105+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260530043000_add_pos_refund_lines",
+      "appliedChecksumPrefix": "2257dcf62ea1",
+      "reviewedChecksumPrefix": "3dd3dc030ec8",
+      "startedAt": "2026-05-30 21:43:59.817376+00",
+      "finishedAt": "2026-05-30 21:43:59.817376+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260530050000_add_pos_inventory_movements",
+      "appliedChecksumPrefix": "120e6650b049",
+      "reviewedChecksumPrefix": "3fb6acfae2e9",
+      "startedAt": "2026-05-30 21:44:05.542347+00",
+      "finishedAt": "2026-05-30 21:44:05.542347+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260530060000_add_pos_service_settings",
+      "appliedChecksumPrefix": "498886fce1ac",
+      "reviewedChecksumPrefix": "0373bece249c",
+      "startedAt": "2026-05-30 21:44:10.745588+00",
+      "finishedAt": "2026-05-30 21:44:10.745588+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260530070000_add_pos_service_activity",
+      "appliedChecksumPrefix": "c8d783df1c1b",
+      "reviewedChecksumPrefix": "3b48eda864db",
+      "startedAt": "2026-05-30 21:44:16.216233+00",
+      "finishedAt": "2026-05-30 21:44:16.216233+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260530080000_add_pos_service_checkout_lines",
+      "appliedChecksumPrefix": "70b801ce0e19",
+      "reviewedChecksumPrefix": "9f0b55fdb526",
+      "startedAt": "2026-05-30 21:44:21.3138+00",
+      "finishedAt": "2026-05-30 21:44:21.3138+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260530090000_add_pos_commissions",
+      "appliedChecksumPrefix": "010fa2706c8d",
+      "reviewedChecksumPrefix": "fc59bb6e2628",
+      "startedAt": "2026-05-30 21:44:26.519291+00",
+      "finishedAt": "2026-05-30 21:44:26.519291+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260530101500_add_pos_commission_workflow",
+      "appliedChecksumPrefix": "211d61b7e576",
+      "reviewedChecksumPrefix": "a0b46ef85be3",
+      "startedAt": "2026-05-30 21:44:31.810751+00",
+      "finishedAt": "2026-05-30 21:44:31.810751+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260530110000_add_inventory_catalog_fields",
+      "appliedChecksumPrefix": "5ccc572ae03d",
+      "reviewedChecksumPrefix": "e4fbe1dc273b",
+      "startedAt": "2026-05-30 21:44:36.905066+00",
+      "finishedAt": "2026-05-30 21:44:36.905066+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260531004500_add_whatsapp_models",
+      "appliedChecksumPrefix": "b18a8bcc7bd0",
+      "reviewedChecksumPrefix": "6d0057497e35",
+      "startedAt": "2026-06-04 16:32:23.258886+00",
+      "finishedAt": "2026-06-04 16:32:23.258886+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260602090000_add_pos_appearance_settings",
+      "appliedChecksumPrefix": "40537d7ad30a",
+      "reviewedChecksumPrefix": "1b83e89e5164",
+      "startedAt": "2026-06-04 16:32:42.389752+00",
+      "finishedAt": "2026-06-04 16:32:42.389752+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260603151500_add_pos_device_settings",
+      "appliedChecksumPrefix": "51efc5766677",
+      "reviewedChecksumPrefix": "3542a878da8d",
+      "startedAt": "2026-06-04 16:36:34.98021+00",
+      "finishedAt": "2026-06-04 16:36:34.98021+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260603163000_linkd_lite_pos_appearance_defaults",
+      "appliedChecksumPrefix": "c998622cfb7d",
+      "reviewedChecksumPrefix": "b7ac89d8c65e",
+      "startedAt": "2026-06-04 16:36:37.344408+00",
+      "finishedAt": "2026-06-04 16:36:37.344408+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260604125555_course_package_tag",
+      "appliedChecksumPrefix": "fb99db7a7342",
+      "reviewedChecksumPrefix": "e895f8bf0962",
+      "startedAt": "2026-06-04 17:56:05.123341+00",
+      "finishedAt": "2026-06-04 17:56:05.346266+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "terminal CRLF line ending"
+        }
+      ]
+    },
+    {
+      "migration": "20260604142331_feature_announcements",
+      "appliedChecksumPrefix": "b0d1e70fd19a",
+      "reviewedChecksumPrefix": "d211b09b6a48",
+      "startedAt": "2026-06-04 19:23:40.41933+00",
+      "finishedAt": "2026-06-04 19:23:40.910931+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "terminal CRLF line ending"
+        }
+      ]
+    },
+    {
+      "migration": "20260604160127_webchat_sms_merge",
+      "appliedChecksumPrefix": "5ce7a97b1db8",
+      "reviewedChecksumPrefix": "3ad735242c6d",
+      "startedAt": "2026-06-04 21:01:36.295656+00",
+      "finishedAt": "2026-06-04 21:01:36.529891+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260611120000_add_payment_reconciliation_fields",
+      "appliedChecksumPrefix": "b38d4e4902dd",
+      "reviewedChecksumPrefix": "3909e4381501",
+      "startedAt": "2026-06-12 13:41:55.826586+00",
+      "finishedAt": "2026-06-12 13:41:56.130046+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 2,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260612110000_shopify_inventory_import_foundation",
+      "appliedChecksumPrefix": "7c784e0e3570",
+      "reviewedChecksumPrefix": "8ad3bdb6cd3d",
+      "startedAt": "2026-06-15 21:28:23.655568+00",
+      "finishedAt": "2026-06-15 21:28:25.155161+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 2,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260623120000_make_stripe_primary_payment_provider",
+      "appliedChecksumPrefix": "52186f5cf102",
+      "reviewedChecksumPrefix": "3c49d03f9374",
+      "startedAt": "2026-06-24 17:55:59.8207+00",
+      "finishedAt": "2026-06-24 17:56:00.142786+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260624182000_add_company_pos_sources",
+      "appliedChecksumPrefix": "272d93ae1dff",
+      "reviewedChecksumPrefix": "d9030f4ed3fb",
+      "startedAt": "2026-06-24 19:52:13.090363+00",
+      "finishedAt": "2026-06-24 19:52:13.090363+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 2,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260625105500_add_reminder_automation_delay_unit",
+      "appliedChecksumPrefix": "91a5bba9c993",
+      "reviewedChecksumPrefix": "0ccd05182ba4",
+      "startedAt": "2026-06-26 16:05:44.407293+00",
+      "finishedAt": "2026-06-26 16:05:44.641307+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 2,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260701130000_add_pos_payment_reference_unique",
+      "appliedChecksumPrefix": "8c089f0cb19f",
+      "reviewedChecksumPrefix": "3bc25e619a30",
+      "startedAt": "2026-07-02 01:51:34.355406+00",
+      "finishedAt": "2026-07-02 01:51:34.662976+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 1,
+      "exactHistoryMatches": [],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": [
+        {
+          "variant": "CRLF line endings"
+        }
+      ]
+    },
+    {
+      "migration": "20260708110000_add_pos_foundation_ledger_audit",
+      "appliedChecksumPrefix": "03e2bfa11ddd",
+      "reviewedChecksumPrefix": "43c104251070",
+      "startedAt": "2026-07-08 20:05:49.575467+00",
+      "finishedAt": "2026-07-08 20:05:53.030425+00",
+      "integrationOrAuth": false,
+      "searchedPathCommits": 3,
+      "exactHistoryMatches": [
+        {
+          "commit": "e87bbaf744f8",
+          "fullCommit": "e87bbaf744f84745144a2e49729ad089e2d6818d"
+        }
+      ],
+      "cloudBuildSourceMatches": [],
+      "reviewedSqlByteVariants": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "JewelLink repo exists",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink git history fetch completed or was skipped",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink database credential is available for read-only drift audit",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink _prisma_migrations table exists",
+      "pass": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink Cloud Build source revision search completed",
+      "pass": true,
+      "buildCount": 515,
+      "sourceRevisionCount": 258,
+      "matchCount": 0,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink active integration/auth migration rows have no checksum drift",
+      "pass": true,
+      "driftCount": 0,
+      "valuesPrinted": false
+    },
+    {
+      "name": "Every drifted JewelLink active migration has exact SQL recovered or named database-owner acceptance",
+      "pass": true,
+      "driftCount": 25,
+      "unrecoveredCount": 0,
+      "ownerAcceptanceValid": true,
+      "valuesPrinted": false
+    }
+  ]
+}

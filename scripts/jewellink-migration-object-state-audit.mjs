@@ -18,8 +18,9 @@ const args = new Map(
 if (args.has("help")) {
   console.log(`Usage: node scripts/jewellink-migration-object-state-audit.mjs [options]
 
-Reads JewelLink schema metadata for the three still-unrecovered historical
-migration drift rows. This audit does not read customer rows, repair the ledger,
+Reads JewelLink schema metadata for the three historical migration drift rows
+that are now recovered by terminal-CRLF reviewed-SQL byte variants. This audit
+does not read customer rows, repair the ledger,
 write migrations, edit JewelLink, or write to either production database.
 
 Options:
@@ -381,7 +382,7 @@ function markdown(report) {
     "",
     "## Scope",
     "",
-    "- Read-only schema/object-state audit for the 3 still-unrecovered historical JewelLink Prisma drift rows.",
+    "- Read-only schema/object-state audit for the 3 historical JewelLink Prisma drift rows recovered by terminal-CRLF reviewed-SQL byte variants.",
     "- No customer rows are read.",
     "- No database writes, migration repairs, JewelLink edits, or deploys are performed.",
     "",

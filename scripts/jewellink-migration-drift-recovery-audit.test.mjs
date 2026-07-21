@@ -195,6 +195,37 @@ test("passes when applied checksum matches reviewed SQL with CRLF line endings",
   assert.equal(acceptanceRequest, "");
 });
 
+test("passes when applied checksum matches reviewed SQL with a terminal CRLF line ending", () => {
+  const repo = buildRepo({ includeRecoveredDrift: false });
+  const integrationSql = "-- integration\ncreate table sso_codes(id text);\n";
+  const reviewedSql = "-- reviewed only\ncreate table tender_settings(id text, updated_at timestamptz);\n";
+
+  const { result, markdown, json, acceptanceRequest } = runAudit(repo, [
+    {
+      migration_name: "20260712043000_add_jewelhire_sso_codes",
+      checksum: sha(integrationSql),
+      started_at: "2026-07-20T00:00:00Z",
+      finished_at: "2026-07-20T00:00:00Z",
+      rolled_back_at: null,
+    },
+    {
+      migration_name: "20260530040000_add_pos_tender_settings",
+      checksum: sha(reviewedSql.replace(/\r?\n?$/, "\r\n")),
+      started_at: "2026-05-30T04:00:00Z",
+      finished_at: "2026-05-30T04:01:00Z",
+      rolled_back_at: null,
+    },
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(markdown, /Result: PASS/);
+  assert.match(markdown, /Drift rows matching reviewed SQL with terminal CRLF line ending: 1/);
+  assert.match(markdown, /terminal CRLF line ending/);
+  assert.match(markdown, /Drift rows still unrecovered: 0/);
+  assert.match(json, /"reviewedSqlByteVariantRecoveredCount": 1/);
+  assert.equal(acceptanceRequest, "");
+});
+
 test("fails when a drifted migration cannot be recovered from git history", () => {
   const repo = buildRepo({ includeRecoveredDrift: false });
   const integrationSql = "-- integration\ncreate table sso_codes(id text);\n";

@@ -44,13 +44,10 @@ The proposed owner slots, 60-minute staffed window, and rollback thresholds are
 in `docs/pilot-rollback-window-proposal-2026-07-20.md`. They remain proposed
 only until a named approver accepts or revises them.
 
-## JewelLink migration drift approval
+## JewelLink migration drift evidence
 
 Latest audit:
-`docs/qa-runs/jewellink-migration-drift-2026-07-21T03-05-00-000Z/jewellink-migration-drift-recovery-report.md`
-
-Fillable acceptance template:
-`docs/jewellink-migration-drift-owner-acceptance.template-2026-07-21.json`
+`docs/qa-runs/jewellink-migration-drift-2026-07-21T03-45-00-000Z/jewellink-migration-drift-recovery-report.md`
 
 Current state:
 
@@ -58,34 +55,20 @@ Current state:
 - 1 exact historical SQL file is recovered from searched git history.
 - 21 rows match the reviewed SQL exactly after deterministic CRLF line-ending
   normalization.
-- 3 older non-integration rows remain unrecovered after standard refs, PR-head
-  refs, Cloud Build source revision search, and reviewed-SQL CRLF recovery.
+- 3 rows match the reviewed SQL exactly after a deterministic terminal-CRLF
+  line-ending variant.
+- 0 rows remain unrecovered after standard refs, PR-head refs, Cloud Build
+  source revision search, reviewed-SQL CRLF recovery, and reviewed-SQL
+  terminal-CRLF recovery.
 - The seven JewelHire integration/auth migration rows remain checksum-clean and
   are the hard launch boundary.
 - Supporting live object-state audit
   `docs/qa-runs/jewellink-migration-object-state-2026-07-21T03-16-00-000Z/jewellink-migration-object-state-report.md`
-  passes 20/20 for the schema objects implied by the 3 unrecovered rows without
-  reading customer rows or writing to JewelLink.
+  passes 20/20 for the schema objects implied by the three terminal-CRLF rows
+  without reading customer rows or writing to JewelLink.
 
-Acceptable closure paths:
-
-1. Recover the exact applied SQL from a provider backup, deployment artifact, or
-   other authoritative archive.
-2. Restore production to a verified clone, review schema/object state, then
-   approve a controlled ledger repair.
-3. Record named database-owner acceptance of the historical non-integration
-   drift using the generated acceptance request, then rerun the drift audit with
-   `--database-owner-acceptance-file=<path>`.
-
-Required acceptance fields:
-
-- Named database owner.
-- Owner role or approval channel.
-- UTC acceptance timestamp.
-- Review artifact or ticket reference.
-- Acceptance statement.
-- All three acknowledgement booleans set to true in the JSON file.
-- Accepted migration list exactly matching the 3 unrecovered historical rows.
+No database-owner acceptance file is required by the latest passing audit. No
+ledger repair is authorized or needed for this closure evidence.
 
 ## JewelLink pilot persona approvals
 
