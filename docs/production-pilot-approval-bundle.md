@@ -16,10 +16,11 @@ The report is written under `docs/qa-runs/pilot-approval-bundle-*` unless
 `--artifacts=<dir>` is supplied.
 
 The latest production result is
-`docs/qa-runs/pilot-approval-bundle-2026-07-21T09-17-40-733Z/`. It passes,
-writes `pilot-approval-bundle.md`, and preserves the already-recorded
-monitoring evidence in the local operations evidence skeleton while leaving
-the six rollback approval fields empty.
+`docs/qa-runs/pilot-approval-bundle-2026-07-21T09-37-25-198Z/`. It passes,
+writes `pilot-approval-bundle.md`, uses the latest operations request, and
+preserves the already-recorded backup and monitoring evidence in the local
+operations evidence skeleton while leaving the six rollback approval fields
+empty.
 
 ## What It Combines
 
