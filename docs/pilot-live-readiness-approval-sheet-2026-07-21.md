@@ -261,20 +261,25 @@ must pass before the pilot is treated as GO-ready.
 
 ## JewelLink code/repo approval
 
-The combined JewelLink release-path/profile-audit patch was explicitly approved
-for repo movement and is now open as PR `#246`:
+The JewelLink profile-audit patch was explicitly approved for repo movement and
+is now open as PR `#246`:
 `https://github.com/Jewellinkiv/jewellink-app/pull/246`.
+
+Jackson requested removing `cloudbuild.jewellink.yaml`; the PR was revised and
+now only covers the translated profile MFA audit/test refresh. The candidate
+Cloud Build release-path change remains a separate follow-up.
 
 Current PR handoff:
 
 | Field | Value |
 | --- | --- |
 | Branch | `codex/jewellink-profile-mfa-audit-refresh-20260720` |
-| Head | `f4e9dc03ef8a2c38f47ed94dd9d335cc67827578` |
+| Head | `fdd8d1aa8fcf16bc3bea90d871a22089d8d535ad` |
 | Base | `main` at `e85282039dcd6e3169e42f1348e9c3fbeedc1333` |
 | Reviewer | `JacksonSLC` |
 | Merge status when checked | Open, mergeable, clean |
-| Local validation | Release/profile tests 11/11; JewelHire SSO audit 90/90; committed-secret scan over 2,506 files; `git diff --check` passed |
+| Files changed | `scripts/audit-jewelhire-sso.mjs`, `tests/profile-mfa-factor-protection.test.ts` |
+| Local validation | Profile MFA tests 3/3; JewelHire SSO audit 90/90; committed-secret scan over 2,506 files; `git diff --check` passed |
 
 No JewelLink production deploy, migration, traffic movement, or data mutation
 was performed for this PR handoff. Production promotion remains a separate

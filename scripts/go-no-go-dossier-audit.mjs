@@ -32,7 +32,7 @@ const requiredSections = [
 
 const requiredMarkers = [
   "JewelLink repo movement for PR `#246` was explicitly approved",
-  "Production deployment, migration execution",
+  "Production deployment",
   "Production integration secrets",
   "JewelLink release-path safety",
   "Authenticated SSO smoke",
@@ -47,8 +47,8 @@ const requiredMarkers = [
 
 const jewelLinkApprovalBoundaryPatterns = [
   /JewelLink repo movement for PR `#246` was explicitly approved/i,
-  /Jackson may review\/merge that PR/i,
-  /Production deployment, migration execution,\s+traffic promotion, and any live rollout remain separate release-controlled\s+actions/i,
+  /Jackson may review\/merge that(?: profile-audit)? PR/i,
+  /Production deployment,\s+migration execution,\s+traffic promotion, and any live rollout remain separate\s+release-controlled\s+actions/i,
   /were not performed as part of the PR handoff/i,
 ];
 

@@ -26,25 +26,25 @@ artifact. Candidate notes without a passing roster report are not sufficient.
 | Product | State | Evidence |
 | --- | --- | --- |
 | JewelHire | Source-ready, validated through `b8ca72b2f939b1574e69c5760f6cdb41a3d638ae` | GitHub validation run `29848880452` passed; deploy skipped as expected |
-| JewelLink main | Current base `e85282039dcd6e3169e42f1348e9c3fbeedc1333` | Existing operations evidence observes current ready revision `jewellink-dev-01156-vbn`; release/profile source closure is pending PR `#246` |
-| JewelLink PR `#246` | Open for Jackson review | Branch `codex/jewellink-profile-mfa-audit-refresh-20260720`, head `f4e9dc03ef8a2c38f47ed94dd9d335cc67827578`; open, mergeable, reviewer `JacksonSLC`; release/profile tests, SSO audit, secret scan, and whitespace check passed locally |
+| JewelLink main | Current base `e85282039dcd6e3169e42f1348e9c3fbeedc1333` | Existing operations evidence observes current ready revision `jewellink-dev-01156-vbn`; profile MFA audit closure is pending PR `#246`, while release-path safety remains a separate follow-up |
+| JewelLink PR `#246` | Open for Jackson review | Branch `codex/jewellink-profile-mfa-audit-refresh-20260720`, head `fdd8d1aa8fcf16bc3bea90d871a22089d8d535ad`; open, mergeable, reviewer `JacksonSLC`; reduced to profile MFA audit/test files after Jackson requested removing `cloudbuild.jewellink.yaml`; profile MFA tests, SSO audit, secret scan, and whitespace check passed locally |
 
 ## Approval boundary
 
 JewelHire may be changed and pushed by the current operator.
 
 JewelLink repo movement for PR `#246` was explicitly approved by the user, and
-Jackson may review/merge that PR. Production deployment, migration execution,
-traffic promotion, and any live rollout remain separate release-controlled
-actions and were not performed as part of the PR handoff.
+Jackson may review/merge that profile-audit PR. Production deployment,
+migration execution, traffic promotion, and any live rollout remain separate
+release-controlled actions and were not performed as part of the PR handoff.
 
 ## Required evidence before GO
 
 | Gate | Current status | Evidence required for GO |
 | --- | --- | --- |
 | JewelHire CI | PASS | GitHub validation run `29848880452` passed for `b8ca72b`; deploy skipped as expected. The run kept release-control, build, lint, and QA scripts green in hosted validation |
-| JewelLink CI/build | PARTIAL / NO-GO | PR `#246` is open and mergeable for Jackson, and local validation on `f4e9dc03` passed release/profile tests 11/11, committed-secret scan over 2,506 files, JewelHire SSO audit 90/90 controls, and `git diff --check`. Treat JewelLink main as open until PR merge and post-merge CI/build evidence are recorded |
-| JewelLink release-path safety | PARTIAL / NO-GO | Config-only Cloud Run update was explicitly approved and completed; PR `#246` carries the candidate-only Cloud Build path. No production deploy, migration, traffic movement, or data mutation occurred during the PR handoff, and this gate remains NO-GO until the merged commit and candidate evidence are recorded |
+| JewelLink CI/build | PARTIAL / NO-GO | PR `#246` is open and mergeable for Jackson, and local validation on `fdd8d1aa` passed profile MFA tests 3/3, committed-secret scan over 2,506 files, JewelHire SSO audit 90/90 controls, and `git diff --check`. Treat JewelLink main as open until PR merge and post-merge evidence are recorded |
+| JewelLink release-path safety | PARTIAL / NO-GO | Config-only Cloud Run update was explicitly approved and completed; the candidate-only Cloud Build path is no longer in PR `#246` after Jackson requested removing `cloudbuild.jewellink.yaml`. No production deploy, migration, traffic movement, or data mutation occurred during the PR handoff, and this gate remains NO-GO until a separate release-path change and candidate evidence are recorded |
 | Production integration secrets | PASS | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` reports `valuesPrinted: false`; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
 | Integration smoke preflight | PASS | `docs/qa-runs/integration-smoke-preflight-2026-07-21T09-00-14-990Z/integration-smoke-preflight-report.md` passed read-only: pilot linkage and location mapping match, no unresolved hire/JewelCert sync residue exists, hire email mode is explicit, and unauthenticated mutation endpoints reject with `401` |
 | JewelHire production config | PASS | `docs/qa-runs/config-exposure-2026-07-21T09-30-42-781Z/`, `docs/qa-runs/postmark-safety-2026-07-21T09-30-42-775Z/`, `docs/qa-runs/auth-readiness-2026-07-21T07-56-07-383Z/`, and `docs/qa-runs/role-readiness-2026-07-21T07-56-18-103Z/` pass; the config and Postmark audits explicitly record the approved live-email QA acknowledgement without sending email |
