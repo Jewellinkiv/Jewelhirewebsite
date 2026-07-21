@@ -53,6 +53,11 @@ and paused-company denial personas are missing. The same run generated
 `docs/qa-runs/pilot-roster-2026-07-21T01-12-56-855Z/pilot-roster-provisioning-packet.md`
 with the two approval-required JewelLink production account actions.
 
+Credential presence is not sufficient for GO evidence. Run
+`npm run qa:smoke-credential-auth` to verify the controlled JewelHire smoke
+credentials can sign in with the expected live roles before using them for
+pilot smoke artifacts.
+
 ## Secret Handling
 
 The audit reads the JewelLink database URL and JewelHire smoke/admin secrets
