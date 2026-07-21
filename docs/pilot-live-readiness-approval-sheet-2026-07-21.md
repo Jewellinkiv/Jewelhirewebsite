@@ -112,7 +112,7 @@ Fillable smoke evidence template:
 `docs/production-pilot-smoke-evidence.template.json`
 
 Latest final live-readiness request:
-`docs/qa-runs/pilot-live-readiness-2026-07-21T06-29-23-723Z/pilot-live-readiness-request.md`
+`docs/qa-runs/pilot-live-readiness-2026-07-21T06-38-50-904Z/pilot-live-readiness-request.md`
 
 Final live-readiness manifest template:
 `docs/production-pilot-live-readiness.template.json`
@@ -146,7 +146,7 @@ Guarded setup helper:
 `docs/production-pilot-controlled-application-submission.md`
 
 Latest guarded dry-run request:
-`docs/qa-runs/pilot-application-submission-2026-07-21T06-10-00-000Z/pilot-application-submission-request.md`
+`docs/qa-runs/pilot-application-submission-2026-07-21T06-38-11-612Z/pilot-application-submission-request.md`
 
 Use `npm run qa:pilot-application-submission` first in dry-run mode. Execute
 mode must use a local ignored approval file that records the approver, approval

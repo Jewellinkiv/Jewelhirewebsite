@@ -1,0 +1,16 @@
+{
+  "createdAt": "2026-07-21T06:38:11.613Z",
+  "valuesPrinted": false,
+  "status": "needed",
+  "verificationCommand": "npm run qa:pilot-application-submission -- --execute --target-report=<pilot-smoke-targets-report.json> --approval-file=<local-ignored-approval.json>",
+  "missingEvidence": [
+    {
+      "check": "execution mode is explicitly requested",
+      "needed": "--execute for production write; dry-run is safe by default"
+    },
+    {
+      "check": "local ignored execution approval file",
+      "needed": "Before rerunning with --execute, record approver, approval channel, approvedAt, controlledPublicApplicationSubmissionApproved, liveEmailSendsAcknowledged, controlledApplicantMailboxApproved, and a stable submissionId."
+    }
+  ]
+}
