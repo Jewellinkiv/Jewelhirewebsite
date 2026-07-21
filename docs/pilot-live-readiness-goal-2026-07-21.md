@@ -13,8 +13,8 @@ Bring the controlled JewelHire/JewelLink production pilot to GO readiness by
 closing the remaining audited gates:
 
 - Operations rollback owner, observation window, and threshold evidence.
-- JewelLink controlled SSO personas for Consultant denial and paused-company
-  denial.
+- Consultant denial source-policy evidence and paused-company current-pilot
+  deferral evidence.
 - Controlled pilot-store application and private resume target for the
   applicant smoke credential.
 - Authenticated SSO, hire handoff, JewelCert, and public fail-closed smoke
@@ -46,7 +46,7 @@ before execution or before the relevant gate can pass:
 | Named database recovery owner | `qa:operations-readiness` PASS |
 | Approved UTC observation window | `qa:operations-readiness` PASS and live smoke start |
 | Approved rollback thresholds | `qa:operations-readiness` PASS and live smoke start |
-| Controlled production persona creation | `qa:pilot-roster` PASS and SSO smoke |
+| Consultant source-policy acceptance and paused-company deferral | `qa:pilot-roster` PASS and scoped SSO smoke |
 | Controlled public application submission | Applicant/resume smoke target creation |
 | Controlled hire confirm/revoke smoke | Hire handoff smoke |
 | Controlled JewelCert invite/completion/result smoke | JewelCert smoke |
@@ -62,9 +62,10 @@ before execution or before the relevant gate can pass:
    - Run `qa:operations-readiness`.
    - Commit only the PASS evidence and dossier pointer updates.
 
-2. Close controlled JewelLink persona readiness.
-   - Create or approve the `consultant-denial` and `paused-company-denial`
-     personas using controlled test mailboxes only.
+2. Close scoped denial readiness.
+   - Use `docs/production-pilot-denial-scope-decision-2026-07-21.json` for
+     accepted Consultant source-policy evidence and the paused-company
+     current-pilot deferral.
    - Run `qa:pilot-roster`.
    - Commit only non-secret PASS evidence and dossier pointer updates.
 

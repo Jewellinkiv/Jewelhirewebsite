@@ -84,10 +84,8 @@ const requiredPersonaFields = [
   ["personas.directorAlias", "Director SSO persona alias"],
   ["personas.managerAlias", "Manager SSO persona alias"],
   ["personas.studentAlias", "Student SSO persona alias"],
-  ["personas.consultantDenialAlias", "Consultant-denial SSO persona alias"],
   ["personas.platformAdminAlias", "Platform-admin SSO persona alias"],
   ["personas.allowlistedNonAdminDenialAlias", "Allowlisted non-admin denial persona alias or approved evidence strategy alias"],
-  ["personas.pausedCompanyDenialAlias", "Paused-company denial persona alias"],
 ];
 
 function get(object, dottedPath) {
@@ -275,6 +273,80 @@ function checkAllowlistedNonAdminDenialStrategy(plan) {
   );
 }
 
+function consultantDenialStrategy(plan) {
+  const strategy = String(get(plan, "personas.consultantDenialEvidence.strategy") || "").trim();
+  const alias = String(get(plan, "personas.consultantDenialAlias") || "").trim();
+  if (strategy) return strategy;
+  if (alias) return "production-persona";
+  return "";
+}
+
+function checkConsultantDenialStrategy(plan) {
+  const strategy = consultantDenialStrategy(plan);
+  const validStrategies = ["production-persona", "source-policy-evidence"];
+  record("Consultant denial strategy is recognized", validStrategies.includes(strategy), {
+    path: "personas.consultantDenialEvidence.strategy",
+    required: "production-persona or source-policy-evidence",
+  });
+  if (strategy === "production-persona") {
+    checkField(plan, "personas.consultantDenialAlias", "Consultant-denial SSO persona alias");
+    return;
+  }
+  if (strategy !== "source-policy-evidence") return;
+
+  checkPassArtifact(
+    plan,
+    "personas.consultantDenialEvidence.sourcePolicyReport",
+    "Consultant denial source-policy report",
+    "Existing PASS docs/qa-runs source-policy artifact proving CONSULTANT cannot access JewelHire",
+  );
+  checkField(plan, "personas.consultantDenialEvidence.acceptedBy", "Consultant source-policy acceptance approver");
+  checkField(plan, "personas.consultantDenialEvidence.acceptanceChannel", "Consultant source-policy acceptance channel");
+  record(
+    "Consultant source-policy acceptance timestamp is ISO-like UTC",
+    isoLike(get(plan, "personas.consultantDenialEvidence.acceptedAt")),
+    {
+      path: "personas.consultantDenialEvidence.acceptedAt",
+      required: "ISO-like UTC timestamp",
+    },
+  );
+}
+
+function pausedCompanyDenialStrategy(plan) {
+  const strategy = String(get(plan, "personas.pausedCompanyDenialEvidence.strategy") || "").trim();
+  const alias = String(get(plan, "personas.pausedCompanyDenialAlias") || "").trim();
+  if (strategy) return strategy;
+  if (alias) return "production-persona";
+  return "";
+}
+
+function checkPausedCompanyDenialStrategy(plan) {
+  const strategy = pausedCompanyDenialStrategy(plan);
+  const validStrategies = ["production-persona", "deferred"];
+  record("Paused-company denial strategy is recognized", validStrategies.includes(strategy), {
+    path: "personas.pausedCompanyDenialEvidence.strategy",
+    required: "production-persona or deferred",
+  });
+  if (strategy === "production-persona") {
+    checkField(plan, "personas.pausedCompanyDenialAlias", "Paused-company denial persona alias");
+    return;
+  }
+  if (strategy !== "deferred") return;
+
+  checkField(plan, "personas.pausedCompanyDenialEvidence.deferredBy", "Paused-company deferral approver");
+  checkField(plan, "personas.pausedCompanyDenialEvidence.deferralChannel", "Paused-company deferral channel");
+  record(
+    "Paused-company deferral timestamp is ISO-like UTC",
+    isoLike(get(plan, "personas.pausedCompanyDenialEvidence.deferredAt")),
+    {
+      path: "personas.pausedCompanyDenialEvidence.deferredAt",
+      required: "ISO-like UTC timestamp",
+    },
+  );
+  checkField(plan, "personas.pausedCompanyDenialEvidence.reason", "Paused-company deferral reason");
+  checkField(plan, "personas.pausedCompanyDenialEvidence.followUp", "Paused-company deferral follow-up");
+}
+
 function stopConditionText(plan) {
   const conditions = get(plan, "stopConditions");
   return Array.isArray(conditions) ? conditions.join("\n").toLowerCase() : "";
@@ -306,6 +378,13 @@ function planSkeleton() {
       managerAlias: "",
       studentAlias: "",
       consultantDenialAlias: "",
+      consultantDenialEvidence: {
+        strategy: "",
+        sourcePolicyReport: "",
+        acceptedBy: "",
+        acceptanceChannel: "",
+        acceptedAt: "",
+      },
       platformAdminAlias: "",
       allowlistedNonAdminDenialAlias: "",
       allowlistedNonAdminDenialEvidence: {
@@ -317,6 +396,14 @@ function planSkeleton() {
         acceptedAt: "",
       },
       pausedCompanyDenialAlias: "",
+      pausedCompanyDenialEvidence: {
+        strategy: "",
+        deferredBy: "",
+        deferralChannel: "",
+        deferredAt: "",
+        reason: "",
+        followUp: "",
+      },
     },
     scopes: {
       authenticatedSso: {
@@ -379,7 +466,9 @@ function evaluatePlan(plan) {
   for (const [dottedPath, label] of requiredApprovalBooleans) checkBoolean(plan, dottedPath, label);
   for (const prerequisite of prerequisiteReports) checkPrerequisite(plan, prerequisite);
   for (const [dottedPath, label] of requiredPersonaFields) checkField(plan, dottedPath, label);
+  checkConsultantDenialStrategy(plan);
   checkAllowlistedNonAdminDenialStrategy(plan);
+  checkPausedCompanyDenialStrategy(plan);
 
   checkBoolean(plan, "scopes.authenticatedSso.enabled", "Authenticated SSO smoke is in scope");
   checkField(plan, "scopes.authenticatedSso.operatorAlias", "Authenticated SSO operator alias");

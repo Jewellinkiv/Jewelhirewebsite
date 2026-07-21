@@ -63,6 +63,11 @@ record:
 - an ISO-like UTC `observedAt` timestamp
 - an existing non-secret artifact path under `docs/qa-runs/`
 
+For the current pilot scope, `scopeDecisions.consultantDenial` may satisfy the
+Consultant row with accepted source-policy evidence, and
+`scopeDecisions.pausedCompanyDenial` may record the paused-company deferral.
+Both still require concrete non-secret acceptance or deferral metadata.
+
 The report is written under `docs/qa-runs/pilot-smoke-evidence-*` unless
 `--artifacts=<dir>` is supplied. When evidence is missing or invalid, the audit
 also writes `pilot-smoke-evidence-request.md` and
@@ -70,9 +75,12 @@ also writes `pilot-smoke-evidence-request.md` and
 
 ## What It Proves
 
-- Authenticated SSO evidence exists for Director, Manager, Student, Consultant
-  denial, platform-admin, allowlisted non-admin denial, and paused-company
-  denial.
+- Authenticated SSO evidence exists for Director, Manager, Student,
+  platform-admin, and allowlisted non-admin denial.
+- Consultant denial is proven by either a live controlled denial artifact or
+  accepted source-policy evidence.
+- Paused-company denial is proven by either a live controlled denial artifact
+  or an explicit pilot-scope deferral with follow-up metadata.
 - Hire handoff evidence exists for preview, confirm, repeat confirm, and
   revoked/cancelled access behavior.
 - JewelCert evidence exists for invite, completion, scoped JewelLink sync, and
@@ -85,10 +93,11 @@ also writes `pilot-smoke-evidence-request.md` and
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/` generated the
-first request packet for this gate. It records 17 required smoke evidence rows,
-0 passing rows, and writes
-`docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md`.
+`docs/qa-runs/pilot-smoke-evidence-2026-07-21T15-26-10-865Z/` generated the
+latest request packet for this gate after the denial-scope update. It records
+17 required smoke evidence rows, where Consultant and paused-company can be
+satisfied by scope-decision metadata, and writes
+`docs/qa-runs/pilot-smoke-evidence-2026-07-21T15-26-10-865Z/pilot-smoke-evidence-request.md`.
 
 The gate remains a live-pilot NO-GO item until all 17 rows pass with concrete
 artifacts.

@@ -91,5 +91,22 @@
       "observedAt": "",
       "artifact": ""
     }
+  },
+  "scopeDecisions": {
+    "consultantDenial": {
+      "strategy": "",
+      "sourcePolicyReport": "",
+      "acceptedBy": "",
+      "acceptanceChannel": "",
+      "acceptedAt": ""
+    },
+    "pausedCompanyDenial": {
+      "strategy": "",
+      "deferredBy": "",
+      "deferralChannel": "",
+      "deferredAt": "",
+      "reason": "",
+      "followUp": ""
+    }
   }
 }

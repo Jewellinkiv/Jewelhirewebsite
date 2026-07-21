@@ -37,8 +37,8 @@ function completeReply(overrides = "") {
     "- I approve the rollback window and rollback thresholds above for the controlled pilot.",
     "",
     "Controlled setup:",
-    "- I approve creating or approving the controlled JewelLink CONSULTANT denial persona for the pilot SSO denial smoke.",
-    "- I approve creating or approving the controlled active paused-company JewelLink user for stale-access denial smoke.",
+    "- I accept source-policy evidence that CONSULTANT roles cannot access JewelHire for the pilot SSO denial smoke.",
+    "- I defer paused-company stale-access denial for the current pilot and will complete it before broad readiness.",
     "- I approve executing exactly one controlled JewelHire public application submission through the guarded helper, using a local ignored approval file, with live application notification emails acknowledged and controlled applicant mailbox access approved.",
     "- Stable controlled application submission ID: pilot_20260721_run1",
     "",
@@ -46,9 +46,17 @@ function completeReply(overrides = "") {
     "- Director SSO persona alias: director-pilot",
     "- Manager SSO persona alias: manager-pilot",
     "- Student SSO persona alias: student-pilot",
-    "- Consultant-denial SSO persona alias: consultant-denial-pilot",
+    "- Consultant-denial strategy: source-policy-evidence",
+    "- Consultant source-policy accepted by: Pilot Operator",
+    "- Consultant source-policy acceptance channel: OPS-READY-321",
+    "- Consultant source-policy accepted at: 2026-07-21T10:00:00Z",
     "- Platform-admin SSO persona alias: platform-admin-pilot",
-    "- Paused-company denial SSO persona alias: paused-company-pilot",
+    "- Paused-company denial strategy: deferred",
+    "- Paused-company denial deferred by: Pilot Operator",
+    "- Paused-company denial deferral channel: OPS-READY-321",
+    "- Paused-company denial deferred at: 2026-07-21T10:00:00Z",
+    "- Paused-company denial deferral reason: Skipped for current pilot window.",
+    "- Paused-company denial follow-up: Run paused-company denial before broad readiness.",
     "- Authenticated SSO operator alias: sso-operator-pilot",
     "- Allowlisted non-admin denial strategy: source-test-plus-clean-allowlist",
     "- Allowlisted non-admin denial alias: source-test-plus-clean-allowlist",
@@ -69,7 +77,7 @@ function completeReply(overrides = "") {
     "- I approve controlled hire preview, confirm, repeat-confirm, and revoke/cancel access smoke for the pilot application.",
     "- I approve controlled JewelCert invite, completion, result sync, and retry/failure-mode smoke for the pilot mailbox and company.",
     "- I approve authenticated public/fail-closed probes, including team-invite-disabled and resume privacy checks, using local ignored session artifacts only.",
-    "- I approve authenticated SSO using only the listed persona matrix for Director, Manager, Student, Consultant denial, platform admin, allowlisted non-admin denial, and paused-company denial, while avoiding non-pilot data.",
+    "- I approve authenticated SSO using only the listed persona matrix for Director, Manager, Student, Consultant source-policy denial, platform admin, allowlisted non-admin denial, and deferred paused-company denial, while avoiding non-pilot data.",
     "- I accept the source-test plus clean-allowlist strategy for allowlisted non-admin denial, or I will provide a controlled production non-admin denial persona instead.",
     "",
     "JewelLink boundary:",
@@ -95,7 +103,11 @@ function fixtureFiles(tmp) {
   writeJson(smokePlanTemplate, {
     approvals: {},
     prerequisites: {},
-    personas: { allowlistedNonAdminDenialEvidence: {} },
+    personas: {
+      consultantDenialEvidence: {},
+      allowlistedNonAdminDenialEvidence: {},
+      pausedCompanyDenialEvidence: {},
+    },
     scopes: {
       authenticatedSso: { enabled: true },
       hireHandoff: { enabled: true, targetCompanyId: "comp_1" },
@@ -155,6 +167,8 @@ test("operator reply intake validates a complete reply and writes ignored local 
   assert.equal(smokePlan.approvals.hireConfirmationApproved, true);
   assert.equal(smokePlan.scopes.authenticatedSso.approvedPersonaMatrix, true);
   assert.equal(smokePlan.scopes.publicFailClosed.storeId, "store_pilot_001");
+  assert.equal(smokePlan.personas.consultantDenialEvidence.strategy, "source-policy-evidence");
+  assert.equal(smokePlan.personas.pausedCompanyDenialEvidence.strategy, "deferred");
 });
 
 test("operator reply intake fails closed without writing drafts when the reply contains unsafe PII", () => {

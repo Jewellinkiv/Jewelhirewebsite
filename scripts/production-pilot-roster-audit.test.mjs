@@ -63,12 +63,18 @@ function fixture(overrides = {}) {
   };
 }
 
-function runWithFixture(snapshot) {
+function runWithFixture(snapshot, options = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pilot-roster-audit-"));
   const fixtures = path.join(tmp, "fixtures");
   const artifacts = path.join(tmp, "artifacts");
   fs.mkdirSync(fixtures);
   fs.writeFileSync(path.join(fixtures, "pilot-roster-source.json"), `${JSON.stringify(snapshot, null, 2)}\n`);
+  let denialScopeArg = "--denial-scope-file=none";
+  if (options.denialScope) {
+    const scopeFile = path.join(tmp, "denial-scope.json");
+    fs.writeFileSync(scopeFile, `${JSON.stringify(options.denialScope, null, 2)}\n`);
+    denialScopeArg = `--denial-scope-file=${scopeFile}`;
+  }
   const result = spawnSync(
     process.execPath,
     [
@@ -77,6 +83,7 @@ function runWithFixture(snapshot) {
       `--artifacts=${artifacts}`,
       "--pilot-location-ids=loc_1,loc_2",
       "--preferred-test-domains=example.test",
+      denialScopeArg,
     ],
     { cwd: root, encoding: "utf8" },
   );
@@ -128,11 +135,11 @@ test("missing controlled denial personas fail with actionable gaps and no secret
   const { result, markdown, json, provisioningMarkdown, provisioningJson } = runWithFixture(missing);
 
   assert.equal(result.status, 1, result.stderr || result.stdout);
-  assert.match(markdown, /FAIL Consultant denial candidate exists/);
-  assert.match(markdown, /Create or approve a controlled JewelLink CONSULTANT test account/);
-  assert.match(markdown, /Create or approve a controlled active user in a paused JewelLink company/);
+  assert.match(markdown, /FAIL Consultant denial candidate exists or source-policy evidence is accepted/);
+  assert.match(markdown, /Record accepted Consultant source-policy evidence/);
+  assert.match(markdown, /Create or approve a controlled active user in a paused JewelLink company, or record an explicit pilot-scope deferral/);
   assert.match(markdown, /Actions required: 2/);
-  assert.match(provisioningMarkdown, /Create controlled JewelLink CONSULTANT denial persona/);
+  assert.match(provisioningMarkdown, /Record Consultant denial evidence or approve a controlled JewelLink CONSULTANT denial persona/);
   assert.match(provisioningMarkdown, /Create controlled active user in a paused JewelLink company/);
   assert.match(provisioningJson, /"id": "consultant-denial"/);
   assert.match(provisioningJson, /"id": "paused-company-denial"/);
@@ -141,4 +148,52 @@ test("missing controlled denial personas fail with actionable gaps and no secret
   assert.doesNotMatch(`${markdown}\n${json}`, /long-password-value/);
   assert.doesNotMatch(`${provisioningMarkdown}\n${provisioningJson}`, /applicant@example\.test/);
   assert.doesNotMatch(`${provisioningMarkdown}\n${provisioningJson}`, /long-password-value/);
+});
+
+test("accepted consultant source policy and paused-company deferral close denial persona actions", () => {
+  const missing = fixture({
+    jewelLink: {
+      ...fixture().jewelLink,
+      roleCounts: [
+        { role: "DIRECTOR", count: 1 },
+        { role: "MANAGER", count: 1 },
+        { role: "STUDENT", count: 1 },
+      ],
+      roleCandidates: fixture().jewelLink.roleCandidates.filter((candidate) => candidate.role !== "CONSULTANT"),
+      pausedCompanyUsers: [],
+    },
+  });
+  const tmpReport = "docs/qa-runs/allowlisted-nonadmin-denial-source-fixture/allowlisted-nonadmin-denial-source-report.md";
+  const fullReport = path.join(root, tmpReport);
+  fs.mkdirSync(path.dirname(fullReport), { recursive: true });
+  fs.writeFileSync(fullReport, "# Fixture\n\nResult: PASS\n");
+
+  try {
+    const { result, markdown, provisioningMarkdown, provisioningJson } = runWithFixture(missing, {
+      denialScope: {
+        consultantDenial: {
+          strategy: "source-policy-evidence",
+          status: "accepted",
+          reason: "Consultants cannot access JewelHire.",
+          sourceEvidenceReports: [tmpReport],
+        },
+        pausedCompanyDenial: {
+          strategy: "deferred",
+          status: "deferred",
+          reason: "Skipped for current pilot.",
+          followUp: "Run before broad readiness.",
+        },
+      },
+    });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(markdown, /Result: PASS/);
+    assert.match(markdown, /Consultant denial: source-policy evidence accepted/);
+    assert.match(markdown, /Paused-company denial: deferred for current pilot scope/);
+    assert.match(markdown, /Actions required: 0/);
+    assert.match(provisioningMarkdown, /No roster production account actions are required/);
+    assert.doesNotMatch(provisioningJson, /consultant-denial|paused-company-denial/);
+  } finally {
+    fs.rmSync(path.dirname(fullReport), { recursive: true, force: true });
+  }
 });

@@ -38,8 +38,13 @@ approval file described in
   probing, and rollback window approval are explicitly recorded.
 - Operations readiness, pilot roster, integration smoke preflight, and smoke
   credential auth each link to an existing PASS artifact under `docs/qa-runs/`.
-- Director, Manager, Student, Consultant-denial, platform-admin, allowlisted
-  non-admin denial, and paused-company denial personas are selected by alias.
+- Director, Manager, Student, and platform-admin personas are selected by
+  alias.
+- Consultant denial is either selected by a controlled production persona alias
+  or accepted through source-policy evidence that Consultants cannot access
+  JewelHire.
+- Paused-company denial is either selected by a controlled production persona
+  alias or explicitly deferred for the current pilot with follow-up metadata.
 - The allowlisted non-admin denial row either uses a controlled production
   denial persona or records an explicit source-test plus clean-allowlist
   acceptance strategy with concrete PASS artifacts and acceptance metadata.
@@ -52,12 +57,12 @@ approval file described in
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T08-13-07-305Z/` records the
-operator-approved live-email and JewelLink pilot-flag movement scope in an
-ignored local smoke plan while leaving unapproved production mutations closed.
-It records 59 checks, 44 passing checks, 15 missing or invalid checks, and
-writes
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T08-13-07-305Z/pilot-smoke-plan-request.md`.
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T15-26-10-858Z/` is the latest
+request packet after the Consultant source-policy and paused-company deferral
+scope update. It writes
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T15-26-10-858Z/pilot-smoke-plan-request.md`
+with the new `personas.consultantDenialEvidence.*` and
+`personas.pausedCompanyDenialEvidence.*` fields.
 
 The current source-test artifact
 `docs/qa-runs/allowlisted-nonadmin-denial-source-2026-07-21T06-02-00-000Z/allowlisted-nonadmin-denial-source-report.md`
@@ -70,7 +75,7 @@ The gate remains a live-pilot NO-GO item until this audit passes, then the
 resulting report can be referenced by the pilot smoke evidence packet.
 
 The latest target-finder run
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T08-11-31-698Z/` confirms the
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T09-43-22-860Z/` confirms the
 controlled applicant credential, pilot store, published public store page, and
 open public job are available, but no controlled pilot application exists yet.
 Create or approve that controlled application with a private resume attachment
@@ -96,7 +101,8 @@ acceptance values.
 
 ## Local Verification
 
-Fixture coverage runs without production access:
+Fixture coverage runs without production access and includes the
+source-policy/deferred denial path:
 
 ```bash
 node --test scripts/production-pilot-controlled-application-submission.test.mjs

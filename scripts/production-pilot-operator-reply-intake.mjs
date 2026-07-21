@@ -68,9 +68,17 @@ const fields = [
   ["directorAlias", "Director SSO persona alias"],
   ["managerAlias", "Manager SSO persona alias"],
   ["studentAlias", "Student SSO persona alias"],
-  ["consultantDenialAlias", "Consultant-denial SSO persona alias"],
+  ["consultantDenialStrategy", "Consultant-denial strategy"],
+  ["consultantDenialAcceptedBy", "Consultant source-policy accepted by"],
+  ["consultantDenialAcceptanceChannel", "Consultant source-policy acceptance channel"],
+  ["consultantDenialAcceptedAt", "Consultant source-policy accepted at"],
   ["platformAdminAlias", "Platform-admin SSO persona alias"],
-  ["pausedCompanyDenialAlias", "Paused-company denial SSO persona alias"],
+  ["pausedCompanyDenialStrategy", "Paused-company denial strategy"],
+  ["pausedCompanyDeferredBy", "Paused-company denial deferred by"],
+  ["pausedCompanyDeferralChannel", "Paused-company denial deferral channel"],
+  ["pausedCompanyDeferredAt", "Paused-company denial deferred at"],
+  ["pausedCompanyDeferralReason", "Paused-company denial deferral reason"],
+  ["pausedCompanyFollowUp", "Paused-company denial follow-up"],
   ["authenticatedSsoOperatorAlias", "Authenticated SSO operator alias"],
   ["allowlistedNonAdminDenialStrategy", "Allowlisted non-admin denial strategy"],
   ["allowlistedNonAdminDenialAlias", "Allowlisted non-admin denial alias"],
@@ -89,12 +97,12 @@ const fields = [
 
 const requiredClauses = [
   {
-    name: "Controlled JewelLink CONSULTANT denial persona is approved",
-    pattern: /I approve creating or approving the controlled JewelLink CONSULTANT denial persona/i,
+    name: "Consultant source-policy evidence is accepted",
+    pattern: /I accept source-policy evidence that CONSULTANT roles cannot access JewelHire/i,
   },
   {
-    name: "Controlled paused-company JewelLink persona is approved",
-    pattern: /I approve creating or approving the controlled active paused-company JewelLink user/i,
+    name: "Paused-company denial is explicitly deferred for current pilot",
+    pattern: /I defer paused-company stale-access denial for the current pilot/i,
   },
   {
     name: "Controlled public application submission and live email acknowledgement are approved",
@@ -221,6 +229,14 @@ function recognizedAllowlistStrategy(value) {
   return ["production-persona", "source-test-plus-clean-allowlist"].includes(String(value || "").trim());
 }
 
+function recognizedConsultantDenialStrategy(value) {
+  return ["production-persona", "source-policy-evidence"].includes(String(value || "").trim());
+}
+
+function recognizedPausedCompanyStrategy(value) {
+  return ["production-persona", "deferred"].includes(String(value || "").trim());
+}
+
 function artifactPasses(filePath) {
   if (!filePath || !fs.existsSync(filePath)) return false;
   const text = fs.readFileSync(filePath, "utf8");
@@ -319,9 +335,22 @@ function buildDrafts(values, templates) {
   setPath(smokePlan, "personas.directorAlias", values.directorAlias);
   setPath(smokePlan, "personas.managerAlias", values.managerAlias);
   setPath(smokePlan, "personas.studentAlias", values.studentAlias);
-  setPath(smokePlan, "personas.consultantDenialAlias", values.consultantDenialAlias);
+  setPath(smokePlan, "personas.consultantDenialEvidence.strategy", values.consultantDenialStrategy);
+  setPath(
+    smokePlan,
+    "personas.consultantDenialEvidence.sourcePolicyReport",
+    latestPassArtifact("allowlisted-nonadmin-denial-source-", "allowlisted-nonadmin-denial-source-report.md"),
+  );
+  setPath(smokePlan, "personas.consultantDenialEvidence.acceptedBy", values.consultantDenialAcceptedBy);
+  setPath(smokePlan, "personas.consultantDenialEvidence.acceptanceChannel", values.consultantDenialAcceptanceChannel);
+  setPath(smokePlan, "personas.consultantDenialEvidence.acceptedAt", values.consultantDenialAcceptedAt);
   setPath(smokePlan, "personas.platformAdminAlias", values.platformAdminAlias);
-  setPath(smokePlan, "personas.pausedCompanyDenialAlias", values.pausedCompanyDenialAlias);
+  setPath(smokePlan, "personas.pausedCompanyDenialEvidence.strategy", values.pausedCompanyDenialStrategy);
+  setPath(smokePlan, "personas.pausedCompanyDenialEvidence.deferredBy", values.pausedCompanyDeferredBy);
+  setPath(smokePlan, "personas.pausedCompanyDenialEvidence.deferralChannel", values.pausedCompanyDeferralChannel);
+  setPath(smokePlan, "personas.pausedCompanyDenialEvidence.deferredAt", values.pausedCompanyDeferredAt);
+  setPath(smokePlan, "personas.pausedCompanyDenialEvidence.reason", values.pausedCompanyDeferralReason);
+  setPath(smokePlan, "personas.pausedCompanyDenialEvidence.followUp", values.pausedCompanyFollowUp);
   setPath(smokePlan, "personas.allowlistedNonAdminDenialAlias", values.allowlistedNonAdminDenialAlias);
   setPath(
     smokePlan,
@@ -506,6 +535,14 @@ function main() {
     path: "allowlistedNonAdminAcceptedAt",
     required: "ISO-like UTC timestamp",
   });
+  record("Consultant source-policy acceptance timestamp is ISO-like UTC", isoLike(values.consultantDenialAcceptedAt), {
+    path: "consultantDenialAcceptedAt",
+    required: "ISO-like UTC timestamp",
+  });
+  record("Paused-company denial deferral timestamp is ISO-like UTC", isoLike(values.pausedCompanyDeferredAt), {
+    path: "pausedCompanyDeferredAt",
+    required: "ISO-like UTC timestamp",
+  });
   record("Stable controlled application submission ID has idempotency-safe format", validSubmissionId(values.submissionId), {
     path: "submissionId",
     required: "16-128 letters, numbers, underscores, or hyphens",
@@ -513,6 +550,14 @@ function main() {
   record("Allowlisted non-admin denial strategy is recognized", recognizedAllowlistStrategy(values.allowlistedNonAdminDenialStrategy), {
     path: "allowlistedNonAdminDenialStrategy",
     required: "production-persona or source-test-plus-clean-allowlist",
+  });
+  record("Consultant denial strategy is recognized", recognizedConsultantDenialStrategy(values.consultantDenialStrategy), {
+    path: "consultantDenialStrategy",
+    required: "production-persona or source-policy-evidence",
+  });
+  record("Paused-company denial strategy is recognized", recognizedPausedCompanyStrategy(values.pausedCompanyDenialStrategy), {
+    path: "pausedCompanyDenialStrategy",
+    required: "production-persona or deferred",
   });
   record(
     "Public/fail-closed store ID matches expected store ID",

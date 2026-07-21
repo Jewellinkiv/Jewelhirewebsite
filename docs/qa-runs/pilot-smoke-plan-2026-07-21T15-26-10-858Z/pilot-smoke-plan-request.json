@@ -1,0 +1,363 @@
+{
+  "createdAt": "2026-07-21T15:26:10.861Z",
+  "valuesPrinted": false,
+  "status": "needed",
+  "instructions": "Fill this non-secret pilot smoke plan only after approvals and prerequisite PASS artifacts exist, then rerun qa:pilot-smoke-plan with --smoke-plan-file=<path>.",
+  "verificationCommand": "npm run qa:pilot-smoke-plan -- --smoke-plan-file=<path>",
+  "missingFields": [
+    {
+      "check": "Named pilot smoke approver is recorded",
+      "path": "approvals.approver",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Approval channel or ticket reference is recorded",
+      "path": "approvals.approvalChannel",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Approved production smoke scope statement is recorded",
+      "path": "approvals.scopeStatement",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Approval timestamp is ISO-like UTC",
+      "path": "approvals.approvedAt",
+      "required": "ISO-like UTC timestamp"
+    },
+    {
+      "check": "Live email sends are explicitly acknowledged for pilot QA",
+      "path": "approvals.liveEmailSendsAcknowledged",
+      "required": "true"
+    },
+    {
+      "check": "JewelLink pilot rollout flag movement is explicitly approved",
+      "path": "approvals.jewelLinkPilotFlagMovementApproved",
+      "required": "true"
+    },
+    {
+      "check": "Controlled production user/persona creation is explicitly approved",
+      "path": "approvals.productionUserCreationApproved",
+      "required": "true"
+    },
+    {
+      "check": "Controlled hire confirmation/revocation smoke is explicitly approved",
+      "path": "approvals.hireConfirmationApproved",
+      "required": "true"
+    },
+    {
+      "check": "Controlled JewelCert invite/completion/result smoke is explicitly approved",
+      "path": "approvals.jewelCertProductionMutationApproved",
+      "required": "true"
+    },
+    {
+      "check": "Authenticated public/fail-closed probes are explicitly approved",
+      "path": "approvals.publicFailClosedProbeApproved",
+      "required": "true"
+    },
+    {
+      "check": "Rollback owner/window/threshold evidence is explicitly approved",
+      "path": "approvals.rollbackWindowApproved",
+      "required": "true"
+    },
+    {
+      "check": "Operations readiness report is a concrete PASS artifact",
+      "path": "prerequisites.operationsReadinessReport",
+      "required": "Existing PASS docs/qa-runs operations-readiness report with rollback owner/window evidence closed"
+    },
+    {
+      "check": "Pilot roster report is a concrete PASS artifact",
+      "path": "prerequisites.pilotRosterReport",
+      "required": "Existing PASS docs/qa-runs pilot-roster report with all SSO personas ready"
+    },
+    {
+      "check": "Integration smoke preflight report is a concrete PASS artifact",
+      "path": "prerequisites.integrationSmokePreflightReport",
+      "required": "Existing PASS docs/qa-runs integration-smoke-preflight report"
+    },
+    {
+      "check": "Smoke credential auth report is a concrete PASS artifact",
+      "path": "prerequisites.smokeCredentialAuthReport",
+      "required": "Existing PASS docs/qa-runs smoke-credential-auth report"
+    },
+    {
+      "check": "Director SSO persona alias is recorded",
+      "path": "personas.directorAlias",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Manager SSO persona alias is recorded",
+      "path": "personas.managerAlias",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Student SSO persona alias is recorded",
+      "path": "personas.studentAlias",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Platform-admin SSO persona alias is recorded",
+      "path": "personas.platformAdminAlias",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Allowlisted non-admin denial persona alias or approved evidence strategy alias is recorded",
+      "path": "personas.allowlistedNonAdminDenialAlias",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Consultant denial strategy is recognized",
+      "path": "personas.consultantDenialEvidence.strategy",
+      "required": "production-persona or source-policy-evidence"
+    },
+    {
+      "check": "Paused-company denial strategy is recognized",
+      "path": "personas.pausedCompanyDenialEvidence.strategy",
+      "required": "production-persona or deferred"
+    },
+    {
+      "check": "Authenticated SSO smoke is in scope",
+      "path": "scopes.authenticatedSso.enabled",
+      "required": "true"
+    },
+    {
+      "check": "Authenticated SSO operator alias is recorded",
+      "path": "scopes.authenticatedSso.operatorAlias",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Authenticated SSO persona matrix is approved",
+      "path": "scopes.authenticatedSso.approvedPersonaMatrix",
+      "required": "true"
+    },
+    {
+      "check": "Authenticated SSO smoke avoids non-pilot data",
+      "path": "scopes.authenticatedSso.nonPilotDataAvoidance",
+      "required": "true"
+    },
+    {
+      "check": "Hire handoff smoke is in scope",
+      "path": "scopes.hireHandoff.enabled",
+      "required": "true"
+    },
+    {
+      "check": "Hire handoff controlled application alias is recorded",
+      "path": "scopes.hireHandoff.applicationAlias",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Hire handoff controlled mailbox alias is recorded",
+      "path": "scopes.hireHandoff.controlledMailboxAlias",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Hire handoff target JewelLink company ID is recorded",
+      "path": "scopes.hireHandoff.targetCompanyId",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Hire handoff previews before confirmation",
+      "path": "scopes.hireHandoff.previewBeforeConfirm",
+      "required": "true"
+    },
+    {
+      "check": "Hire handoff repeat-confirm idempotency check is planned",
+      "path": "scopes.hireHandoff.repeatConfirmIdempotencyCheck",
+      "required": "true"
+    },
+    {
+      "check": "Hire handoff revoke/cancel access check is planned",
+      "path": "scopes.hireHandoff.revokeOrCancelCheck",
+      "required": "true"
+    },
+    {
+      "check": "JewelCert smoke is in scope",
+      "path": "scopes.jewelCert.enabled",
+      "required": "true"
+    },
+    {
+      "check": "JewelCert invite source alias is recorded",
+      "path": "scopes.jewelCert.inviteSourceAlias",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "JewelCert controlled mailbox alias is recorded",
+      "path": "scopes.jewelCert.controlledMailboxAlias",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "JewelCert result sync target is recorded",
+      "path": "scopes.jewelCert.resultSyncTarget",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "JewelCert retry failure mode is recorded",
+      "path": "scopes.jewelCert.retryFailureMode",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "JewelCert live email send is expected and acknowledged",
+      "path": "scopes.jewelCert.liveEmailExpected",
+      "required": "true"
+    },
+    {
+      "check": "Public/fail-closed smoke is in scope",
+      "path": "scopes.publicFailClosed.enabled",
+      "required": "true"
+    },
+    {
+      "check": "Public/fail-closed store ID is recorded",
+      "path": "scopes.publicFailClosed.storeId",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Public/fail-closed expected store ID is recorded",
+      "path": "scopes.publicFailClosed.expectedStoreId",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Public/fail-closed store ID matches expected store ID",
+      "path": "scopes.publicFailClosed.storeId",
+      "required": "storeId and expectedStoreId must match"
+    },
+    {
+      "check": "Public/fail-closed resume application ID is recorded",
+      "path": "scopes.publicFailClosed.resumeApplicationId",
+      "required": "Concrete non-placeholder non-secret value"
+    },
+    {
+      "check": "Public/fail-closed cookie file stays local and ignored",
+      "path": "scopes.publicFailClosed.cookieFileLocalIgnored",
+      "required": "true"
+    },
+    {
+      "check": "Public/fail-closed team-invites-disabled precheck is required",
+      "path": "scopes.publicFailClosed.teamInvitesDisabledPrecheckRequired",
+      "required": "true"
+    },
+    {
+      "check": "Stop conditions include tenant data exposure",
+      "path": "stopConditions",
+      "required": "Cross-store or cross-company data exposure stop condition"
+    },
+    {
+      "check": "Stop conditions include role elevation",
+      "path": "stopConditions",
+      "required": "Role/elevation stop condition"
+    },
+    {
+      "check": "Stop conditions include hire duplication or wrong user link",
+      "path": "stopConditions",
+      "required": "Hire duplication or wrong user stop condition"
+    },
+    {
+      "check": "Stop conditions include JewelCert wrong target",
+      "path": "stopConditions",
+      "required": "JewelCert wrong store/company/user stop condition"
+    },
+    {
+      "check": "Stop conditions include email/provider misdelivery",
+      "path": "stopConditions",
+      "required": "Unintended email/provider delivery stop condition"
+    },
+    {
+      "check": "Stop conditions include secret-bearing evidence",
+      "path": "stopConditions",
+      "required": "Secret-bearing evidence stop condition"
+    }
+  ],
+  "plan": {
+    "approvals": {
+      "approver": "",
+      "approvalChannel": "",
+      "approvedAt": "",
+      "scopeStatement": "",
+      "liveEmailSendsAcknowledged": false,
+      "jewelLinkPilotFlagMovementApproved": false,
+      "productionUserCreationApproved": false,
+      "hireConfirmationApproved": false,
+      "jewelCertProductionMutationApproved": false,
+      "publicFailClosedProbeApproved": false,
+      "rollbackWindowApproved": false
+    },
+    "prerequisites": {
+      "operationsReadinessReport": "",
+      "pilotRosterReport": "",
+      "integrationSmokePreflightReport": "",
+      "smokeCredentialAuthReport": ""
+    },
+    "personas": {
+      "directorAlias": "",
+      "managerAlias": "",
+      "studentAlias": "",
+      "consultantDenialAlias": "",
+      "consultantDenialEvidence": {
+        "strategy": "",
+        "sourcePolicyReport": "",
+        "acceptedBy": "",
+        "acceptanceChannel": "",
+        "acceptedAt": ""
+      },
+      "platformAdminAlias": "",
+      "allowlistedNonAdminDenialAlias": "",
+      "allowlistedNonAdminDenialEvidence": {
+        "strategy": "",
+        "sourceTestReport": "",
+        "cleanAllowlistReport": "",
+        "acceptedBy": "",
+        "acceptanceChannel": "",
+        "acceptedAt": ""
+      },
+      "pausedCompanyDenialAlias": "",
+      "pausedCompanyDenialEvidence": {
+        "strategy": "",
+        "deferredBy": "",
+        "deferralChannel": "",
+        "deferredAt": "",
+        "reason": "",
+        "followUp": ""
+      }
+    },
+    "scopes": {
+      "authenticatedSso": {
+        "enabled": true,
+        "operatorAlias": "",
+        "approvedPersonaMatrix": false,
+        "nonPilotDataAvoidance": false
+      },
+      "hireHandoff": {
+        "enabled": true,
+        "applicationAlias": "",
+        "controlledMailboxAlias": "",
+        "targetCompanyId": "comp_1",
+        "previewBeforeConfirm": false,
+        "repeatConfirmIdempotencyCheck": false,
+        "revokeOrCancelCheck": false
+      },
+      "jewelCert": {
+        "enabled": true,
+        "inviteSourceAlias": "",
+        "controlledMailboxAlias": "",
+        "resultSyncTarget": "comp_1",
+        "retryFailureMode": "",
+        "liveEmailExpected": false
+      },
+      "publicFailClosed": {
+        "enabled": true,
+        "storeId": "",
+        "expectedStoreId": "",
+        "resumeApplicationId": "",
+        "cookieFileLocalIgnored": false,
+        "teamInvitesDisabledPrecheckRequired": false
+      }
+    },
+    "stopConditions": [
+      "Cross-store or cross-company data exposure",
+      "Unexpected role elevation or Consultant access",
+      "Duplicate hire provisioning or wrong JewelLink user link",
+      "JewelCert result sync to the wrong store/company/user",
+      "Email/provider delivery to an unintended recipient",
+      "Any evidence artifact prints a secret, token, cookie, password, database URL, or customer data"
+    ]
+  }
+}

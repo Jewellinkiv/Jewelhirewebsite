@@ -162,6 +162,8 @@ test("approval bundle assembles current safe request packets into one non-secret
   assert.equal(bundleJson.jewelLinkRepoPushOrDeployPerformed, false);
   assert.equal(bundleJson.sourceArtifacts["smoke-targets-request"].endsWith("smoke-targets.json"), true);
   assert.match(bundleJson.operatorReplyTemplate, /Approved at: <UTC timestamp>/);
+  assert.match(bundleJson.operatorReplyTemplate, /Consultant-denial strategy: source-policy-evidence/);
+  assert.match(bundleJson.operatorReplyTemplate, /Paused-company denial strategy: deferred/);
   assert.match(bundleJson.operatorReplyTemplate, /Stable controlled application submission ID: <idempotency key>/);
   assert.match(bundleJson.operatorReplyTemplate, /Public\/fail-closed expected store ID: <same store id>/);
   assert.match(

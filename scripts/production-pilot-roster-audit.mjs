@@ -31,6 +31,9 @@ const PREFERRED_TEST_DOMAINS = (args.get("preferred-test-domains") || process.en
   .split(",")
   .map((value) => value.trim().toLowerCase())
   .filter(Boolean);
+const DENIAL_SCOPE_FILE = args.has("denial-scope-file")
+  ? args.get("denial-scope-file")
+  : process.env.PILOT_DENIAL_SCOPE_FILE || "docs/production-pilot-denial-scope-decision-2026-07-21.json";
 
 const checks = [];
 
@@ -45,6 +48,65 @@ function gcloud(commandArgs) {
 
 function readFixture(name) {
   return JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, name), "utf8"));
+}
+
+function relativePath(filePath) {
+  return path.relative(process.cwd(), path.resolve(process.cwd(), filePath)).split(path.sep).join("/");
+}
+
+function scopeFileEnabled(value) {
+  return value && !/^(?:0|false|none|off)$/i.test(String(value).trim());
+}
+
+function readJsonIfExists(filePath) {
+  if (!scopeFileEnabled(filePath)) return null;
+  const fullPath = path.resolve(process.cwd(), filePath);
+  if (!fs.existsSync(fullPath)) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(fullPath, "utf8"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function artifactPasses(filePath) {
+  const artifact = String(filePath || "").trim();
+  if (!/^docs\/qa-runs\/[^/\s`|]+\/[^|\s`|]+$/.test(artifact)) return false;
+  const fullPath = path.resolve(process.cwd(), artifact);
+  if (!fs.existsSync(fullPath)) return false;
+  const text = fs.readFileSync(fullPath, "utf8");
+  if (/\.json$/i.test(fullPath)) {
+    try {
+      const parsed = JSON.parse(text);
+      return parsed?.pass === true || String(parsed?.result || "").toLowerCase() === "pass";
+    } catch {
+      return false;
+    }
+  }
+  return /(?:^|\n)Result:\s*PASS\b/i.test(text) || /(?:^|\n)Status:\s*PASS\b/i.test(text);
+}
+
+function stringPresent(value) {
+  return Boolean(String(value || "").trim());
+}
+
+function consultantSourcePolicyAccepted(scope) {
+  const decision = scope?.consultantDenial || {};
+  const reports = Array.isArray(decision.sourceEvidenceReports) ? decision.sourceEvidenceReports : [];
+  return decision.strategy === "source-policy-evidence" &&
+    decision.status === "accepted" &&
+    stringPresent(decision.reason) &&
+    reports.length > 0 &&
+    reports.every((artifact) => artifactPasses(artifact));
+}
+
+function pausedCompanyDeferred(scope) {
+  const decision = scope?.pausedCompanyDenial || {};
+  return decision.strategy === "deferred" &&
+    decision.status === "deferred" &&
+    stringPresent(decision.reason) &&
+    stringPresent(decision.followUp);
 }
 
 function envMap(env) {
@@ -290,7 +352,7 @@ async function loadSnapshot() {
   };
 }
 
-function summarize(snapshot) {
+function summarize(snapshot, denialScope) {
   const roleCandidates = snapshot.jewelLink.roleCandidates || [];
   const selected = {
     director: publicCandidate(selectCandidate(roleCandidates, "DIRECTOR")),
@@ -315,6 +377,9 @@ function summarize(snapshot) {
   const roleCountMap = Object.fromEntries((snapshot.jewelLink.roleCounts || []).map((row) => [row.role, Number(row.count)]));
   const pausedCompanyUsers = snapshot.jewelLink.pausedCompanyUsers || [];
 
+  const consultantSourcePolicyReady = consultantSourcePolicyAccepted(denialScope);
+  const pausedCompanyDeferralReady = pausedCompanyDeferred(denialScope);
+
   return {
     createdAt: snapshot.createdAt || new Date().toISOString(),
     valuesPrinted: false,
@@ -332,6 +397,15 @@ function summarize(snapshot) {
     unexpectedLocationIds,
     roleCounts: roleCountMap,
     selectedCandidates: selected,
+    denialScope: {
+      artifact: denialScope ? relativePath(DENIAL_SCOPE_FILE) : "",
+      consultantSourcePolicyAccepted: consultantSourcePolicyReady,
+      consultantSourceEvidenceReports: Array.isArray(denialScope?.consultantDenial?.sourceEvidenceReports)
+        ? denialScope.consultantDenial.sourceEvidenceReports
+        : [],
+      pausedCompanyDeferred: pausedCompanyDeferralReady,
+      pausedCompanyFollowUp: denialScope?.pausedCompanyDenial?.followUp || "",
+    },
     platformAdmin: {
       activeAdminUsers: activeAdmins.length,
       allowlistEntries: allowlist.size,
@@ -356,10 +430,12 @@ function summarize(snapshot) {
       directorReady: Boolean(selected.director),
       managerReady: Boolean(selected.manager),
       studentReady: Boolean(selected.student),
-      consultantReady: Boolean(selected.consultant),
+      consultantCandidateReady: Boolean(selected.consultant),
+      consultantReady: Boolean(selected.consultant) || consultantSourcePolicyReady,
       platformAdminReady: platformAdminCandidates.length > 0,
       allowlistClean: allowlistedNonAdmins.length === 0,
       pausedCompanyDenialCandidateReady: pausedCompanyUsers.length > 0,
+      pausedCompanyDenialReady: pausedCompanyUsers.length > 0 || pausedCompanyDeferralReady,
       jewelHireSmokeCredentialsReady: hasCredential("store_owner") && hasCredential("applicant") && hasAdminSsoMarker,
     },
   };
@@ -418,6 +494,13 @@ function markdown(report) {
     "| --- | --- | --- | --- | --- | --- |",
     ...candidateRows,
     "",
+    "## Denial Scope Decision",
+    "",
+    `- Scope artifact: ${report.denialScope.artifact || "not recorded"}`,
+    `- Consultant denial: ${report.readyChecks.consultantCandidateReady ? "production candidate selected" : report.denialScope.consultantSourcePolicyAccepted ? "source-policy evidence accepted" : "missing"}`,
+    `- Paused-company denial: ${report.readyChecks.pausedCompanyDenialCandidateReady ? "production candidate selected" : report.denialScope.pausedCompanyDeferred ? "deferred for current pilot scope" : "missing"}`,
+    `- Paused-company follow-up: ${report.denialScope.pausedCompanyFollowUp || "not recorded"}`,
+    "",
     "## JewelHire Smoke Credential Aliases",
     "",
     "| Alias | Role | Masked alias | Password present | Auth path |",
@@ -444,13 +527,14 @@ function rosterProvisioningActions(report) {
   if (!report.readyChecks.consultantReady) {
     actions.push({
       id: "consultant-denial",
-      title: "Create controlled JewelLink CONSULTANT denial persona",
+      title: "Record Consultant denial evidence or approve a controlled JewelLink CONSULTANT denial persona",
       status: "needed",
       systemOfRecord: "JewelLink production",
       productionMutationRequired: true,
       approvalRequired: true,
-      purpose: "Authenticated JewelLink SSO smoke must prove CONSULTANT users fail closed in JewelHire.",
+      purpose: "Pilot readiness must prove CONSULTANT users fail closed in JewelHire without granting them access.",
       constraints: [
+        "Preferred path is accepted source-policy evidence that Consultants cannot access JewelHire.",
         `Company must be the pilot company ${report.pilotCompany?.id || PILOT_COMPANY_ID}.`,
         "Role must be CONSULTANT.",
         "User must be active and MFA-backed for the smoke window.",
@@ -458,10 +542,10 @@ function rosterProvisioningActions(report) {
         "User must not be included in the JewelHire platform-admin allowlist.",
         "Use a controlled test mailbox only; do not record the full address in Git or qa-runs.",
       ],
-      verification: "Rerun qa:pilot-roster and require PASS Consultant denial candidate exists.",
+      verification: "Rerun qa:pilot-roster and require PASS Consultant denial candidate exists or source-policy evidence is accepted.",
     });
   }
-  if (!report.readyChecks.pausedCompanyDenialCandidateReady) {
+  if (!report.readyChecks.pausedCompanyDenialReady) {
     actions.push({
       id: "paused-company-denial",
       title: "Create controlled active user in a paused JewelLink company",
@@ -548,7 +632,8 @@ function provisioningMarkdown(packet) {
 
 async function main() {
   const snapshot = await loadSnapshot();
-  const report = summarize(snapshot);
+  const denialScope = readJsonIfExists(DENIAL_SCOPE_FILE);
+  const report = summarize(snapshot, denialScope);
 
   record("pilot JewelLink company exists", Boolean(report.pilotCompany?.id), { companyId: PILOT_COMPANY_ID });
   record("pilot JewelLink company is active and not paused", report.readyChecks.companyReady);
@@ -559,22 +644,26 @@ async function main() {
   record("Director SSO candidate exists", report.readyChecks.directorReady);
   record("Manager SSO candidate exists", report.readyChecks.managerReady);
   record("Student SSO candidate exists", report.readyChecks.studentReady);
-  record("Consultant denial candidate exists", report.readyChecks.consultantReady);
+  record("Consultant denial candidate exists or source-policy evidence is accepted", report.readyChecks.consultantReady, {
+    consultantCandidateReady: report.readyChecks.consultantCandidateReady,
+    sourcePolicyAccepted: report.denialScope.consultantSourcePolicyAccepted,
+  });
   record("allowlisted JewelLink platform-admin candidate exists", report.readyChecks.platformAdminReady, {
     allowlistedAdminUsers: report.platformAdmin.allowlistedAdminUsers,
   });
   record("JewelHire admin allowlist contains no active JewelLink non-admin candidates", report.readyChecks.allowlistClean, {
     allowlistedActiveNonAdmins: report.platformAdmin.allowlistedActiveNonAdmins,
   });
-  record("paused-company denial candidate exists", report.readyChecks.pausedCompanyDenialCandidateReady, {
+  record("paused-company denial candidate exists or scope deferral is recorded", report.readyChecks.pausedCompanyDenialReady, {
     activePausedCompanyUsers: report.pausedCompanyDenial.activePausedCompanyUsers,
+    deferred: report.denialScope.pausedCompanyDeferred,
   });
   record("JewelHire smoke credential auth prerequisites are present", report.readyChecks.jewelHireSmokeCredentialsReady);
 
   report.checks = checks;
   report.remainingGaps = [];
-  if (!report.readyChecks.consultantReady) report.remainingGaps.push("Create or approve a controlled JewelLink CONSULTANT test account for denial smoke.");
-  if (!report.readyChecks.pausedCompanyDenialCandidateReady) report.remainingGaps.push("Create or approve a controlled active user in a paused JewelLink company for stale-access denial smoke.");
+  if (!report.readyChecks.consultantReady) report.remainingGaps.push("Record accepted Consultant source-policy evidence, or approve a controlled JewelLink CONSULTANT test account for denial smoke.");
+  if (!report.readyChecks.pausedCompanyDenialReady) report.remainingGaps.push("Create or approve a controlled active user in a paused JewelLink company, or record an explicit pilot-scope deferral.");
   if (report.readyChecks.allowlistClean) report.remainingGaps.push("Live allowlisted-non-admin elevation denial still needs a controlled temporary config window, or explicit acceptance of source-test plus clean-allowlist evidence.");
   if (!report.readyChecks.platformAdminReady) report.remainingGaps.push("Select an allowlisted active JewelLink ADMIN/SUPER_ADMIN account with MFA-backed login for platform-admin SSO smoke.");
   if (!report.readyChecks.jewelHireSmokeCredentialsReady) report.remainingGaps.push("Rotate controlled JewelHire native store-owner/applicant smoke credentials and keep platform-admin smoke on a JewelLink SSO marker.");

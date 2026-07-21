@@ -51,7 +51,13 @@ function completePlan(cwd, overrides = {}) {
       directorAlias: "jewellink-director-alias",
       managerAlias: "jewellink-manager-alias",
       studentAlias: "jewellink-student-alias",
-      consultantDenialAlias: "jewellink-consultant-denial-alias",
+      consultantDenialEvidence: {
+        strategy: "source-policy-evidence",
+        sourcePolicyReport: reportPaths.allowlistedNonAdminSourceTestReport,
+        acceptedBy: "pilot-approver",
+        acceptanceChannel: "ticket PILOT-123",
+        acceptedAt: "2026-07-21T04:00:00Z",
+      },
       platformAdminAlias: "jewellink-platform-admin-alias",
       allowlistedNonAdminDenialAlias: "source-test-plus-clean-allowlist-acceptance",
       allowlistedNonAdminDenialEvidence: {
@@ -62,7 +68,14 @@ function completePlan(cwd, overrides = {}) {
         acceptanceChannel: "ticket PILOT-123",
         acceptedAt: "2026-07-21T04:00:00Z",
       },
-      pausedCompanyDenialAlias: "jewellink-paused-company-denial-alias",
+      pausedCompanyDenialEvidence: {
+        strategy: "deferred",
+        deferredBy: "pilot-approver",
+        deferralChannel: "ticket PILOT-123",
+        deferredAt: "2026-07-21T04:00:00Z",
+        reason: "Paused-company denial is deferred for the current pilot.",
+        followUp: "Run paused-company denial before broad readiness.",
+      },
     },
     scopes: {
       authenticatedSso: {
@@ -144,6 +157,8 @@ test("complete pilot smoke plan passes without printing raw notes", () => {
   assert.match(markdown, /Result: PASS/);
   assert.match(markdown, /PASS Allowlisted non-admin denial source-test report is a concrete PASS artifact/);
   assert.match(markdown, /PASS Allowlisted non-admin denial clean allowlist report is a concrete PASS artifact/);
+  assert.match(markdown, /PASS Consultant denial source-policy report is a concrete PASS artifact/);
+  assert.match(markdown, /PASS Paused-company deferral follow-up is recorded/);
   assert.match(markdown, /Plan request artifact: not generated/);
   assert.equal(requestMarkdown, "");
   assert.doesNotMatch(`${json}\n${markdown}`, /operator notes should not print/);

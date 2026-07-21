@@ -9,15 +9,7 @@ const root = path.resolve(new URL("..", import.meta.url).pathname);
 const script = path.join(root, "scripts/production-pilot-smoke-evidence-audit.mjs");
 
 const sections = {
-  authenticatedSso: [
-    "director",
-    "manager",
-    "student",
-    "consultant",
-    "platformAdmin",
-    "allowlistedNonAdmin",
-    "pausedCompany",
-  ],
+  authenticatedSso: ["director", "manager", "student", "platformAdmin", "allowlistedNonAdmin"],
   hireHandoff: ["previewHire", "confirmHire", "repeatConfirm", "revokedCancelledAccess"],
   jewelCert: ["inviteFromJewelLink", "completeResult", "syncToJewelLink", "retryPath"],
   publicFailClosed: ["teamInvites", "resumePrivacy"],
@@ -40,6 +32,26 @@ function completeEvidence(cwd) {
       };
     }
   }
+  const consultantArtifact = "docs/qa-runs/pilot-smoke-fixture/consultant-source-policy.md";
+  fs.mkdirSync(path.join(cwd, path.dirname(consultantArtifact)), { recursive: true });
+  fs.writeFileSync(path.join(cwd, consultantArtifact), "# Consultant Source Policy\n\nResult: PASS\n");
+  evidence.scopeDecisions = {
+    consultantDenial: {
+      strategy: "source-policy-evidence",
+      sourcePolicyReport: consultantArtifact,
+      acceptedBy: "pilot-operator",
+      acceptanceChannel: "ticket PILOT-123",
+      acceptedAt: "2026-07-21T01:00:00Z",
+    },
+    pausedCompanyDenial: {
+      strategy: "deferred",
+      deferredBy: "pilot-operator",
+      deferralChannel: "ticket PILOT-123",
+      deferredAt: "2026-07-21T01:00:00Z",
+      reason: "Paused-company denial skipped for current pilot window.",
+      followUp: "Run before broad readiness.",
+    },
+  };
   return evidence;
 }
 

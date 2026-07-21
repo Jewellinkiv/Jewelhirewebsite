@@ -1,0 +1,21 @@
+{
+  "createdAt": "2026-07-21T15:21:23Z",
+  "valuesPrinted": false,
+  "approvedBy": "pilot operator decision in Codex task",
+  "approvalChannel": "Codex task 019f80f2-f82c-7cb3-86f5-3f1eb0b9107d",
+  "consultantDenial": {
+    "strategy": "source-policy-evidence",
+    "status": "accepted",
+    "reason": "Consultants cannot access JewelHire; do not create a controlled JewelLink CONSULTANT production persona solely for the pilot.",
+    "sourceEvidenceReports": [
+      "docs/qa-runs/allowlisted-nonadmin-denial-source-2026-07-21T06-02-00-000Z/allowlisted-nonadmin-denial-source-report.md"
+    ],
+    "stopCondition": "Unexpected Consultant JewelHire access or role elevation remains a stop condition."
+  },
+  "pausedCompanyDenial": {
+    "strategy": "deferred",
+    "status": "deferred",
+    "reason": "Paused-company stale-access denial is skipped for the current pilot window.",
+    "followUp": "Run paused-company stale-access denial before broad GA/readiness or when a controlled paused-company persona is approved."
+  }
+}

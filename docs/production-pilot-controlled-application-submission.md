@@ -16,7 +16,7 @@ Dry-run or request packet:
 
 ```bash
 npm run qa:pilot-application-submission -- \
-  --target-report=docs/qa-runs/pilot-smoke-targets-2026-07-21T08-11-31-698Z/pilot-smoke-targets-report.json
+  --target-report=docs/qa-runs/pilot-smoke-targets-2026-07-21T09-43-22-860Z/pilot-smoke-targets-report.json
 ```
 
 Approved execution:

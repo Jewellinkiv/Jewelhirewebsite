@@ -1,0 +1,223 @@
+{
+  "createdAt": "2026-07-21T15:26:10.867Z",
+  "valuesPrinted": false,
+  "status": "needed",
+  "instructions": "Fill this evidence object with non-secret smoke artifacts, then rerun qa:pilot-smoke-evidence with --smoke-evidence-file=<path>.",
+  "verificationCommand": "npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=<path>",
+  "missingEvidence": [
+    {
+      "path": "authenticatedSso.director",
+      "label": "Director SSO",
+      "expected": "JewelLink Director opens JewelHire and lands as JewelHire store_owner for approved pilot locations.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "authenticatedSso.manager",
+      "label": "Manager SSO",
+      "expected": "JewelLink Manager lands as JewelHire manager and cannot access billing, ownership, integrations, or user admin.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "authenticatedSso.student",
+      "label": "Student SSO",
+      "expected": "JewelLink Student lands in applicant portal and cannot access store or admin routes.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "authenticatedSso.consultant",
+      "label": "Consultant denial",
+      "expected": "JewelLink Consultant is denied JewelHire access with a branded fail-closed state.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "authenticatedSso.platformAdmin",
+      "label": "Platform-admin SSO",
+      "expected": "Allowlisted JewelLink admin lands as JewelHire platform admin only after MFA-backed SSO.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "authenticatedSso.allowlistedNonAdmin",
+      "label": "Allowlisted non-admin denial",
+      "expected": "A non-admin JewelLink user cannot gain JewelHire platform-admin elevation.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "authenticatedSso.pausedCompany",
+      "label": "Paused-company denial",
+      "expected": "A user in a paused JewelLink company cannot receive stale JewelHire access.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "hireHandoff.previewHire",
+      "label": "Preview hire",
+      "expected": "JewelHire preview shows the expected JewelLink target without unexpected production mutation.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "hireHandoff.confirmHire",
+      "label": "Confirm hire",
+      "expected": "JewelHire creates or reactivates the correct JewelLink user and records the external ID.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "hireHandoff.repeatConfirm",
+      "label": "Repeat confirm",
+      "expected": "Repeating hire confirmation is idempotent and does not create a duplicate JewelLink user.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "hireHandoff.revokedCancelledAccess",
+      "label": "Revoked or cancelled access",
+      "expected": "Cancelled access does not leave a billable or active JewelLink entitlement.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "jewelCert.inviteFromJewelLink",
+      "label": "JewelCert invite from JewelLink",
+      "expected": "JewelHire accepts the bearer-authenticated invite and requires JewelLink SSO before claim.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "jewelCert.completeResult",
+      "label": "JewelCert complete result",
+      "expected": "JewelHire records completion and preserves hired-stage semantics.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "jewelCert.syncToJewelLink",
+      "label": "JewelCert sync to JewelLink",
+      "expected": "JewelLink receives the scoped aggregated result through the bearer-authenticated endpoint.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "jewelCert.retryPath",
+      "label": "JewelCert retry path",
+      "expected": "A simulated delivery failure remains retryable and scoped to the correct store.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "publicFailClosed.teamInvites",
+      "label": "Team invite fail-closed",
+      "expected": "Diamond Exchange invite, resend, role, status, and ownership-transfer attempts return team_invites_disabled without mutation.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    },
+    {
+      "path": "publicFailClosed.resumePrivacy",
+      "label": "Resume privacy",
+      "expected": "Resume asset returns 401 publicly and downloads only for authorized same-store/location user.",
+      "required": "result pass, ISO-like observedAt, and an existing docs/qa-runs artifact path"
+    }
+  ],
+  "evidence": {
+    "authenticatedSso": {
+      "director": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "manager": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "student": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "consultant": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "platformAdmin": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "allowlistedNonAdmin": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "pausedCompany": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      }
+    },
+    "hireHandoff": {
+      "previewHire": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "confirmHire": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "repeatConfirm": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "revokedCancelledAccess": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      }
+    },
+    "jewelCert": {
+      "inviteFromJewelLink": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "completeResult": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "syncToJewelLink": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "retryPath": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      }
+    },
+    "publicFailClosed": {
+      "teamInvites": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      },
+      "resumePrivacy": {
+        "result": "",
+        "observedAt": "",
+        "artifact": ""
+      }
+    },
+    "scopeDecisions": {
+      "consultantDenial": {
+        "strategy": "",
+        "sourcePolicyReport": "",
+        "acceptedBy": "",
+        "acceptanceChannel": "",
+        "acceptedAt": ""
+      },
+      "pausedCompanyDenial": {
+        "strategy": "",
+        "deferredBy": "",
+        "deferralChannel": "",
+        "deferredAt": "",
+        "reason": "",
+        "followUp": ""
+      }
+    }
+  }
+}

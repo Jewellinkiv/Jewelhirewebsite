@@ -98,37 +98,44 @@ Current state:
 No database-owner acceptance file is required by the latest passing audit. No
 ledger repair is authorized or needed for this closure evidence.
 
-## JewelLink pilot persona approvals
+## JewelLink denial scope approvals
 
 Latest roster audit:
 `docs/qa-runs/pilot-roster-2026-07-21T09-43-22-854Z/pilot-roster-report.md`
 
-The roster is blocked only on these JewelLink production personas:
+That roster artifact predates the scoped denial decision:
+`docs/production-pilot-denial-scope-decision-2026-07-21.json`
 
-| Action ID | Required JewelLink production action |
+The current pilot scope no longer requests creating those two JewelLink
+production users:
+
+| Denial row | Current pilot decision |
 | --- | --- |
-| `consultant-denial` | Create or approve a controlled active `CONSULTANT` user in pilot company `comp_1`, with a primary location from `loc_1` through `loc_6`, not allowlisted in JewelHire |
-| `paused-company-denial` | Create or approve a controlled active user in a paused JewelLink company, outside pilot company `comp_1`, not allowlisted in JewelHire |
+| Consultant denial | Use source-policy evidence because Consultants cannot access JewelHire; do not create a controlled `CONSULTANT` production user solely for this pilot |
+| Paused-company denial | Defer for the current pilot; follow-up required before broad readiness |
 
-Use controlled test mailboxes only. Do not commit full email addresses,
-passwords, database URLs, bearer tokens, cookies, or customer data.
+After refreshing `gcloud` auth, rerun `qa:pilot-roster` so the next live roster
+artifact closes these rows under the scoped decision. Do not commit full email
+addresses, passwords, database URLs, bearer tokens, cookies, or customer data.
 
-After those personas exist, rerun `qa:pilot-roster`. Only then should the
-authenticated SSO smoke matrix proceed.
+Only then should the authenticated SSO smoke matrix proceed.
 
 ## Mutating smoke approvals
 
 The remaining authenticated smoke evidence packet is
-`docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md`.
+`docs/qa-runs/pilot-smoke-evidence-2026-07-21T15-26-10-865Z/pilot-smoke-evidence-request.md`.
 
 Fillable smoke plan preflight template:
 `docs/production-pilot-smoke-plan.template.json`
 
 Latest smoke plan request:
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T09-00-14-980Z/pilot-smoke-plan-request.md`
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T15-26-10-858Z/pilot-smoke-plan-request.md`
 
 Fillable smoke evidence template:
 `docs/production-pilot-smoke-evidence.template.json`
+
+Latest smoke evidence request:
+`docs/qa-runs/pilot-smoke-evidence-2026-07-21T15-26-10-865Z/pilot-smoke-evidence-request.md`
 
 Latest final live-readiness request:
 `docs/qa-runs/pilot-live-readiness-2026-07-21T09-01-05-440Z/pilot-live-readiness-request.md`
@@ -142,8 +149,10 @@ local path, fill the non-secret approval/persona/scope fields, and require
 roster, rollback window approval, prerequisite PASS artifacts, and exact scope
 for:
 
-- Director, Manager, Student, Consultant-denial, platform-admin, allowlisted
-  non-admin denial, and paused-company denial SSO evidence.
+- Director, Manager, Student, platform-admin, and allowlisted non-admin denial
+  SSO evidence.
+- Consultant source-policy acceptance and paused-company deferral metadata for
+  the current pilot scope.
 - Hire preview, confirm, repeat-confirm, and revoked/cancelled access evidence.
 - JewelCert invite, completion, scoped JewelLink sync, and retry evidence.
 - Team-invite fail-closed and resume privacy evidence.
@@ -210,15 +219,15 @@ fails closed when the session, store id, or resume application id is missing, an
 it skips invite/ownership-transfer mutation probes unless the store users API
 first confirms `teamInvitesEnabled: false`.
 
-The latest smoke-plan preflight records the explicit live-email approval and
-JewelLink pilot rollout flag/config/repo/deploy movement approval already
-granted for this pilot. It now passes 44/59 checks and still fails closed until
-the remaining request packet items are supplied: controlled production
-user/persona creation, hire confirmation, JewelCert production mutation,
-authenticated public/fail-closed probe approval, rollback window approval, PASS
-operations and roster artifacts, Consultant-denial and paused-company aliases,
-allowlisted non-admin source-test acceptance metadata, approved SSO persona
-matrix, controlled hire application alias, and resume application ID.
+The latest smoke-plan request includes the explicit live-email and JewelLink
+pilot rollout flag/config/repo/deploy approval fields already granted for this
+pilot. It still fails closed until the remaining request packet items are
+supplied: hire confirmation, JewelCert production mutation, authenticated
+public/fail-closed probe approval, rollback window approval, PASS operations
+and roster artifacts, Consultant source-policy acceptance metadata,
+paused-company deferral metadata, allowlisted non-admin source-test acceptance
+metadata, approved SSO persona matrix, controlled hire application alias, and
+resume application ID.
 
 The allowlisted non-admin denial row now has two auditable options in the smoke
 plan. Use a controlled production denial persona, or set

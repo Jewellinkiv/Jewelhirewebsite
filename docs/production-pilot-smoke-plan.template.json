@@ -23,6 +23,13 @@
     "managerAlias": "",
     "studentAlias": "",
     "consultantDenialAlias": "",
+    "consultantDenialEvidence": {
+      "strategy": "",
+      "sourcePolicyReport": "",
+      "acceptedBy": "",
+      "acceptanceChannel": "",
+      "acceptedAt": ""
+    },
     "platformAdminAlias": "",
     "allowlistedNonAdminDenialAlias": "",
     "allowlistedNonAdminDenialEvidence": {
@@ -33,7 +40,15 @@
       "acceptanceChannel": "",
       "acceptedAt": ""
     },
-    "pausedCompanyDenialAlias": ""
+    "pausedCompanyDenialAlias": "",
+    "pausedCompanyDenialEvidence": {
+      "strategy": "",
+      "deferredBy": "",
+      "deferralChannel": "",
+      "deferredAt": "",
+      "reason": "",
+      "followUp": ""
+    }
   },
   "scopes": {
     "authenticatedSso": {

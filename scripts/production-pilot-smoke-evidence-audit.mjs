@@ -156,6 +156,26 @@ function artifactExists(value) {
   return Boolean(artifact) && fs.existsSync(path.resolve(process.cwd(), artifact));
 }
 
+function artifactPasses(value) {
+  const artifact = artifactPath(value);
+  if (!artifactExists(artifact) || !artifactIsQaRun(artifact) || !artifactIsSafe(artifact)) return false;
+  const fullPath = path.resolve(process.cwd(), artifact);
+  const text = fs.readFileSync(fullPath, "utf8");
+  if (/\.json$/i.test(fullPath)) {
+    try {
+      const parsed = JSON.parse(text);
+      return parsed?.pass === true || String(parsed?.result || "").toLowerCase() === "pass";
+    } catch {
+      return false;
+    }
+  }
+  return /(?:^|\n)Result:\s*PASS\b/i.test(text) || /(?:^|\n)Status:\s*PASS\b/i.test(text);
+}
+
+function stringPresent(value) {
+  return Boolean(String(value || "").trim());
+}
+
 function loadEvidenceFile() {
   if (!EVIDENCE_FILE) return {};
   const fullPath = path.resolve(process.cwd(), EVIDENCE_FILE);
@@ -182,7 +202,71 @@ function evidenceEntry(evidence, requirement) {
   return entry && typeof entry === "object" && !Array.isArray(entry) ? entry : {};
 }
 
+function consultantSourcePolicyEvidence(evidence) {
+  const decision = evidence?.scopeDecisions?.consultantDenial || {};
+  const artifact = artifactPath(decision.sourcePolicyReport);
+  const valid = decision.strategy === "source-policy-evidence" &&
+    stringPresent(decision.acceptedBy) &&
+    stringPresent(decision.acceptanceChannel) &&
+    isoLike(decision.acceptedAt) &&
+    artifactPasses(artifact);
+  return {
+    section: "authenticatedSso",
+    key: "consultant",
+    label: "Consultant denial",
+    expected: "CONSULTANT roles cannot access JewelHire, proven by accepted source-policy evidence for this pilot scope.",
+    pass: valid,
+    resultPass: valid,
+    observedAtRecorded: isoLike(decision.acceptedAt),
+    artifactRecorded: Boolean(artifact),
+    artifactPathValid: artifactIsQaRun(artifact),
+    artifactPathSafe: artifactIsSafe(artifact),
+    artifactExists: artifactExists(artifact),
+    artifact: artifactIsQaRun(artifact) && artifactIsSafe(artifact) ? artifact : "",
+    valuesPrinted: false,
+    mode: "source-policy-evidence",
+  };
+}
+
+function pausedCompanyDeferralEvidence(evidence) {
+  const decision = evidence?.scopeDecisions?.pausedCompanyDenial || {};
+  const valid = decision.strategy === "deferred" &&
+    stringPresent(decision.deferredBy) &&
+    stringPresent(decision.deferralChannel) &&
+    isoLike(decision.deferredAt) &&
+    stringPresent(decision.reason) &&
+    stringPresent(decision.followUp);
+  return {
+    section: "authenticatedSso",
+    key: "pausedCompany",
+    label: "Paused-company denial",
+    expected: "Paused-company stale-access denial is explicitly deferred for the current pilot with a follow-up requirement.",
+    pass: valid,
+    resultPass: valid,
+    observedAtRecorded: isoLike(decision.deferredAt),
+    artifactRecorded: false,
+    artifactPathValid: true,
+    artifactPathSafe: true,
+    artifactExists: false,
+    artifact: "",
+    valuesPrinted: false,
+    mode: "deferred",
+  };
+}
+
 function validateRequirement(evidence, requirement) {
+  if (requirement.section === "authenticatedSso" && requirement.key === "consultant") {
+    const liveEntry = evidenceEntry(evidence, requirement);
+    if (!liveEntry.result && evidence?.scopeDecisions?.consultantDenial?.strategy === "source-policy-evidence") {
+      return consultantSourcePolicyEvidence(evidence);
+    }
+  }
+  if (requirement.section === "authenticatedSso" && requirement.key === "pausedCompany") {
+    const liveEntry = evidenceEntry(evidence, requirement);
+    if (!liveEntry.result && evidence?.scopeDecisions?.pausedCompanyDenial?.strategy === "deferred") {
+      return pausedCompanyDeferralEvidence(evidence);
+    }
+  }
   const entry = evidenceEntry(evidence, requirement);
   const artifact = artifactPath(entry.artifact);
   const result = String(entry.result || "").trim().toLowerCase();
@@ -216,6 +300,23 @@ function evidenceSkeleton() {
       artifact: "",
     };
   }
+  skeleton.scopeDecisions = {
+    consultantDenial: {
+      strategy: "",
+      sourcePolicyReport: "",
+      acceptedBy: "",
+      acceptanceChannel: "",
+      acceptedAt: "",
+    },
+    pausedCompanyDenial: {
+      strategy: "",
+      deferredBy: "",
+      deferralChannel: "",
+      deferredAt: "",
+      reason: "",
+      followUp: "",
+    },
+  };
   return skeleton;
 }
 
