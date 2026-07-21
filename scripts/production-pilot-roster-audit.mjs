@@ -419,7 +419,119 @@ function markdown(report) {
     "## Remaining Roster Gaps",
     "",
     ...report.remainingGaps.map((gap) => `- ${gap}`),
+    "",
+    "## Provisioning Packet",
+    "",
+    `- Actions required: ${report.provisioningPacket.actionCount}`,
+    `- Artifact: ${report.provisioningPacket.markdown}`,
   ].join("\n");
+}
+
+function rosterProvisioningActions(report) {
+  const actions = [];
+  if (!report.readyChecks.consultantReady) {
+    actions.push({
+      id: "consultant-denial",
+      title: "Create controlled JewelLink CONSULTANT denial persona",
+      status: "needed",
+      systemOfRecord: "JewelLink production",
+      productionMutationRequired: true,
+      approvalRequired: true,
+      purpose: "Authenticated JewelLink SSO smoke must prove CONSULTANT users fail closed in JewelHire.",
+      constraints: [
+        `Company must be the pilot company ${report.pilotCompany?.id || PILOT_COMPANY_ID}.`,
+        "Role must be CONSULTANT.",
+        "User must be active and MFA-backed for the smoke window.",
+        `Primary location should be one of: ${report.expectedLocationIds.join(", ")}.`,
+        "User must not be included in the JewelHire platform-admin allowlist.",
+        "Use a controlled test mailbox only; do not record the full address in Git or qa-runs.",
+      ],
+      verification: "Rerun qa:pilot-roster and require PASS Consultant denial candidate exists.",
+    });
+  }
+  if (!report.readyChecks.pausedCompanyDenialCandidateReady) {
+    actions.push({
+      id: "paused-company-denial",
+      title: "Create controlled active user in a paused JewelLink company",
+      status: "needed",
+      systemOfRecord: "JewelLink production",
+      productionMutationRequired: true,
+      approvalRequired: true,
+      purpose: "Authenticated JewelLink SSO smoke must prove paused-company access fails closed in JewelHire.",
+      constraints: [
+        "Company must be paused in JewelLink.",
+        "User must be active and MFA-backed for the smoke window.",
+        "User must not belong to the pilot company.",
+        "User must not be included in the JewelHire platform-admin allowlist.",
+        "Use a controlled test mailbox only; do not record the full address in Git or qa-runs.",
+      ],
+      verification: "Rerun qa:pilot-roster and require PASS paused-company denial candidate exists.",
+    });
+  }
+  return actions;
+}
+
+function rosterProvisioningPacket(report) {
+  return {
+    createdAt: report.createdAt,
+    valuesPrinted: false,
+    pilotCompanyId: report.pilotCompany?.id || PILOT_COMPANY_ID,
+    expectedLocationIds: report.expectedLocationIds,
+    actionCount: rosterProvisioningActions(report).length,
+    actions: rosterProvisioningActions(report),
+    verificationCommand: "npm run qa:pilot-roster",
+    secretHandling:
+      "Do not place full email addresses, passwords, database URLs, bearer tokens, cookies, customer data, or secret values in this packet.",
+  };
+}
+
+function provisioningMarkdown(packet) {
+  const lines = [
+    "# Production Pilot Roster Provisioning Packet",
+    "",
+    `Created: ${packet.createdAt}`,
+    "Values printed: false",
+    "",
+    "This packet is an approval and execution aid only. It does not create users, change roles, update allowlists, send email, start SSO, or write to either production database.",
+    "",
+    `Pilot company ID: ${packet.pilotCompanyId}`,
+    `Expected pilot location IDs: ${packet.expectedLocationIds.join(", ")}`,
+    `Actions required: ${packet.actionCount}`,
+    "",
+  ];
+
+  if (packet.actions.length === 0) {
+    lines.push("No roster production account actions are required by this audit.", "");
+  } else {
+    for (const action of packet.actions) {
+      lines.push(
+        `## ${action.title}`,
+        "",
+        `- Action ID: ${action.id}`,
+        `- Status: ${action.status}`,
+        `- System of record: ${action.systemOfRecord}`,
+        `- Production mutation required: ${action.productionMutationRequired ? "yes" : "no"}`,
+        `- Approval required: ${action.approvalRequired ? "yes" : "no"}`,
+        `- Purpose: ${action.purpose}`,
+        "",
+        "Constraints:",
+        "",
+        ...action.constraints.map((constraint) => `- ${constraint}`),
+        "",
+        `Verification: ${action.verification}`,
+        "",
+      );
+    }
+  }
+
+  lines.push(
+    "## Verification",
+    "",
+    `Run: ${packet.verificationCommand}`,
+    "",
+    packet.secretHandling,
+  );
+  return lines.join("\n");
 }
 
 async function main() {
@@ -455,10 +567,18 @@ async function main() {
   if (!report.readyChecks.platformAdminReady) report.remainingGaps.push("Select an allowlisted active JewelLink ADMIN/SUPER_ADMIN account with MFA-backed login for platform-admin SSO smoke.");
   report.pass = checks.every((check) => check.pass);
   report.failures = checks.filter((check) => !check.pass).length;
+  const provisioningPacket = rosterProvisioningPacket(report);
+  report.provisioningPacket = {
+    actionCount: provisioningPacket.actionCount,
+    markdown: "pilot-roster-provisioning-packet.md",
+    json: "pilot-roster-provisioning-packet.json",
+  };
 
   fs.mkdirSync(OUT, { recursive: true });
   fs.writeFileSync(path.join(OUT, "pilot-roster-report.json"), `${JSON.stringify(report, null, 2)}\n`);
   fs.writeFileSync(path.join(OUT, "pilot-roster-report.md"), `${markdown(report)}\n`);
+  fs.writeFileSync(path.join(OUT, "pilot-roster-provisioning-packet.json"), `${JSON.stringify(provisioningPacket, null, 2)}\n`);
+  fs.writeFileSync(path.join(OUT, "pilot-roster-provisioning-packet.md"), `${provisioningMarkdown(provisioningPacket)}\n`);
   console.log(`Report: ${path.relative(process.cwd(), path.join(OUT, "pilot-roster-report.md"))}`);
   process.exit(report.pass ? 0 : 1);
 }

@@ -86,19 +86,29 @@ function runWithFixture(snapshot) {
   const json = fs.existsSync(path.join(artifacts, "pilot-roster-report.json"))
     ? fs.readFileSync(path.join(artifacts, "pilot-roster-report.json"), "utf8")
     : "";
-  return { result, markdown, json };
+  const provisioningMarkdown = fs.existsSync(path.join(artifacts, "pilot-roster-provisioning-packet.md"))
+    ? fs.readFileSync(path.join(artifacts, "pilot-roster-provisioning-packet.md"), "utf8")
+    : "";
+  const provisioningJson = fs.existsSync(path.join(artifacts, "pilot-roster-provisioning-packet.json"))
+    ? fs.readFileSync(path.join(artifacts, "pilot-roster-provisioning-packet.json"), "utf8")
+    : "";
+  return { result, markdown, json, provisioningMarkdown, provisioningJson };
 }
 
 test("complete pilot roster fixture passes without writing full emails or passwords", () => {
-  const { result, markdown, json } = runWithFixture(fixture());
+  const { result, markdown, json, provisioningMarkdown, provisioningJson } = runWithFixture(fixture());
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(markdown, /Result: PASS/);
   assert.match(markdown, /d\*\*\*@example\.test/);
+  assert.match(markdown, /Actions required: 0/);
+  assert.match(provisioningMarkdown, /No roster production account actions are required/);
   assert.doesNotMatch(`${markdown}\n${json}`, /director@example\.test/);
   assert.doesNotMatch(`${markdown}\n${json}`, /pilot\.admin@example\.test/);
   assert.doesNotMatch(`${markdown}\n${json}`, /long-password-value/);
   assert.doesNotMatch(`${markdown}\n${json}`, /postgres(?:ql)?:\/\//);
+  assert.doesNotMatch(`${provisioningMarkdown}\n${provisioningJson}`, /director@example\.test/);
+  assert.doesNotMatch(`${provisioningMarkdown}\n${provisioningJson}`, /long-password-value/);
 });
 
 test("missing controlled denial personas fail with actionable gaps and no secret leakage", () => {
@@ -114,12 +124,20 @@ test("missing controlled denial personas fail with actionable gaps and no secret
       pausedCompanyUsers: [],
     },
   });
-  const { result, markdown, json } = runWithFixture(missing);
+  const { result, markdown, json, provisioningMarkdown, provisioningJson } = runWithFixture(missing);
 
   assert.equal(result.status, 1, result.stderr || result.stdout);
   assert.match(markdown, /FAIL Consultant denial candidate exists/);
   assert.match(markdown, /Create or approve a controlled JewelLink CONSULTANT test account/);
   assert.match(markdown, /Create or approve a controlled active user in a paused JewelLink company/);
+  assert.match(markdown, /Actions required: 2/);
+  assert.match(provisioningMarkdown, /Create controlled JewelLink CONSULTANT denial persona/);
+  assert.match(provisioningMarkdown, /Create controlled active user in a paused JewelLink company/);
+  assert.match(provisioningJson, /"id": "consultant-denial"/);
+  assert.match(provisioningJson, /"id": "paused-company-denial"/);
+  assert.match(provisioningJson, /"productionMutationRequired": true/);
   assert.doesNotMatch(`${markdown}\n${json}`, /applicant@example\.test/);
   assert.doesNotMatch(`${markdown}\n${json}`, /long-password-value/);
+  assert.doesNotMatch(`${provisioningMarkdown}\n${provisioningJson}`, /applicant@example\.test/);
+  assert.doesNotMatch(`${provisioningMarkdown}\n${provisioningJson}`, /long-password-value/);
 });

@@ -54,6 +54,24 @@ test("a GO dossier with vague smoke evidence fails closed", () => {
   assert.match(result.stdout, /FAIL GO decision has concrete smoke evidence artifacts/);
 });
 
+test("a GO dossier with vague pilot roster evidence fails closed", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "go-no-go-dossier-"));
+  const dossier = path.join(dir, "dossier.md");
+  let text = fs.readFileSync(realDossier, "utf8").replace(
+    "Decision: **NO-GO for live pilot traffic** until the required evidence rows",
+    "Decision: **GO for controlled pilot** because the required evidence rows",
+  );
+  for (const marker of ["`TBD`", "TBD", "MISSING", "NOT RUN", "WAITING APPROVAL", "PARTIAL", "NOT SET"]) {
+    text = text.split(marker).join(marker === "`TBD`" ? "`COMPLETE`" : "COMPLETE");
+  }
+  fs.writeFileSync(dossier, text);
+
+  const result = runAudit(dossier);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /PASS GO decision has no unresolved evidence placeholders/);
+  assert.match(result.stdout, /FAIL GO decision has concrete pilot roster evidence/);
+});
+
 test("a missing approval boundary fails closed", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "go-no-go-dossier-"));
   const dossier = path.join(dir, "dossier.md");

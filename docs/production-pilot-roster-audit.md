@@ -22,7 +22,11 @@ npm run qa:pilot-roster -- \
 ```
 
 The report is written under `docs/qa-runs/pilot-roster-*` unless
-`--artifacts=<dir>` is supplied.
+`--artifacts=<dir>` is supplied. Each run also writes
+`pilot-roster-provisioning-packet.md` and
+`pilot-roster-provisioning-packet.json` in the same artifact directory. The
+packet lists any production account actions still needed for the controlled
+denial personas; it is an approval aid only and does not mutate either product.
 
 ## What It Proves
 
@@ -35,6 +39,9 @@ The report is written under `docs/qa-runs/pilot-roster-*` unless
 - The JewelHire admin allowlist has no active non-admin JewelLink users.
 - JewelHire smoke credential roles exist for admin, store owner, and applicant.
 - Missing live-smoke personas are reported as GO blockers, not silently ignored.
+- Missing controlled Consultant or paused-company denial personas are converted
+  into a non-secret provisioning packet with constraints and verification
+  commands.
 
 ## Secret Handling
 
@@ -51,5 +58,6 @@ Fixture coverage runs without `gcloud`:
 node --test scripts/production-pilot-roster-audit.test.mjs
 ```
 
-The fixture tests prove the complete-roster path and the safe failure path when
-controlled denial personas are missing.
+The fixture tests prove the complete-roster path, the safe failure path when
+controlled denial personas are missing, and the provisioning packet's
+no-secret behavior.

@@ -71,6 +71,17 @@ const weakSmokeEvidencePatterns = [
   /\bapproved\b(?!.*docs\/qa-runs\/)/i,
 ];
 
+const weakPilotRosterEvidencePatterns = [
+  /\bPARTIAL\b/i,
+  /\bNO-GO\b/i,
+  /\bnot run\b/i,
+  /\bmissing\b/i,
+  /\bneeds?\b/i,
+  /\bcandidate selected\b/i,
+  /\bqa:pilot-roster\b/i,
+  /\bunless\b/i,
+];
+
 const checks = [];
 
 function record(name, pass, details = {}) {
@@ -120,6 +131,42 @@ function smokeEvidenceGaps(text) {
   });
 }
 
+function requiredEvidenceRows(text) {
+  return tableRows(sectionText(text, "## Required evidence before GO")).map((cells) => ({
+    gate: cells[0] || "",
+    status: cells[1] || "",
+    evidence: cells[2] || "",
+  }));
+}
+
+function pilotRosterEvidenceGaps(text) {
+  const gaps = [];
+  const pilotRosterRow = requiredEvidenceRows(text).find((row) => row.gate === "Pilot roster");
+  if (!pilotRosterRow) {
+    gaps.push("Required evidence before GO: Pilot roster row");
+  } else {
+    const rowText = `${pilotRosterRow.status} ${pilotRosterRow.evidence}`;
+    if (!/^PASS$/i.test(pilotRosterRow.status.trim())) {
+      gaps.push("Required evidence before GO: Pilot roster status is not PASS");
+    }
+    if (!/docs\/qa-runs\/pilot-roster-[^|\s`]+\/pilot-roster-report\.md/.test(pilotRosterRow.evidence)) {
+      gaps.push("Required evidence before GO: Pilot roster artifact is not concrete");
+    }
+    if (weakPilotRosterEvidencePatterns.some((pattern) => pattern.test(rowText))) {
+      gaps.push("Required evidence before GO: Pilot roster row contains weak evidence language");
+    }
+  }
+
+  const rosterSection = sectionText(text, "## Pilot roster");
+  if (!rosterSection.includes("docs/qa-runs/pilot-roster-")) {
+    gaps.push("Pilot roster section: missing concrete roster artifact");
+  }
+  if (weakPilotRosterEvidencePatterns.some((pattern) => pattern.test(rosterSection))) {
+    gaps.push("Pilot roster section: contains weak evidence language");
+  }
+  return [...new Set(gaps)];
+}
+
 function main() {
   if (!fs.existsSync(DOSSIER)) {
     record("go/no-go dossier exists", false, { dossier: DOSSIER });
@@ -145,6 +192,7 @@ function main() {
     "JewelLink release-path approval is explicit",
     "production pilot readiness audit passes",
     "production migration ledgers match",
+    "Pilot roster audit passes",
     "Authenticated SSO, hire, and JewelCert smokes pass",
     "Rollback owners and revision targets are recorded",
     "No stop condition is open",
@@ -154,6 +202,8 @@ function main() {
     record("GO decision has no unresolved evidence placeholders", unresolved.length === 0, { unresolvedMarkers: unresolved });
     const weakSmokeEvidence = smokeEvidenceGaps(text);
     record("GO decision has concrete smoke evidence artifacts", weakSmokeEvidence.length === 0, { weakSmokeEvidence });
+    const weakPilotRosterEvidence = pilotRosterEvidenceGaps(text);
+    record("GO decision has concrete pilot roster evidence", weakPilotRosterEvidence.length === 0, { weakPilotRosterEvidence });
   } else {
     record("NO-GO decision preserves unresolved evidence placeholders", unresolved.length > 0, { unresolvedMarkers: unresolved });
   }
