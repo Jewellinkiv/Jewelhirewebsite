@@ -21,8 +21,13 @@ authorize any production mutation.
 - Encrypted logical backups for both production databases are recorded in
   `docs/production-operations-evidence-2026-07-21.json`; backup evidence passes
   the latest operations audit.
-- JewelHire smoke credential prerequisites pass, including store-owner native
-  smoke, applicant native smoke, and JewelLink SSO admin-marker cleanup.
+- JewelHire admin allowlist cleanup passes in
+  `docs/qa-runs/admin-allowlist-2026-07-21T05-44-30-000Z/`: 9 active
+  JewelLink admin-role users, 0 missing, 0 extra, and 0 active non-admins.
+- JewelHire smoke credential prerequisites pass in
+  `docs/qa-runs/smoke-credential-auth-2026-07-21T05-44-30-000Z/`, including
+  store-owner native smoke, applicant native smoke, and JewelLink SSO
+  admin-marker cleanup.
 
 ## Operations approval fields
 
