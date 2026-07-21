@@ -55,6 +55,13 @@ backup, monitoring, live rollback target, external database host, and JewelLink
 health scheduler checks. The remaining failures are the six approval fields for
 rollback owners, the exact observation window, and rollback thresholds.
 
+2026-07-21T07:12Z operations evidence refresh:
+`docs/qa-runs/operations-readiness-2026-07-21T07-12-56-339Z/` confirms the
+same backup, monitoring, live rollback target, external database host, and
+JewelLink health scheduler evidence, with the monitoring channel IDs now
+explicitly recorded in `docs/production-operations-evidence-2026-07-21.json`.
+Rollback owner/window/threshold approval remains open.
+
 2026-07-21 operator evidence packet: copy
 `docs/production-operations-evidence.template.json` to a local ignored path such
 as `.qa_tmp/production-operations-evidence.json`, fill it with only non-secret
@@ -62,7 +69,9 @@ backup IDs, timestamps, owner/channel names, and threshold summaries, then run
 `npm run qa:operations-readiness -- --operations-evidence-file=.qa_tmp/production-operations-evidence.json`.
 The audit report is the GO evidence; the filled local packet must not include
 database URLs, passwords, tokens, cookies, full backup locations, customer data,
-or secret manager values.
+or secret manager values. Placeholder approvals such as `TBD`, `pending`, or
+`approved` do not count; the observation window must include exact UTC start
+and end timestamps, and rollback thresholds must name concrete stop signals.
 
 | Evidence | JewelHire | JewelLink |
 | --- | --- | --- |

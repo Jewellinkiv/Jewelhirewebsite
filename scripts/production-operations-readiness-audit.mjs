@@ -543,6 +543,47 @@ function isoLike(value) {
   return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value);
 }
 
+function utcTimestampCount(value) {
+  return (String(value || "").match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z/g) || []).length;
+}
+
+function concreteText(value) {
+  const text = String(value || "").trim();
+  if (!text) return false;
+  if (/^(?:tbd|todo|pending|proposed|approved|yes|no|n\/a|na|none|missing)$/i.test(text)) return false;
+  return true;
+}
+
+function ownerEvidencePresent(value) {
+  return concreteText(value) && /[A-Za-z]/.test(String(value));
+}
+
+function observationWindowEvidencePresent(value) {
+  return concreteText(value) && utcTimestampCount(value) >= 2;
+}
+
+function rollbackThresholdEvidencePresent(value) {
+  const text = String(value || "").toLowerCase();
+  const stopSignals = [
+    "cross-store",
+    "cross-company",
+    "data exposure",
+    "role",
+    "consultant",
+    "allowlisted",
+    "private api",
+    "duplicate",
+    "wrong",
+    "jewelcert",
+    "secret",
+    "migration",
+    "5xx",
+    "scheduler",
+    "delivery",
+  ];
+  return concreteText(value) && stopSignals.some((signal) => text.includes(signal));
+}
+
 function validBackupMethod(value) {
   return ["provider-snapshot", "pitr", "encrypted-logical"].includes(String(value || "").trim());
 }
@@ -711,12 +752,12 @@ function checkDeclaredOperationsEvidence({ jewelhire, jewellink }) {
     declaredChannelRecorded: Boolean(declaredEvidence.monitoring.channel.trim()),
     attachedEnabledMonitoringChannels: attachedMonitoringChannels,
   });
-  record("JewelHire rollback owner is recorded", Boolean(declaredEvidence.rollback.jewelhireOwner.trim()));
-  record("JewelLink rollback owner is recorded", Boolean(declaredEvidence.rollback.jewellinkOwner.trim()));
-  record("JewelLink IAM rollback owner is recorded", Boolean(declaredEvidence.rollback.jewellinkIamOwner.trim()));
-  record("Database recovery owner is recorded", Boolean(declaredEvidence.rollback.databaseRecoveryOwner.trim()));
-  record("Observation window is recorded", Boolean(declaredEvidence.rollback.observationWindow.trim()));
-  record("Immediate rollback thresholds are recorded", Boolean(declaredEvidence.rollback.rollbackThresholds.trim()));
+  record("JewelHire rollback owner is recorded", ownerEvidencePresent(declaredEvidence.rollback.jewelhireOwner));
+  record("JewelLink rollback owner is recorded", ownerEvidencePresent(declaredEvidence.rollback.jewellinkOwner));
+  record("JewelLink IAM rollback owner is recorded", ownerEvidencePresent(declaredEvidence.rollback.jewellinkIamOwner));
+  record("Database recovery owner is recorded", ownerEvidencePresent(declaredEvidence.rollback.databaseRecoveryOwner));
+  record("Observation window is recorded", observationWindowEvidencePresent(declaredEvidence.rollback.observationWindow));
+  record("Immediate rollback thresholds are recorded", rollbackThresholdEvidencePresent(declaredEvidence.rollback.rollbackThresholds));
 }
 
 function evidenceSkeleton() {
@@ -1017,7 +1058,11 @@ async function main() {
         },
       },
       rollback: Object.fromEntries(
-        Object.entries(declaredEvidence.rollback).map(([key, value]) => [key, Boolean(String(value).trim())]),
+        Object.entries(declaredEvidence.rollback).map(([key, value]) => {
+          if (key === "observationWindow") return [key, observationWindowEvidencePresent(value)];
+          if (key === "rollbackThresholds") return [key, rollbackThresholdEvidencePresent(value)];
+          return [key, ownerEvidencePresent(value)];
+        }),
       ),
       monitoring: {
         channel:

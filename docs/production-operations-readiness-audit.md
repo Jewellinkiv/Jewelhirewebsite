@@ -58,6 +58,13 @@ provider backup IDs, timestamps, owner/channel names, and rollback threshold
 summaries. Do not include database URLs, passwords, tokens, cookies, customer
 data, full backup locations, or secret manager values. Then run:
 
+Rollback owner fields must contain a concrete owner/channel, not placeholders
+such as `TBD`, `pending`, or `approved`. The observation window must include
+two exact UTC timestamps, and the rollback thresholds must include concrete
+stop signals such as data exposure, role elevation, duplicate provisioning,
+JewelCert mis-sync, secret drift, migration drift, 5xx errors, scheduler
+failure, or provider delivery failure.
+
 For the current 2026-07-21 pilot state,
 `docs/production-operations-evidence.approval-template-2026-07-21.json` already
 contains the verified encrypted logical backup evidence and leaves only the
@@ -94,7 +101,7 @@ the currently observed rollback targets.
 - JewelLink has the expected `jewellink-jewelhire-integration-health` Scheduler
   job and it targets `/api/cron/jewelhire-integration-health`.
 - Rollback owners, monitoring channel, observation window, and rollback
-  thresholds are recorded.
+  thresholds are recorded with concrete non-placeholder values.
 
 `docs/pilot-rollback-window-proposal-2026-07-20.md` contains a proposed
 observation window and threshold set. Passing this audit still requires the
@@ -109,14 +116,15 @@ when required fields are missing. This does not change the GO criteria; it only
 reduces the chance of missing or pasting unsafe evidence fields while closing
 the backup and rollback gates.
 
-`docs/qa-runs/operations-readiness-2026-07-21T04-11-01-000Z/` confirms both
+`docs/qa-runs/operations-readiness-2026-07-21T07-12-56-339Z/` confirms both
 Cloud Run rollback targets, external `pg.psdb.cloud` database hosts, enabled
 alert policies, readable and enabled attached notification channels, log
-metrics, the JewelLink JewelHire health scheduler, and encrypted logical backup
-evidence for both production databases. It still fails the GO gate only because
-the named rollback owners, approved observation window, and rollback thresholds
-are still unapproved. The same run generated
-`docs/qa-runs/operations-readiness-2026-07-21T04-11-01-000Z/operations-readiness-evidence-request.md`
+metrics, the JewelLink JewelHire health scheduler, encrypted logical backup
+evidence for both production databases, and explicitly recorded monitoring
+channel IDs. It still fails the GO gate only because the named rollback owners,
+approved observation window, and rollback thresholds are still unapproved. The
+same run generated
+`docs/qa-runs/operations-readiness-2026-07-21T07-12-56-339Z/operations-readiness-evidence-request.md`
 with the exact fields to fill before rerunning the audit.
 
 ## Secret Handling
@@ -137,7 +145,7 @@ Fixture coverage runs without `gcloud`:
 node --test scripts/production-operations-readiness-audit.test.mjs
 ```
 
-The fixture tests prove both complete-evidence paths, including the evidence
+The fixture tests prove complete-evidence, placeholder-failure, and evidence
 file path and generated evidence request packet, and verify that missing
 JewelLink health monitoring or disabled attached notification channels fail
 without leaking fake secret values.

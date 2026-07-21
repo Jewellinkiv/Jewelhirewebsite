@@ -155,7 +155,18 @@ function runAudit(overrides = {}) {
     // Exercise the generated evidence-request packet with no operator evidence supplied.
   } else if (overrides.useEvidenceFile) {
     const evidenceFile = path.join(dir, "operations-evidence.json");
-    fs.writeFileSync(evidenceFile, JSON.stringify(completeOperationsEvidence(), null, 2));
+    const evidence = completeOperationsEvidence();
+    if (overrides.placeholderRollbackEvidence) {
+      evidence.rollback = {
+        jewelhireOwner: "Pending",
+        jewellinkOwner: "TBD",
+        jewellinkIamOwner: "Approved",
+        databaseRecoveryOwner: "N/A",
+        observationWindow: "2026-07-20T23:00:00Z pending",
+        rollbackThresholds: "approved",
+      };
+    }
+    fs.writeFileSync(evidenceFile, JSON.stringify(evidence, null, 2));
     args.push(`--operations-evidence-file=${evidenceFile}`);
   } else {
     args.push(
@@ -223,6 +234,23 @@ test("evidence file can supply complete backup and rollback evidence without pri
   assert.doesNotMatch(markdown, /backup-jewelhire/);
   assert.doesNotMatch(json, /Ops JewelHire/);
   assert.doesNotMatch(markdown, /Ops JewelHire/);
+});
+
+test("placeholder rollback evidence fails closed without printing raw values", () => {
+  const { result, json, markdown, requestMarkdown } = runAudit({
+    useEvidenceFile: true,
+    placeholderRollbackEvidence: true,
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(markdown, /FAIL JewelHire rollback owner is recorded/);
+  assert.match(markdown, /FAIL JewelLink rollback owner is recorded/);
+  assert.match(markdown, /FAIL JewelLink IAM rollback owner is recorded/);
+  assert.match(markdown, /FAIL Database recovery owner is recorded/);
+  assert.match(markdown, /FAIL Observation window is recorded/);
+  assert.match(markdown, /FAIL Immediate rollback thresholds are recorded/);
+  assert.match(requestMarkdown, /Approved UTC start\/end window/);
+  assert.doesNotMatch(`${json}\n${markdown}`, /Pending|TBD|Approved|N\/A/);
+  assert.doesNotMatch(requestMarkdown, /Pending|TBD|N\/A/);
 });
 
 test("missing operations evidence emits a fill-in request packet without leaking secrets", () => {
