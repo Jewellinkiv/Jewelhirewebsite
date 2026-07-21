@@ -16,7 +16,7 @@ The report is written under `docs/qa-runs/pilot-approval-bundle-*` unless
 `--artifacts=<dir>` is supplied.
 
 The latest production result is
-`docs/qa-runs/pilot-approval-bundle-2026-07-21T08-40-36-554Z/`. It passes and
+`docs/qa-runs/pilot-approval-bundle-2026-07-21T08-52-59-428Z/`. It passes and
 writes `pilot-approval-bundle.md`.
 
 ## What It Combines
@@ -28,10 +28,28 @@ writes `pilot-approval-bundle.md`.
 - A single operator reply template that collects rollback owners, controlled
   setup approval, mutating smoke approval, source-test acceptance, and the
   JewelLink no-code-push boundary.
+- A companion intake path for validating a filled reply and drafting the local
+  ignored audit files without printing approval values.
 - Local ignored file skeletons for the operations evidence file, controlled
   application approval file, and pilot smoke plan.
 - The recommended command sequence from approval collection through final
   live-readiness validation.
+
+## Filled Reply Intake
+
+After the operator reply template is filled, save it in a local ignored file
+and run:
+
+```bash
+npm run qa:pilot-operator-reply-intake -- \
+  --reply-file=.qa_tmp/production-pilot-operator-reply.txt \
+  --write-local-drafts
+```
+
+That helper fails closed if placeholders, unsafe values, or JewelLink code
+push/deploy approval are mixed into the pilot approval. When it passes, it
+writes the local draft files under `.qa_tmp/pilot-operator-reply-intake/` for
+the operations-readiness, controlled-application, and smoke-plan gates.
 
 ## Secret Handling
 
@@ -51,6 +69,7 @@ Fixture coverage:
 
 ```bash
 npm run test:production-pilot-approval-bundle
+npm run test:production-pilot-operator-reply-intake
 ```
 
 Release-control coverage now includes this helper through

@@ -1,0 +1,61 @@
+{
+  "createdAt": "2026-07-21T08:52:59.431Z",
+  "pass": true,
+  "valuesPrinted": false,
+  "checks": [
+    {
+      "name": "Operations evidence request exists",
+      "pass": true,
+      "artifact": "docs/qa-runs/operations-readiness-2026-07-21T08-30-56-864Z/operations-readiness-evidence-request.json"
+    },
+    {
+      "name": "Operations evidence request is valid JSON",
+      "pass": true,
+      "artifact": "docs/qa-runs/operations-readiness-2026-07-21T08-30-56-864Z/operations-readiness-evidence-request.json"
+    },
+    {
+      "name": "Pilot roster provisioning packet exists",
+      "pass": true,
+      "artifact": "docs/qa-runs/pilot-roster-2026-07-21T08-30-56-900Z/pilot-roster-provisioning-packet.json"
+    },
+    {
+      "name": "Pilot roster provisioning packet is valid JSON",
+      "pass": true,
+      "artifact": "docs/qa-runs/pilot-roster-2026-07-21T08-30-56-900Z/pilot-roster-provisioning-packet.json"
+    },
+    {
+      "name": "Controlled application submission request exists",
+      "pass": true,
+      "artifact": "docs/qa-runs/pilot-application-submission-2026-07-21T08-31-25-486Z/pilot-application-submission-request.json"
+    },
+    {
+      "name": "Controlled application submission request is valid JSON",
+      "pass": true,
+      "artifact": "docs/qa-runs/pilot-application-submission-2026-07-21T08-31-25-486Z/pilot-application-submission-request.json"
+    },
+    {
+      "name": "Pilot smoke plan request exists",
+      "pass": true,
+      "artifact": "docs/qa-runs/pilot-smoke-plan-2026-07-21T08-13-07-305Z/pilot-smoke-plan-request.json"
+    },
+    {
+      "name": "Pilot smoke plan request is valid JSON",
+      "pass": true,
+      "artifact": "docs/qa-runs/pilot-smoke-plan-2026-07-21T08-13-07-305Z/pilot-smoke-plan-request.json"
+    },
+    {
+      "name": "source request packets contain no unsafe secret or PII values",
+      "pass": true,
+      "required": "No full emails, passwords, database URLs, bearer tokens, cookies, tokens, secret values, or customer data",
+      "unsafeFieldPaths": [],
+      "unsafeReasons": []
+    }
+  ],
+  "bundleGenerated": true,
+  "sourceArtifacts": {
+    "operations-request": "docs/qa-runs/operations-readiness-2026-07-21T08-30-56-864Z/operations-readiness-evidence-request.json",
+    "roster-packet": "docs/qa-runs/pilot-roster-2026-07-21T08-30-56-900Z/pilot-roster-provisioning-packet.json",
+    "application-request": "docs/qa-runs/pilot-application-submission-2026-07-21T08-31-25-486Z/pilot-application-submission-request.json",
+    "smoke-plan-request": "docs/qa-runs/pilot-smoke-plan-2026-07-21T08-13-07-305Z/pilot-smoke-plan-request.json"
+  }
+}
