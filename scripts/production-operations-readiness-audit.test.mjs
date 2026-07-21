@@ -109,6 +109,39 @@ function writeFixtures(dir, overrides = {}) {
   );
 }
 
+function completeOperationsEvidence() {
+  return {
+    backups: {
+      jewelhire: {
+        method: "provider-snapshot",
+        id: "backup-jewelhire",
+        completedAt: "2026-07-20T21:55:00Z",
+        verifiedAt: "2026-07-20T22:00:00Z",
+        retention: "provider-pitr-retention-confirmed",
+        restoreEvidence: "provider-list-verification",
+        logicalSha256: "",
+      },
+      jewellink: {
+        method: "encrypted-logical",
+        id: "backup-jewellink",
+        completedAt: "2026-07-20T21:58:00Z",
+        verifiedAt: "2026-07-20T22:05:00Z",
+        retention: "encrypted-object-retention-confirmed",
+        restoreEvidence: "pg-restore-list-verification",
+        logicalSha256: "b".repeat(64),
+      },
+    },
+    rollback: {
+      jewelhireOwner: "Ops JewelHire",
+      jewellinkOwner: "Ops JewelLink",
+      jewellinkIamOwner: "Ops IAM",
+      databaseRecoveryOwner: "Ops Database",
+      observationWindow: "2026-07-20T23:00:00Z/2026-07-21T01:00:00Z",
+      rollbackThresholds: "Any cross-tenant data exposure or sustained 5xx",
+    },
+  };
+}
+
 function runAudit(overrides = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "operations-readiness-fixture-"));
   const artifacts = path.join(dir, "artifacts");
@@ -117,27 +150,35 @@ function runAudit(overrides = {}) {
     script,
     `--fixture-dir=${dir}`,
     `--artifacts=${artifacts}`,
-    "--jewelhire-backup-method=provider-snapshot",
-    "--jewellink-backup-method=encrypted-logical",
-    "--jewelhire-backup-id=backup-jewelhire",
-    "--jewellink-backup-id=backup-jewellink",
-    "--jewelhire-backup-completed-at=2026-07-20T21:55:00Z",
-    "--jewellink-backup-completed-at=2026-07-20T21:58:00Z",
-    "--jewelhire-backup-verified-at=2026-07-20T22:00:00Z",
-    "--jewellink-backup-verified-at=2026-07-20T22:05:00Z",
-    "--jewelhire-backup-retention=provider-pitr-retention-confirmed",
-    "--jewellink-backup-retention=encrypted-object-retention-confirmed",
-    "--jewelhire-backup-restore-evidence=provider-list-verification",
-    "--jewellink-backup-restore-evidence=pg-restore-list-verification",
-    "--jewelhire-rollback-owner=Ops JewelHire",
-    "--jewellink-rollback-owner=Ops JewelLink",
-    "--jewellink-iam-rollback-owner=Ops IAM",
-    "--database-recovery-owner=Ops Database",
-    "--observation-window=2026-07-20T23:00:00Z/2026-07-21T01:00:00Z",
-    "--rollback-thresholds=Any cross-tenant data exposure or sustained 5xx",
   ];
-  if (!overrides.missingLogicalSha256) {
-    args.push(`--jewellink-logical-backup-sha256=${"b".repeat(64)}`);
+  if (overrides.useEvidenceFile) {
+    const evidenceFile = path.join(dir, "operations-evidence.json");
+    fs.writeFileSync(evidenceFile, JSON.stringify(completeOperationsEvidence(), null, 2));
+    args.push(`--operations-evidence-file=${evidenceFile}`);
+  } else {
+    args.push(
+      "--jewelhire-backup-method=provider-snapshot",
+      "--jewellink-backup-method=encrypted-logical",
+      "--jewelhire-backup-id=backup-jewelhire",
+      "--jewellink-backup-id=backup-jewellink",
+      "--jewelhire-backup-completed-at=2026-07-20T21:55:00Z",
+      "--jewellink-backup-completed-at=2026-07-20T21:58:00Z",
+      "--jewelhire-backup-verified-at=2026-07-20T22:00:00Z",
+      "--jewellink-backup-verified-at=2026-07-20T22:05:00Z",
+      "--jewelhire-backup-retention=provider-pitr-retention-confirmed",
+      "--jewellink-backup-retention=encrypted-object-retention-confirmed",
+      "--jewelhire-backup-restore-evidence=provider-list-verification",
+      "--jewellink-backup-restore-evidence=pg-restore-list-verification",
+      "--jewelhire-rollback-owner=Ops JewelHire",
+      "--jewellink-rollback-owner=Ops JewelLink",
+      "--jewellink-iam-rollback-owner=Ops IAM",
+      "--database-recovery-owner=Ops Database",
+      "--observation-window=2026-07-20T23:00:00Z/2026-07-21T01:00:00Z",
+      "--rollback-thresholds=Any cross-tenant data exposure or sustained 5xx",
+    );
+    if (!overrides.missingLogicalSha256) {
+      args.push(`--jewellink-logical-backup-sha256=${"b".repeat(64)}`);
+    }
   }
   const result = spawnSync(process.execPath, args, {
     cwd: root,
@@ -163,6 +204,18 @@ test("fixture mode passes with complete operations evidence and no secret leakag
   assert.doesNotMatch(markdown, /super-secret-password/);
   assert.doesNotMatch(json, /postgresql:\/\/user/);
   assert.doesNotMatch(markdown, /postgresql:\/\/user/);
+});
+
+test("evidence file can supply complete backup and rollback evidence without printing raw values", () => {
+  const { result, json, markdown } = runAudit({ useEvidenceFile: true });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(markdown, /Result: PASS/);
+  assert.match(markdown, /Backup method: provider-snapshot/);
+  assert.match(markdown, /JewelHire rollback owner recorded: yes/);
+  assert.doesNotMatch(json, /backup-jewelhire/);
+  assert.doesNotMatch(markdown, /backup-jewelhire/);
+  assert.doesNotMatch(json, /Ops JewelHire/);
+  assert.doesNotMatch(markdown, /Ops JewelHire/);
 });
 
 test("encrypted logical backup fallback requires a SHA-256 without leaking secrets", () => {

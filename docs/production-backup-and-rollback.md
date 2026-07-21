@@ -24,7 +24,7 @@ policies, readable and enabled attached email notification channels, and
 log-based 5xx metrics in both GCP projects. JewelLink also has an enabled Cloud
 Scheduler job named `jewellink-jewelhire-integration-health` targeting
 `/api/cron/jewelhire-integration-health`. Evidence is recorded in
-`docs/qa-runs/operations-readiness-2026-07-20T23-54-21-528Z/`.
+`docs/qa-runs/operations-readiness-2026-07-21T00-40-25-894Z/`.
 
 2026-07-20 rollback-window proposal: `docs/pilot-rollback-window-proposal-2026-07-20.md`
 now proposes named owner slots, a 60-minute staffed observation window, and
@@ -37,11 +37,20 @@ time, verification time, PITR or retention posture, and restore/list evidence.
 If the encrypted logical fallback is used, the audit also requires the
 encrypted artifact SHA-256 digest.
 
-2026-07-20T23:54Z operations rerun:
-`docs/qa-runs/operations-readiness-2026-07-20T23-54-21-528Z/` confirms the
+2026-07-21T00:40Z operations rerun:
+`docs/qa-runs/operations-readiness-2026-07-21T00-40-25-894Z/` confirms the
 runtime rollback targets, monitoring resources, enabled attached notification
 channels, and JewelLink health scheduler, but still fails because the backup
 evidence fields and named rollback owner approval fields below are not complete.
+
+2026-07-21 operator evidence packet: copy
+`docs/production-operations-evidence.template.json` to a local ignored path such
+as `.qa_tmp/production-operations-evidence.json`, fill it with only non-secret
+backup IDs, timestamps, owner/channel names, and threshold summaries, then run
+`npm run qa:operations-readiness -- --operations-evidence-file=.qa_tmp/production-operations-evidence.json`.
+The audit report is the GO evidence; the filled local packet must not include
+database URLs, passwords, tokens, cookies, full backup locations, customer data,
+or secret manager values.
 
 | Evidence | JewelHire | JewelLink |
 | --- | --- | --- |

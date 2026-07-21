@@ -23,6 +23,7 @@ complete enough for a controlled pilot.
 Options:
   --artifacts=<dir>                         Report output directory
   --fixture-dir=<dir>                       Read fixture JSON instead of gcloud
+  --operations-evidence-file=<path>         Read non-secret backup/rollback evidence JSON
   --jewelhire-project=<id>                  Default: jewelhire-prod-20260626
   --jewelhire-region=<region>               Default: us-central1
   --jewelhire-service=<name>                Default: jewelhire
@@ -60,6 +61,7 @@ Options:
 const TS = new Date().toISOString().replace(/[:.]/g, "-");
 const OUT = path.resolve(process.cwd(), args.get("artifacts") || `docs/qa-runs/operations-readiness-${TS}`);
 const FIXTURE_DIR = args.get("fixture-dir") ? path.resolve(process.cwd(), args.get("fixture-dir")) : "";
+const EVIDENCE_FILE = args.get("operations-evidence-file") || args.get("evidence-file") || process.env.OPERATIONS_EVIDENCE_FILE || "";
 
 const products = {
   jewelhire: {
@@ -87,41 +89,109 @@ const expectedJewelLinkHealthJob =
 
 const checks = [];
 
-function option(name, envName = "") {
-  return args.get(name) || (envName ? process.env[envName] : "") || "";
+function loadEvidenceFile() {
+  if (!EVIDENCE_FILE) return {};
+  const fullPath = path.resolve(process.cwd(), EVIDENCE_FILE);
+  if (!fs.existsSync(fullPath)) {
+    console.error(`Operations evidence file not found: ${fullPath}`);
+    process.exit(1);
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(fullPath, "utf8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("top-level value must be an object");
+    }
+    return parsed;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Operations evidence file is not valid JSON: ${message}`);
+    process.exit(1);
+  }
+}
+
+const evidenceFile = loadEvidenceFile();
+
+function evidenceValue(pathParts) {
+  let current = evidenceFile;
+  for (const part of pathParts) {
+    if (!current || typeof current !== "object" || !Object.prototype.hasOwnProperty.call(current, part)) {
+      return "";
+    }
+    current = current[part];
+  }
+  return current == null ? "" : String(current);
+}
+
+function option(name, envName = "", evidencePath = []) {
+  return args.get(name) || (envName ? process.env[envName] : "") || evidenceValue(evidencePath) || "";
 }
 
 const declaredEvidence = {
   backups: {
     jewelhire: {
-      method: option("jewelhire-backup-method", "JEWELHIRE_BACKUP_METHOD"),
-      id: option("jewelhire-backup-id", "JEWELHIRE_BACKUP_ID"),
-      completedAt: option("jewelhire-backup-completed-at", "JEWELHIRE_BACKUP_COMPLETED_AT"),
-      verifiedAt: option("jewelhire-backup-verified-at", "JEWELHIRE_BACKUP_VERIFIED_AT"),
-      retention: option("jewelhire-backup-retention", "JEWELHIRE_BACKUP_RETENTION"),
-      restoreEvidence: option("jewelhire-backup-restore-evidence", "JEWELHIRE_BACKUP_RESTORE_EVIDENCE"),
-      logicalSha256: option("jewelhire-logical-backup-sha256", "JEWELHIRE_LOGICAL_BACKUP_SHA256"),
+      method: option("jewelhire-backup-method", "JEWELHIRE_BACKUP_METHOD", ["backups", "jewelhire", "method"]),
+      id: option("jewelhire-backup-id", "JEWELHIRE_BACKUP_ID", ["backups", "jewelhire", "id"]),
+      completedAt: option("jewelhire-backup-completed-at", "JEWELHIRE_BACKUP_COMPLETED_AT", [
+        "backups",
+        "jewelhire",
+        "completedAt",
+      ]),
+      verifiedAt: option("jewelhire-backup-verified-at", "JEWELHIRE_BACKUP_VERIFIED_AT", [
+        "backups",
+        "jewelhire",
+        "verifiedAt",
+      ]),
+      retention: option("jewelhire-backup-retention", "JEWELHIRE_BACKUP_RETENTION", ["backups", "jewelhire", "retention"]),
+      restoreEvidence: option("jewelhire-backup-restore-evidence", "JEWELHIRE_BACKUP_RESTORE_EVIDENCE", [
+        "backups",
+        "jewelhire",
+        "restoreEvidence",
+      ]),
+      logicalSha256: option("jewelhire-logical-backup-sha256", "JEWELHIRE_LOGICAL_BACKUP_SHA256", [
+        "backups",
+        "jewelhire",
+        "logicalSha256",
+      ]),
     },
     jewellink: {
-      method: option("jewellink-backup-method", "JEWELLINK_BACKUP_METHOD"),
-      id: option("jewellink-backup-id", "JEWELLINK_BACKUP_ID"),
-      completedAt: option("jewellink-backup-completed-at", "JEWELLINK_BACKUP_COMPLETED_AT"),
-      verifiedAt: option("jewellink-backup-verified-at", "JEWELLINK_BACKUP_VERIFIED_AT"),
-      retention: option("jewellink-backup-retention", "JEWELLINK_BACKUP_RETENTION"),
-      restoreEvidence: option("jewellink-backup-restore-evidence", "JEWELLINK_BACKUP_RESTORE_EVIDENCE"),
-      logicalSha256: option("jewellink-logical-backup-sha256", "JEWELLINK_LOGICAL_BACKUP_SHA256"),
+      method: option("jewellink-backup-method", "JEWELLINK_BACKUP_METHOD", ["backups", "jewellink", "method"]),
+      id: option("jewellink-backup-id", "JEWELLINK_BACKUP_ID", ["backups", "jewellink", "id"]),
+      completedAt: option("jewellink-backup-completed-at", "JEWELLINK_BACKUP_COMPLETED_AT", [
+        "backups",
+        "jewellink",
+        "completedAt",
+      ]),
+      verifiedAt: option("jewellink-backup-verified-at", "JEWELLINK_BACKUP_VERIFIED_AT", [
+        "backups",
+        "jewellink",
+        "verifiedAt",
+      ]),
+      retention: option("jewellink-backup-retention", "JEWELLINK_BACKUP_RETENTION", ["backups", "jewellink", "retention"]),
+      restoreEvidence: option("jewellink-backup-restore-evidence", "JEWELLINK_BACKUP_RESTORE_EVIDENCE", [
+        "backups",
+        "jewellink",
+        "restoreEvidence",
+      ]),
+      logicalSha256: option("jewellink-logical-backup-sha256", "JEWELLINK_LOGICAL_BACKUP_SHA256", [
+        "backups",
+        "jewellink",
+        "logicalSha256",
+      ]),
     },
   },
   rollback: {
-    jewelhireOwner: option("jewelhire-rollback-owner", "JEWELHIRE_ROLLBACK_OWNER"),
-    jewellinkOwner: option("jewellink-rollback-owner", "JEWELLINK_ROLLBACK_OWNER"),
-    jewellinkIamOwner: option("jewellink-iam-rollback-owner", "JEWELLINK_IAM_ROLLBACK_OWNER"),
-    databaseRecoveryOwner: option("database-recovery-owner", "DATABASE_RECOVERY_OWNER"),
-    observationWindow: option("observation-window", "OBSERVATION_WINDOW"),
-    rollbackThresholds: option("rollback-thresholds", "ROLLBACK_THRESHOLDS"),
+    jewelhireOwner: option("jewelhire-rollback-owner", "JEWELHIRE_ROLLBACK_OWNER", ["rollback", "jewelhireOwner"]),
+    jewellinkOwner: option("jewellink-rollback-owner", "JEWELLINK_ROLLBACK_OWNER", ["rollback", "jewellinkOwner"]),
+    jewellinkIamOwner: option("jewellink-iam-rollback-owner", "JEWELLINK_IAM_ROLLBACK_OWNER", [
+      "rollback",
+      "jewellinkIamOwner",
+    ]),
+    databaseRecoveryOwner: option("database-recovery-owner", "DATABASE_RECOVERY_OWNER", ["rollback", "databaseRecoveryOwner"]),
+    observationWindow: option("observation-window", "OBSERVATION_WINDOW", ["rollback", "observationWindow"]),
+    rollbackThresholds: option("rollback-thresholds", "ROLLBACK_THRESHOLDS", ["rollback", "rollbackThresholds"]),
   },
   monitoring: {
-    channel: option("monitoring-channel", "MONITORING_CHANNEL"),
+    channel: option("monitoring-channel", "MONITORING_CHANNEL", ["monitoring", "channel"]),
   },
 };
 

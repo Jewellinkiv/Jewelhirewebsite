@@ -1,0 +1,33 @@
+{
+  "backups": {
+    "jewelhire": {
+      "method": "",
+      "id": "",
+      "completedAt": "",
+      "verifiedAt": "",
+      "retention": "",
+      "restoreEvidence": "",
+      "logicalSha256": ""
+    },
+    "jewellink": {
+      "method": "",
+      "id": "",
+      "completedAt": "",
+      "verifiedAt": "",
+      "retention": "",
+      "restoreEvidence": "",
+      "logicalSha256": ""
+    }
+  },
+  "rollback": {
+    "jewelhireOwner": "",
+    "jewellinkOwner": "",
+    "jewellinkIamOwner": "",
+    "databaseRecoveryOwner": "",
+    "observationWindow": "",
+    "rollbackThresholds": ""
+  },
+  "monitoring": {
+    "channel": ""
+  }
+}

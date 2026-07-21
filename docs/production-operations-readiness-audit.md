@@ -44,6 +44,25 @@ npm run qa:operations-readiness -- \
   --rollback-thresholds='<short threshold summary>'
 ```
 
+For the pilot, prefer a local copy of
+`docs/production-operations-evidence.template.json` over the long command-line
+form:
+
+```bash
+mkdir -p .qa_tmp
+cp docs/production-operations-evidence.template.json .qa_tmp/production-operations-evidence.json
+```
+
+Fill `.qa_tmp/production-operations-evidence.json` with only non-secret
+provider backup IDs, timestamps, owner/channel names, and rollback threshold
+summaries. Do not include database URLs, passwords, tokens, cookies, customer
+data, full backup locations, or secret manager values. Then run:
+
+```bash
+npm run qa:operations-readiness -- \
+  --operations-evidence-file=.qa_tmp/production-operations-evidence.json
+```
+
 The report is written under `docs/qa-runs/operations-readiness-*` unless
 `--artifacts=<dir>` is supplied.
 
@@ -67,11 +86,17 @@ The report is written under `docs/qa-runs/operations-readiness-*` unless
 
 `docs/pilot-rollback-window-proposal-2026-07-20.md` contains a proposed
 observation window and threshold set. Passing this audit still requires the
-approved final values to be supplied on the command line.
+approved final values to be supplied on the command line, through environment
+variables, or through `--operations-evidence-file`.
 
 ## Latest Production Result
 
-`docs/qa-runs/operations-readiness-2026-07-20T23-54-21-528Z/` confirms both
+2026-07-21 update: the audit accepts a non-secret operations evidence JSON file
+via `--operations-evidence-file`. This does not change the GO criteria; it
+only reduces the chance of missing or pasting unsafe evidence fields while
+closing the backup and rollback gates.
+
+`docs/qa-runs/operations-readiness-2026-07-21T00-40-25-894Z/` confirms both
 Cloud Run rollback targets, external `pg.psdb.cloud` database hosts, enabled
 alert policies, readable and enabled attached notification channels, log
 metrics, and the JewelLink JewelHire health scheduler. It still fails the GO
@@ -97,6 +122,6 @@ Fixture coverage runs without `gcloud`:
 node --test scripts/production-operations-readiness-audit.test.mjs
 ```
 
-The fixture tests prove the complete-evidence path and verify that missing
-JewelLink health monitoring or disabled attached notification channels fail
-without leaking fake secret values.
+The fixture tests prove both complete-evidence paths, including the evidence
+file path, and verify that missing JewelLink health monitoring or disabled
+attached notification channels fail without leaking fake secret values.
