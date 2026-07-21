@@ -32,7 +32,7 @@ authorize any production mutation.
 ## Operations approval fields
 
 Latest audit:
-`docs/qa-runs/operations-readiness-2026-07-21T06-09-30-000Z/operations-readiness-report.md`
+`docs/qa-runs/operations-readiness-2026-07-21T06-27-56-592Z/operations-readiness-report.md`
 
 Fillable template:
 `docs/production-operations-evidence.approval-template-2026-07-21.json`
@@ -82,7 +82,7 @@ ledger repair is authorized or needed for this closure evidence.
 ## JewelLink pilot persona approvals
 
 Latest roster audit:
-`docs/qa-runs/pilot-roster-2026-07-21T06-08-55-608Z/pilot-roster-report.md`
+`docs/qa-runs/pilot-roster-2026-07-21T06-27-56-623Z/pilot-roster-report.md`
 
 The roster is blocked only on these JewelLink production personas:
 
@@ -106,13 +106,13 @@ Fillable smoke plan preflight template:
 `docs/production-pilot-smoke-plan.template.json`
 
 Latest smoke plan request:
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T06-10-30-000Z/pilot-smoke-plan-request.md`
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T06-28-39-016Z/pilot-smoke-plan-request.md`
 
 Fillable smoke evidence template:
 `docs/production-pilot-smoke-evidence.template.json`
 
 Latest final live-readiness request:
-`docs/qa-runs/pilot-live-readiness-2026-07-21T05-05-00-000Z/pilot-live-readiness-request.md`
+`docs/qa-runs/pilot-live-readiness-2026-07-21T06-29-23-723Z/pilot-live-readiness-request.md`
 
 Final live-readiness manifest template:
 `docs/production-pilot-live-readiness.template.json`
@@ -130,7 +130,7 @@ for:
 - Team-invite fail-closed and resume privacy evidence.
 
 Controlled smoke target finder:
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T06-09-30-000Z/pilot-smoke-targets-report.md`
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T06-27-56-638Z/pilot-smoke-targets-report.md`
 
 That read-only run confirms the controlled applicant smoke credential and
 linked pilot JewelHire store are ready. It also records the public application

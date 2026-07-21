@@ -1,0 +1,181 @@
+{
+  "createdAt": "2026-07-21T06:29:23.725Z",
+  "pass": false,
+  "valuesPrinted": false,
+  "readinessFile": ".qa_tmp/production-pilot-live-readiness.json",
+  "checks": [
+    {
+      "name": "pilot live-readiness manifest contains no unsafe secret or PII values",
+      "pass": true,
+      "path": "$",
+      "required": "No full emails, passwords, database URLs, bearer tokens, cookies, tokens, secret values, or customer data",
+      "unsafeFieldPaths": [],
+      "unsafeReasons": []
+    },
+    {
+      "name": "Go/no-go dossier exists",
+      "pass": true,
+      "path": "decision.goNoGoDossier",
+      "required": "Existing go/no-go dossier path",
+      "dossier": "docs/production-pilot-go-no-go-dossier-2026-07-20.md"
+    },
+    {
+      "name": "Go/no-go dossier decision is GO",
+      "pass": false,
+      "path": "decision.expectedDecision",
+      "required": "GO for controlled pilot",
+      "decision": "NO-GO for live pilot traffic"
+    },
+    {
+      "name": "Go/no-go dossier has no unresolved GO placeholders",
+      "pass": false,
+      "path": "decision.goNoGoDossier",
+      "required": "No TBD, MISSING, NOT RUN, WAITING APPROVAL, PARTIAL, or PROPOSED markers, and no blocked table statuses"
+    },
+    {
+      "name": "Production pilot readiness report is a concrete PASS artifact",
+      "pass": true,
+      "path": "evidence.productionPilotReadinessReport",
+      "required": "Existing PASS artifact under docs/qa-runs/",
+      "artifact": "docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/production-pilot-readiness-report.md",
+      "artifactRecorded": true,
+      "artifactPathValid": true,
+      "artifactPathSafe": true,
+      "artifactExists": true,
+      "artifactPasses": true
+    },
+    {
+      "name": "Integration smoke preflight report is a concrete PASS artifact",
+      "pass": true,
+      "path": "evidence.integrationSmokePreflightReport",
+      "required": "Existing PASS artifact under docs/qa-runs/",
+      "artifact": "docs/qa-runs/integration-smoke-preflight-2026-07-20T23-29-09-249Z/integration-smoke-preflight-report.md",
+      "artifactRecorded": true,
+      "artifactPathValid": true,
+      "artifactPathSafe": true,
+      "artifactExists": true,
+      "artifactPasses": true
+    },
+    {
+      "name": "Operations readiness report is a concrete PASS artifact",
+      "pass": false,
+      "path": "evidence.operationsReadinessReport",
+      "required": "Existing PASS artifact under docs/qa-runs/",
+      "artifact": "docs/qa-runs/operations-readiness-2026-07-21T06-27-56-592Z/operations-readiness-report.md",
+      "artifactRecorded": true,
+      "artifactPathValid": true,
+      "artifactPathSafe": true,
+      "artifactExists": true,
+      "artifactPasses": false
+    },
+    {
+      "name": "Pilot roster report is a concrete PASS artifact",
+      "pass": false,
+      "path": "evidence.pilotRosterReport",
+      "required": "Existing PASS artifact under docs/qa-runs/",
+      "artifact": "docs/qa-runs/pilot-roster-2026-07-21T06-27-56-623Z/pilot-roster-report.md",
+      "artifactRecorded": true,
+      "artifactPathValid": true,
+      "artifactPathSafe": true,
+      "artifactExists": true,
+      "artifactPasses": false
+    },
+    {
+      "name": "Pilot smoke targets report is a concrete PASS artifact",
+      "pass": false,
+      "path": "evidence.pilotSmokeTargetsReport",
+      "required": "Existing PASS artifact under docs/qa-runs/",
+      "artifact": "docs/qa-runs/pilot-smoke-targets-2026-07-21T06-27-56-638Z/pilot-smoke-targets-report.md",
+      "artifactRecorded": true,
+      "artifactPathValid": true,
+      "artifactPathSafe": true,
+      "artifactExists": true,
+      "artifactPasses": false
+    },
+    {
+      "name": "Pilot application submission report is a concrete PASS artifact",
+      "pass": false,
+      "path": "evidence.pilotApplicationSubmissionReport",
+      "required": "Existing PASS artifact under docs/qa-runs/",
+      "artifact": "docs/qa-runs/pilot-application-submission-2026-07-21T06-10-00-000Z/pilot-application-submission-report.md",
+      "artifactRecorded": true,
+      "artifactPathValid": true,
+      "artifactPathSafe": true,
+      "artifactExists": true,
+      "artifactPasses": false
+    },
+    {
+      "name": "Pilot smoke plan report is a concrete PASS artifact",
+      "pass": false,
+      "path": "evidence.pilotSmokePlanReport",
+      "required": "Existing PASS artifact under docs/qa-runs/",
+      "artifact": "docs/qa-runs/pilot-smoke-plan-2026-07-21T06-28-39-016Z/pilot-smoke-plan-report.md",
+      "artifactRecorded": true,
+      "artifactPathValid": true,
+      "artifactPathSafe": true,
+      "artifactExists": true,
+      "artifactPasses": false
+    },
+    {
+      "name": "Pilot smoke evidence report is a concrete PASS artifact",
+      "pass": false,
+      "path": "evidence.pilotSmokeEvidenceReport",
+      "required": "Existing PASS artifact under docs/qa-runs/",
+      "artifact": "docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-report.md",
+      "artifactRecorded": true,
+      "artifactPathValid": true,
+      "artifactPathSafe": true,
+      "artifactExists": true,
+      "artifactPasses": false
+    },
+    {
+      "name": "JewelLink no-push validation report is a concrete PASS artifact",
+      "pass": true,
+      "path": "evidence.jewellinkNoPushValidationReport",
+      "required": "Existing PASS artifact under docs/qa-runs/",
+      "artifact": "docs/qa-runs/jewellink-no-push-validation-2026-07-21T05-21-10-000Z/jewellink-no-push-validation-report.md",
+      "artifactRecorded": true,
+      "artifactPathValid": true,
+      "artifactPathSafe": true,
+      "artifactExists": true,
+      "artifactPasses": true
+    },
+    {
+      "name": "JewelLink approval packet report is a concrete PASS artifact",
+      "pass": true,
+      "path": "evidence.jewellinkApprovalPacketReport",
+      "required": "Existing PASS artifact under docs/qa-runs/",
+      "artifact": "docs/qa-runs/jewellink-no-push-validation-2026-07-21T05-21-10-000Z/jewellink-no-push-validation-report.md",
+      "artifactRecorded": true,
+      "artifactPathValid": true,
+      "artifactPathSafe": true,
+      "artifactExists": true,
+      "artifactPasses": true
+    },
+    {
+      "name": "JewelLink repo movement approval reference is recorded",
+      "pass": false,
+      "path": "approvals.jewelLinkRepoMovementApproval",
+      "required": "Non-secret approval reference, ticket, or artifact path"
+    },
+    {
+      "name": "Rollback window approval reference is recorded",
+      "pass": false,
+      "path": "approvals.rollbackWindowApproval",
+      "required": "Non-secret approval reference, ticket, or artifact path"
+    },
+    {
+      "name": "Controlled application submission approval reference is recorded",
+      "pass": false,
+      "path": "approvals.controlledApplicationSubmissionApproval",
+      "required": "Non-secret approval reference, ticket, or artifact path"
+    },
+    {
+      "name": "Mutating smoke approval reference is recorded",
+      "pass": false,
+      "path": "approvals.mutatingSmokeApproval",
+      "required": "Non-secret approval reference, ticket, or artifact path"
+    }
+  ],
+  "requestGenerated": true
+}
