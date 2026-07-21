@@ -39,10 +39,10 @@ below before any gate changes to GO.
   store-owner native smoke, applicant native smoke, and JewelLink SSO
   admin-marker cleanup.
 - JewelHire production config, auth, role readiness, and Postmark safety pass
-  in `docs/qa-runs/config-exposure-2026-07-21T07-56-39-213Z/`,
+  in `docs/qa-runs/config-exposure-2026-07-21T09-30-42-781Z/`,
   `docs/qa-runs/auth-readiness-2026-07-21T07-56-07-383Z/`,
   `docs/qa-runs/role-readiness-2026-07-21T07-56-18-103Z/`, and
-  `docs/qa-runs/postmark-safety-2026-07-21T07-56-39-313Z/`; the config and
+  `docs/qa-runs/postmark-safety-2026-07-21T09-30-42-775Z/`; the config and
   Postmark checks record the approved live-email QA acknowledgement without
   sending email.
 

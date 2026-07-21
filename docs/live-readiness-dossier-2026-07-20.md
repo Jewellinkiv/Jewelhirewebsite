@@ -14,7 +14,7 @@ JewelHire SHA without changing runtime behavior.
 
 | Product | Repository | Current head | Build/status |
 | --- | --- | --- | --- |
-| JewelHire | `Jewellinkiv/Jewelhire` | Validated through `79b895fba1265f2f47ef8c59bf0e726627b9994e` | GitHub validation run `29817256191` passed after hardening applicant-signup Postgres test cleanup; deploy skipped as expected |
+| JewelHire | `Jewellinkiv/Jewelhire` | Validated through `5311fd8d705b05a05f5ab6f6a8bd05b6ca565dbf` | GitHub validation run `29818244827` passed after preserving monitoring evidence in the operations template; deploy skipped as expected |
 | JewelLink | `Jewellinkiv/jewellink-app` | `55032dbbebc519d1718aa14871da2048f60d9487` | Regional Cloud Build `ae63d668-2ad0-435d-805f-0290460ebdb6` passed and produced live revision `jewellink-dev-01154-xpx`; current source/release audits still have NO-GO findings below |
 | JewelLink local no-push patch | research checkout only | `f12e67d7202a6a567007605f7164d141638b5dbc` | Local branch `codex/jewellink-profile-mfa-audit-refresh-20260720`; combines candidate-only Cloud Build and profile MFA audit refresh; not pushed |
 
@@ -55,8 +55,8 @@ still requires explicit approval before it can be pushed to
 | Production cloud access | Pass | `gcloud` authenticated with the approved operator account; JewelHire and JewelLink Cloud Run service configs are readable |
 | Production pilot readiness audit | Pass | `docs/qa-runs/production-pilot-readiness-2026-07-20T22-39-36-942Z/` reports `valuesPrinted: false`; both Cloud Run configs are readable; SSO and integration handoff secret pairs are secret-backed, matching, and high entropy |
 | Production integration smoke preflight | Pass | `docs/qa-runs/integration-smoke-preflight-2026-07-21T09-00-14-990Z/` confirms JewelHire/JewelLink pilot linkage, exact location mapping, clean hire/JewelCert sync residue, explicit hire email mode, and fail-closed unauthenticated mutation endpoints without production writes |
-| JewelHire production config | Pass | `docs/qa-runs/config-exposure-2026-07-20T22-25-23-830Z/` passed after explicit live-email acknowledgement |
-| JewelHire Postmark safety | Pass | `docs/qa-runs/postmark-safety-2026-07-20T22-25-23-839Z/` passed after explicit live-email acknowledgement; no email was sent by the audit |
+| JewelHire production config | Pass | `docs/qa-runs/config-exposure-2026-07-21T09-30-42-781Z/` passed after explicit live-email acknowledgement |
+| JewelHire Postmark safety | Pass | `docs/qa-runs/postmark-safety-2026-07-21T09-30-42-775Z/` passed after explicit live-email acknowledgement; no email was sent by the audit |
 | JewelLink pilot rollout flags | Pass | Approved config-only Cloud Run update deployed `jewellink-dev-01153-dqz`; refreshed readiness audit confirms the pilot flags remain mounted after current live revision `jewellink-dev-01154-xpx` from commit `55032dbb` |
 | JewelHire auth and role readiness | Pass | `docs/qa-runs/auth-readiness-2026-07-20T21-41-42-178Z/` and `docs/qa-runs/role-readiness-2026-07-20T22-25-24-584Z/` passed without printing credentials or database URLs |
 | JewelHire admin allowlist | Pass | `docs/qa-runs/admin-allowlist-2026-07-21T09-00-14-975Z/` passes against the live `jewelhire-admin-emails-v2:2` mount; 9 active JewelLink admin-role users, 0 missing, 0 extra, 0 active non-admins; values printed: false |
