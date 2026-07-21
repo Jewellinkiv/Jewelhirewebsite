@@ -116,7 +116,7 @@ when required fields are missing. This does not change the GO criteria; it only
 reduces the chance of missing or pasting unsafe evidence fields while closing
 the backup and rollback gates.
 
-`docs/qa-runs/operations-readiness-2026-07-21T07-30-50-285Z/` confirms both
+`docs/qa-runs/operations-readiness-2026-07-21T08-11-31-690Z/` confirms both
 Cloud Run rollback targets, external `pg.psdb.cloud` database hosts, enabled
 alert policies, readable and enabled attached notification channels, log
 metrics, the JewelLink JewelHire health scheduler, encrypted logical backup
@@ -124,7 +124,7 @@ evidence for both production databases, and explicitly recorded monitoring
 channel IDs under the hardened placeholder-rejecting evidence gate. It still
 fails the GO gate only because the named rollback owners, approved observation
 window, and rollback thresholds are still unapproved. The same run generated
-`docs/qa-runs/operations-readiness-2026-07-21T07-30-50-285Z/operations-readiness-evidence-request.md`
+`docs/qa-runs/operations-readiness-2026-07-21T08-11-31-690Z/operations-readiness-evidence-request.md`
 with the exact fields to fill before rerunning the audit.
 
 ## Secret Handling

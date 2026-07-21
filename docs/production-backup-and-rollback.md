@@ -69,6 +69,12 @@ health scheduler evidence after the audit was hardened to reject placeholder
 rollback approvals. Rollback owner/window/threshold approval remains the only
 open operations gate.
 
+2026-07-21T08:11Z operations evidence refresh:
+`docs/qa-runs/operations-readiness-2026-07-21T08-11-31-690Z/` reconfirms the
+same backup, monitoring, live rollback target, external database host, and
+JewelLink health scheduler evidence after the migration-ledger refresh. Rollback
+owner/window/threshold approval remains the only open operations gate.
+
 2026-07-21 operator evidence packet: copy
 `docs/production-operations-evidence.template.json` to a local ignored path such
 as `.qa_tmp/production-operations-evidence.json`, fill it with only non-secret

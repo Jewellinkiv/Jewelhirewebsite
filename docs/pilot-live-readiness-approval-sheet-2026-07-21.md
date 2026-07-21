@@ -49,7 +49,7 @@ below before any gate changes to GO.
 ## Operations approval fields
 
 Latest audit:
-`docs/qa-runs/operations-readiness-2026-07-21T07-48-54-304Z/operations-readiness-report.md`
+`docs/qa-runs/operations-readiness-2026-07-21T08-11-31-690Z/operations-readiness-report.md`
 
 Fillable template:
 `docs/production-operations-evidence.approval-template-2026-07-21.json`
@@ -99,7 +99,7 @@ ledger repair is authorized or needed for this closure evidence.
 ## JewelLink pilot persona approvals
 
 Latest roster audit:
-`docs/qa-runs/pilot-roster-2026-07-21T07-48-54-321Z/pilot-roster-report.md`
+`docs/qa-runs/pilot-roster-2026-07-21T08-11-31-698Z/pilot-roster-report.md`
 
 The roster is blocked only on these JewelLink production personas:
 
@@ -123,7 +123,7 @@ Fillable smoke plan preflight template:
 `docs/production-pilot-smoke-plan.template.json`
 
 Latest smoke plan request:
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T06-50-58-553Z/pilot-smoke-plan-request.md`
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T08-13-07-305Z/pilot-smoke-plan-request.md`
 
 Fillable smoke evidence template:
 `docs/production-pilot-smoke-evidence.template.json`
@@ -147,7 +147,7 @@ for:
 - Team-invite fail-closed and resume privacy evidence.
 
 Controlled smoke target finder:
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T07-48-54-329Z/pilot-smoke-targets-report.md`
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T08-11-31-698Z/pilot-smoke-targets-report.md`
 
 That read-only run confirms the controlled applicant smoke credential and
 linked pilot JewelHire store are ready. It also records the public application
@@ -163,7 +163,7 @@ Guarded setup helper:
 `docs/production-pilot-controlled-application-submission.md`
 
 Latest guarded dry-run request:
-`docs/qa-runs/pilot-application-submission-2026-07-21T07-49-37-978Z/pilot-application-submission-request.md`
+`docs/qa-runs/pilot-application-submission-2026-07-21T08-11-57-776Z/pilot-application-submission-request.md`
 
 Use `npm run qa:pilot-application-submission` first in dry-run mode. Execute
 mode must use a local ignored approval file that records the approver, approval
@@ -210,7 +210,7 @@ Current source-test path:
 `docs/qa-runs/allowlisted-nonadmin-denial-source-2026-07-21T06-02-00-000Z/allowlisted-nonadmin-denial-source-report.md`
 
 Current clean allowlist path:
-`docs/qa-runs/admin-allowlist-2026-07-21T05-44-30-000Z/admin-allowlist-report.md`
+`docs/qa-runs/admin-allowlist-2026-07-21T07-56-07-377Z/admin-allowlist-report.md`
 
 Required acceptance fields if using the source-test plus clean-allowlist path:
 
