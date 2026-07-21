@@ -72,13 +72,16 @@ test("a GO dossier with vague pilot roster evidence fails closed", () => {
   assert.match(result.stdout, /FAIL GO decision has concrete pilot roster evidence/);
 });
 
-test("a missing approval boundary fails closed", () => {
+test("a missing JewelLink PR approval boundary fails closed", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "go-no-go-dossier-"));
   const dossier = path.join(dir, "dossier.md");
-  const text = fs.readFileSync(realDossier, "utf8").replace("JewelLink must not be pushed", "JewelLink may be pushed");
+  const text = fs
+    .readFileSync(realDossier, "utf8")
+    .replace("JewelLink repo movement for PR `#246` was explicitly approved", "JewelLink repo movement was assumed");
   fs.writeFileSync(dossier, text);
 
   const result = runAudit(dossier);
   assert.notEqual(result.status, 0);
   assert.match(result.stdout, /FAIL required readiness markers are present/);
+  assert.match(result.stdout, /FAIL JewelLink PR and promotion boundary is explicit/);
 });

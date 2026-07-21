@@ -1,9 +1,19 @@
 # JewelLink Combined Pilot Readiness Patch - 2026-07-20
 
-Status: prepared locally, not pushed.
+Status: superseded by JewelLink PR `#246`.
 
-User boundary: do not push, open a PR, merge, deploy, or promote JewelLink
-without explicit approval.
+User boundary: the user explicitly approved JewelLink repo movement for this
+pilot patch after this packet was prepared. PR `#246` is now open for Jackson
+to review and merge. Production deployment, migration execution, traffic
+promotion, and live rollout remain separate release-controlled actions.
+
+Current PR: `https://github.com/Jewellinkiv/jewellink-app/pull/246`
+
+Current PR head:
+`f4e9dc03ef8a2c38f47ed94dd9d335cc67827578`
+
+Original no-push packet head:
+`f12e67d7202a6a567007605f7164d141638b5dbc`
 
 ## Patch
 

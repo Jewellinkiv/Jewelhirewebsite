@@ -24,14 +24,17 @@ test("current JewelLink approval packet passes", () => {
   assert.match(result.stdout, /PASS patch added lines do not run migrations or move traffic/);
 });
 
-test("missing no-push boundary fails", () => {
+test("missing PR handoff boundary fails", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "jewellink-packet-"));
   const packetCopy = path.join(dir, "packet.md");
-  fs.writeFileSync(packetCopy, fs.readFileSync(packet, "utf8").replace(/without explicit approval/g, "after review"));
+  fs.writeFileSync(
+    packetCopy,
+    fs.readFileSync(packet, "utf8").replace(/remain separate release-controlled actions/g, "can happen after review"),
+  );
 
   const result = runAudit(packetCopy, patch);
   assert.notEqual(result.status, 0);
-  assert.match(result.stdout, /FAIL approval packet preserves no-push boundary/);
+  assert.match(result.stdout, /FAIL approval packet preserves PR handoff boundary/);
 });
 
 test("traffic movement in added patch lines fails", () => {

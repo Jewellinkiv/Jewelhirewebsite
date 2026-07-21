@@ -1,10 +1,14 @@
 # JewelLink No-Push Change List — 2026-07-20
 
-User instruction: inspect and prepare JewelLink work, but do not push anything
-to `Jewellinkiv/jewellink-app` without explicit approval. On 2026-07-20,
-explicit approval was granted for the JewelLink pilot rollout flag
-configuration/deploy movement only; the prepared repository patch remains
-unpushed.
+Status: superseded by JewelLink PR `#246`.
+
+User instruction at the time of this record: inspect and prepare JewelLink
+work, but do not push anything to `Jewellinkiv/jewellink-app` without explicit
+approval. The user later approved JewelLink repo movement for this pilot patch,
+and PR `#246` is now open for Jackson to review and merge:
+`https://github.com/Jewellinkiv/jewellink-app/pull/246`. Production deployment,
+migration execution, traffic promotion, and live rollout remain separate
+release-controlled actions.
 
 ## Current JewelLink baseline
 

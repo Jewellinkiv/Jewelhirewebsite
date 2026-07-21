@@ -31,7 +31,8 @@ const requiredSections = [
 ];
 
 const requiredMarkers = [
-  "JewelLink must not be pushed",
+  "JewelLink repo movement for PR `#246` was explicitly approved",
+  "Production deployment, migration execution",
   "Production integration secrets",
   "JewelLink release-path safety",
   "Authenticated SSO smoke",
@@ -42,6 +43,13 @@ const requiredMarkers = [
   "No stop condition is open",
   "Cross-store or cross-company data exposure",
   "Any evidence artifact that prints a secret value",
+];
+
+const jewelLinkApprovalBoundaryPatterns = [
+  /JewelLink repo movement for PR `#246` was explicitly approved/i,
+  /Jackson may review\/merge that PR/i,
+  /Production deployment, migration execution,\s+traffic promotion, and any live rollout remain separate release-controlled\s+actions/i,
+  /were not performed as part of the PR handoff/i,
 ];
 
 const unresolvedMarkers = [
@@ -187,7 +195,7 @@ function main() {
   record("required readiness markers are present", requiredMarkers.every((marker) => text.includes(marker)), {
     missingMarkers: requiredMarkers.filter((marker) => !text.includes(marker)),
   });
-  record("JewelLink no-push boundary is explicit", /JewelLink must not be pushed[\s\S]+without the\s+user's explicit approval/i.test(text));
+  record("JewelLink PR and promotion boundary is explicit", jewelLinkApprovalBoundaryPatterns.every((pattern) => pattern.test(text)));
   record("GO rule lists all evidence prerequisites", [
     "Every required evidence row is complete",
     "JewelLink release-path approval is explicit",

@@ -261,11 +261,24 @@ must pass before the pilot is treated as GO-ready.
 
 ## JewelLink code/repo approval
 
-The combined JewelLink release-path/profile-audit patch remains local and
-unpushed at `f12e67d7202a6a567007605f7164d141638b5dbc`. It must not be pushed,
-opened as a PR, or deployed until explicit approval authorizes that JewelLink
-repo movement. The approval packet is
-`docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md`.
+The combined JewelLink release-path/profile-audit patch was explicitly approved
+for repo movement and is now open as PR `#246`:
+`https://github.com/Jewellinkiv/jewellink-app/pull/246`.
+
+Current PR handoff:
+
+| Field | Value |
+| --- | --- |
+| Branch | `codex/jewellink-profile-mfa-audit-refresh-20260720` |
+| Head | `f4e9dc03ef8a2c38f47ed94dd9d335cc67827578` |
+| Base | `main` at `e85282039dcd6e3169e42f1348e9c3fbeedc1333` |
+| Reviewer | `JacksonSLC` |
+| Merge status when checked | Open, mergeable, clean |
+| Local validation | Release/profile tests 11/11; JewelHire SSO audit 90/90; committed-secret scan over 2,506 files; `git diff --check` passed |
+
+No JewelLink production deploy, migration, traffic movement, or data mutation
+was performed for this PR handoff. Production promotion remains a separate
+release-controlled action after merge evidence is recorded.
 
 ## Next verification commands
 

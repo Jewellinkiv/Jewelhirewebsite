@@ -21,10 +21,14 @@ const patchPath = path.resolve(
 );
 
 const requiredPacketMarkers = [
-  "prepared locally, not pushed",
-  "do not push, open a PR, merge, deploy, or promote JewelLink",
-  "without explicit approval",
+  "superseded by JewelLink PR `#246`",
+  "user explicitly approved JewelLink repo movement",
+  "PR `#246` is now open for Jackson",
+  "Production deployment, migration execution, traffic",
+  "remain separate release-controlled actions",
+  "https://github.com/Jewellinkiv/jewellink-app/pull/246",
   "Gate Cloud Build and refresh profile MFA audit",
+  "f4e9dc03ef8a2c38f47ed94dd9d335cc67827578",
   "55032dbbebc519d1718aa14871da2048f60d9487",
   "f12e67d7202a6a567007605f7164d141638b5dbc",
   "cloudbuild.jewellink.yaml",
@@ -99,7 +103,7 @@ function main() {
 
   record("JewelLink approval packet exists", Boolean(packet), { packetPath });
   record("JewelLink patch artifact exists", Boolean(patch), { patchPath });
-  record("approval packet preserves no-push boundary", requiredPacketMarkers.every((marker) => packet.includes(marker)), {
+  record("approval packet preserves PR handoff boundary", requiredPacketMarkers.every((marker) => packet.includes(marker)), {
     missingMarkers: requiredPacketMarkers.filter((marker) => !packet.includes(marker)),
   });
   record("patch contains candidate-release controls", requiredPatchMarkers.every((marker) => patch.includes(marker)), {
