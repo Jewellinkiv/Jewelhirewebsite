@@ -216,6 +216,7 @@ function sanitizeError(text) {
     .replace(/Bearer\s+[A-Za-z0-9._~+/-]+/g, "Bearer [redacted]")
     .replace(/postgres(?:ql)?:\/\/\S+/gi, "postgres://[redacted]")
     .replace(/password=\S+/gi, "password=[redacted]")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted-email]")
     .split(/\r?\n/)
     .filter(Boolean)
     .slice(0, 3)
@@ -718,6 +719,205 @@ function checkDeclaredOperationsEvidence({ jewelhire, jewellink }) {
   record("Immediate rollback thresholds are recorded", Boolean(declaredEvidence.rollback.rollbackThresholds.trim()));
 }
 
+function evidenceSkeleton() {
+  return {
+    backups: {
+      jewelhire: {
+        method: "",
+        id: "",
+        completedAt: "",
+        verifiedAt: "",
+        retention: "",
+        restoreEvidence: "",
+        logicalSha256: "",
+      },
+      jewellink: {
+        method: "",
+        id: "",
+        completedAt: "",
+        verifiedAt: "",
+        retention: "",
+        restoreEvidence: "",
+        logicalSha256: "",
+      },
+    },
+    rollback: {
+      jewelhireOwner: "",
+      jewellinkOwner: "",
+      jewellinkIamOwner: "",
+      databaseRecoveryOwner: "",
+      observationWindow: "",
+      rollbackThresholds: "",
+    },
+    monitoring: {
+      channel: "",
+    },
+  };
+}
+
+function missingBackupFields(productKey, backup) {
+  const label = productKey === "jewelhire" ? "JewelHire" : "JewelLink";
+  const fields = [];
+  if (!backup.method) {
+    fields.push({
+      path: `backups.${productKey}.method`,
+      label: `${label} backup method`,
+      required: "provider-snapshot, pitr, or encrypted-logical",
+    });
+  }
+  if (!backup.backupIdRecorded) {
+    fields.push({
+      path: `backups.${productKey}.id`,
+      label: `${label} backup identifier`,
+      required: "Non-secret provider backup, snapshot, PITR, or encrypted logical artifact ID",
+    });
+  }
+  if (!backup.completedAt) {
+    fields.push({
+      path: `backups.${productKey}.completedAt`,
+      label: `${label} backup completion time`,
+      required: "UTC timestamp, for example 2026-07-21T01:00:00Z",
+    });
+  }
+  if (!backup.verifiedAt) {
+    fields.push({
+      path: `backups.${productKey}.verifiedAt`,
+      label: `${label} backup verification time`,
+      required: "UTC timestamp from list, restore, or drill verification",
+    });
+  }
+  if (!backup.retentionEvidenceRecorded) {
+    fields.push({
+      path: `backups.${productKey}.retention`,
+      label: `${label} PITR/retention evidence`,
+      required: "Non-secret retention or PITR evidence summary",
+    });
+  }
+  if (!backup.restoreEvidenceRecorded) {
+    fields.push({
+      path: `backups.${productKey}.restoreEvidence`,
+      label: `${label} restore/list evidence`,
+      required: "Non-secret list, restore, or drill evidence reference",
+    });
+  }
+  if (backup.method === "encrypted-logical" && !backup.logicalSha256Recorded) {
+    fields.push({
+      path: `backups.${productKey}.logicalSha256`,
+      label: `${label} encrypted logical backup SHA-256`,
+      required: "64 hex character SHA-256 digest",
+    });
+  }
+  return fields;
+}
+
+function missingRollbackFields(rollback) {
+  const labels = {
+    jewelhireOwner: "JewelHire traffic rollback owner",
+    jewellinkOwner: "JewelLink traffic rollback owner",
+    jewellinkIamOwner: "JewelLink IAM/config rollback owner",
+    databaseRecoveryOwner: "Database recovery owner",
+    observationWindow: "Staffed observation window",
+    rollbackThresholds: "Immediate rollback thresholds",
+  };
+  return Object.entries(labels)
+    .filter(([key]) => !rollback[key])
+    .map(([key, label]) => ({
+      path: `rollback.${key}`,
+      label,
+      required:
+        key === "observationWindow"
+          ? "Approved UTC start/end window"
+          : key === "rollbackThresholds"
+            ? "Approved stop/rollback threshold summary"
+            : "Named owner and contact or approval channel",
+    }));
+}
+
+function operationsEvidenceRequestPacket(report) {
+  const missingFields = [
+    ...missingBackupFields("jewelhire", report.products.jewelhire.backup),
+    ...missingBackupFields("jewellink", report.products.jewellink.backup),
+    ...missingRollbackFields(report.declaredEvidence.rollback),
+    ...(report.declaredEvidence.monitoring.channel
+      ? []
+      : [
+          {
+            path: "monitoring.channel",
+            label: "Monitoring channel",
+            required: "Readable channel name/link or enabled attached Cloud Monitoring notification channels",
+          },
+        ]),
+  ];
+
+  return {
+    createdAt: new Date().toISOString(),
+    valuesPrinted: false,
+    status: report.pass ? "not-needed" : "needed",
+    instructions:
+      "Fill the evidence object with non-secret backup, rollback, monitoring, and owner evidence, then rerun qa:operations-readiness with --operations-evidence-file=<path>.",
+    verificationCommand: "npm run qa:operations-readiness -- --operations-evidence-file=<path>",
+    observedTargets: Object.fromEntries(
+      Object.entries(report.products).map(([key, product]) => [
+        key,
+        {
+          project: product.project,
+          service: product.service,
+          latestReadyRevision: product.latestReadyRevision,
+          liveTraffic: product.liveTraffic,
+          databaseHost: product.databaseTarget.host,
+          databaseProviderHint: product.databaseTarget.providerHint,
+        },
+      ]),
+    ),
+    missingFields,
+    blockingChecks: report.checks.filter((check) => !check.pass).map((check) => check.name),
+    evidence: evidenceSkeleton(),
+  };
+}
+
+function operationsEvidenceRequestMarkdown(packet) {
+  const lines = [
+    "# Production Operations Evidence Request",
+    "",
+    `Created: ${packet.createdAt}`,
+    "Values printed: false",
+    "",
+    "This packet is an approval aid only. It does not deploy, migrate, move traffic, create backups, restore data, create scheduler jobs, create alert policies, or write to either production database.",
+    "",
+    `Status: ${packet.status}`,
+    "",
+    "## Observed Runtime Targets",
+    "",
+    "| Product | Project/service | Latest ready revision | Live traffic | Database host | Provider hint |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...Object.entries(packet.observedTargets).map(([key, target]) => {
+      const product = key === "jewelhire" ? "JewelHire" : "JewelLink";
+      const traffic = target.liveTraffic.map((item) => `${item.revisionName || "latest"} ${item.percent}%`).join(", ");
+      return `| ${product} | \`${target.project}/${target.service}\` | \`${target.latestReadyRevision || "unavailable"}\` | ${traffic || "unavailable"} | \`${target.databaseHost || "unavailable"}\` | ${target.databaseProviderHint || "unavailable"} |`;
+    }),
+    "",
+    "## Missing Evidence Fields",
+    "",
+    packet.missingFields.length
+      ? "| Field | Evidence needed |\n| --- | --- |\n" +
+          packet.missingFields.map((field) => `| \`${field.path}\` | ${field.required} |`).join("\n")
+      : "No missing evidence fields were detected.",
+    "",
+    "## Blocking Checks",
+    "",
+    ...(packet.blockingChecks.length
+      ? packet.blockingChecks.map((check) => `- ${check}`)
+      : ["- None"]),
+    "",
+    "## Verification",
+    "",
+    `Run \`${packet.verificationCommand}\` and require the operations-readiness report to pass before treating backup/rollback/monitoring as GO-ready.`,
+    "",
+    "Do not place database URLs, bearer tokens, passwords, cookies, customer data, secret values, or full production data extracts in the evidence file.",
+  ];
+  return lines.join("\n");
+}
+
 function markdown(report) {
   const lines = [
     "# Production Operations Readiness Audit",
@@ -771,6 +971,7 @@ function markdown(report) {
     `- Database recovery owner recorded: ${report.declaredEvidence.rollback.databaseRecoveryOwner ? "yes" : "no"}`,
     `- Observation window recorded: ${report.declaredEvidence.rollback.observationWindow ? "yes" : "no"}`,
     `- Rollback thresholds recorded: ${report.declaredEvidence.rollback.rollbackThresholds ? "yes" : "no"}`,
+    `- Evidence request artifact: ${report.operationsEvidenceRequest.artifact || "not generated"}`,
     "",
     "## Checks",
     "",
@@ -828,8 +1029,23 @@ async function main() {
     jewelLinkHealthJob,
     checks,
   };
+  const operationsEvidenceRequest = report.pass ? null : operationsEvidenceRequestPacket(report);
+  report.operationsEvidenceRequest = {
+    artifact: operationsEvidenceRequest ? "operations-readiness-evidence-request.md" : "",
+    json: operationsEvidenceRequest ? "operations-readiness-evidence-request.json" : "",
+  };
 
   fs.mkdirSync(OUT, { recursive: true });
+  if (operationsEvidenceRequest) {
+    fs.writeFileSync(
+      path.join(OUT, "operations-readiness-evidence-request.json"),
+      `${JSON.stringify(operationsEvidenceRequest, null, 2)}\n`,
+    );
+    fs.writeFileSync(
+      path.join(OUT, "operations-readiness-evidence-request.md"),
+      `${operationsEvidenceRequestMarkdown(operationsEvidenceRequest)}\n`,
+    );
+  }
   fs.writeFileSync(path.join(OUT, "operations-readiness-report.json"), `${JSON.stringify(report, null, 2)}\n`);
   fs.writeFileSync(path.join(OUT, "operations-readiness-report.md"), `${markdown(report)}\n`);
   console.log(`Report: ${path.relative(process.cwd(), path.join(OUT, "operations-readiness-report.md"))}`);

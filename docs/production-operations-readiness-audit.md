@@ -66,6 +66,12 @@ npm run qa:operations-readiness -- \
 The report is written under `docs/qa-runs/operations-readiness-*` unless
 `--artifacts=<dir>` is supplied.
 
+When the audit fails, it also writes
+`operations-readiness-evidence-request.md` and
+`operations-readiness-evidence-request.json` in the same artifact directory.
+The request packet lists the exact non-secret evidence fields still needed and
+the currently observed rollback targets.
+
 ## What It Proves
 
 - Both Cloud Run services are readable and have one 100% live revision.
@@ -92,17 +98,21 @@ variables, or through `--operations-evidence-file`.
 ## Latest Production Result
 
 2026-07-21 update: the audit accepts a non-secret operations evidence JSON file
-via `--operations-evidence-file`. This does not change the GO criteria; it
-only reduces the chance of missing or pasting unsafe evidence fields while
-closing the backup and rollback gates.
+via `--operations-evidence-file` and generates a fill-in evidence request packet
+when required fields are missing. This does not change the GO criteria; it only
+reduces the chance of missing or pasting unsafe evidence fields while closing
+the backup and rollback gates.
 
-`docs/qa-runs/operations-readiness-2026-07-21T00-40-25-894Z/` confirms both
+`docs/qa-runs/operations-readiness-2026-07-21T01-06-24-623Z/` confirms both
 Cloud Run rollback targets, external `pg.psdb.cloud` database hosts, enabled
 alert policies, readable and enabled attached notification channels, log
 metrics, and the JewelLink JewelHire health scheduler. It still fails the GO
 gate because both databases are missing backup method, ID, completion time,
 verification time, PITR/retention evidence, and restore/list evidence, and
-because the rollback owner/window/threshold fields are still unapproved.
+because the rollback owner/window/threshold fields are still unapproved. The
+same run generated
+`docs/qa-runs/operations-readiness-2026-07-21T01-06-24-623Z/operations-readiness-evidence-request.md`
+with the exact fields to fill before rerunning the audit.
 
 ## Secret Handling
 
@@ -123,5 +133,6 @@ node --test scripts/production-operations-readiness-audit.test.mjs
 ```
 
 The fixture tests prove both complete-evidence paths, including the evidence
-file path, and verify that missing JewelLink health monitoring or disabled
-attached notification channels fail without leaking fake secret values.
+file path and generated evidence request packet, and verify that missing
+JewelLink health monitoring or disabled attached notification channels fail
+without leaking fake secret values.

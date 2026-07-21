@@ -151,7 +151,9 @@ function runAudit(overrides = {}) {
     `--fixture-dir=${dir}`,
     `--artifacts=${artifacts}`,
   ];
-  if (overrides.useEvidenceFile) {
+  if (overrides.omitEvidence) {
+    // Exercise the generated evidence-request packet with no operator evidence supplied.
+  } else if (overrides.useEvidenceFile) {
     const evidenceFile = path.join(dir, "operations-evidence.json");
     fs.writeFileSync(evidenceFile, JSON.stringify(completeOperationsEvidence(), null, 2));
     args.push(`--operations-evidence-file=${evidenceFile}`);
@@ -186,10 +188,14 @@ function runAudit(overrides = {}) {
   });
   const reportJson = path.join(artifacts, "operations-readiness-report.json");
   const reportMd = path.join(artifacts, "operations-readiness-report.md");
+  const requestJson = path.join(artifacts, "operations-readiness-evidence-request.json");
+  const requestMd = path.join(artifacts, "operations-readiness-evidence-request.md");
   return {
     result,
     json: fs.existsSync(reportJson) ? fs.readFileSync(reportJson, "utf8") : "",
     markdown: fs.existsSync(reportMd) ? fs.readFileSync(reportMd, "utf8") : "",
+    requestJson: fs.existsSync(requestJson) ? fs.readFileSync(requestJson, "utf8") : "",
+    requestMarkdown: fs.existsSync(requestMd) ? fs.readFileSync(requestMd, "utf8") : "",
   };
 }
 
@@ -200,6 +206,7 @@ test("fixture mode passes with complete operations evidence and no secret leakag
   assert.match(markdown, /Backup method: provider-snapshot/);
   assert.match(markdown, /Backup method: encrypted-logical/);
   assert.match(markdown, /Attached enabled notification channels: 1/);
+  assert.match(markdown, /Evidence request artifact: not generated/);
   assert.doesNotMatch(json, /super-secret-password/);
   assert.doesNotMatch(markdown, /super-secret-password/);
   assert.doesNotMatch(json, /postgresql:\/\/user/);
@@ -216,6 +223,21 @@ test("evidence file can supply complete backup and rollback evidence without pri
   assert.doesNotMatch(markdown, /backup-jewelhire/);
   assert.doesNotMatch(json, /Ops JewelHire/);
   assert.doesNotMatch(markdown, /Ops JewelHire/);
+});
+
+test("missing operations evidence emits a fill-in request packet without leaking secrets", () => {
+  const { result, json, markdown, requestJson, requestMarkdown } = runAudit({ omitEvidence: true });
+  assert.notEqual(result.status, 0);
+  assert.match(markdown, /Result: FAIL/);
+  assert.match(markdown, /Evidence request artifact: operations-readiness-evidence-request\.md/);
+  assert.match(requestMarkdown, /Production Operations Evidence Request/);
+  assert.match(requestMarkdown, /`backups\.jewelhire\.method`/);
+  assert.match(requestMarkdown, /`backups\.jewellink\.restoreEvidence`/);
+  assert.match(requestMarkdown, /`rollback\.databaseRecoveryOwner`/);
+  assert.match(requestJson, /"status": "needed"/);
+  assert.match(requestJson, /"evidence": \{/);
+  assert.doesNotMatch(`${json}\n${markdown}\n${requestJson}\n${requestMarkdown}`, /super-secret-password/);
+  assert.doesNotMatch(`${json}\n${markdown}\n${requestJson}\n${requestMarkdown}`, /postgresql:\/\/user/);
 });
 
 test("encrypted logical backup fallback requires a SHA-256 without leaking secrets", () => {
