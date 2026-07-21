@@ -1,0 +1,159 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import test from "node:test";
+
+const root = path.resolve(new URL("..", import.meta.url).pathname);
+const script = path.join(root, "scripts/production-pilot-approval-bundle.mjs");
+
+function writeJson(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function fixturePackets(dir, overrides = {}) {
+  const operations = {
+    createdAt: "2026-07-21T08:00:00Z",
+    valuesPrinted: false,
+    observedTargets: {
+      jewelhire: { project: "jewelhire-prod-20260626", service: "jewelhire" },
+      jewellink: { project: "academy-460316", service: "jewellink-dev" },
+    },
+    missingFields: [
+      {
+        path: "rollback.jewelhireOwner",
+        label: "JewelHire traffic rollback owner",
+        required: "Named owner and contact or approval channel",
+      },
+    ],
+    evidence: {
+      backups: {},
+      rollback: { jewelhireOwner: "" },
+      monitoring: {},
+    },
+  };
+  const roster = {
+    createdAt: "2026-07-21T08:00:00Z",
+    valuesPrinted: false,
+    pilotCompanyId: "comp_1",
+    actions: [
+      {
+        id: "consultant-denial",
+        title: "Create controlled JewelLink CONSULTANT denial persona",
+        purpose: "Authenticated JewelLink SSO smoke must prove CONSULTANT users fail closed in JewelHire.",
+        constraints: ["Company must be the pilot company comp_1."],
+      },
+    ],
+  };
+  const application = {
+    createdAt: "2026-07-21T08:00:00Z",
+    valuesPrinted: false,
+    missingEvidence: [
+      {
+        check: "local ignored execution approval file",
+        needed: "Record approval facts and stable submissionId.",
+      },
+    ],
+  };
+  const smokePlan = {
+    createdAt: "2026-07-21T08:00:00Z",
+    valuesPrinted: false,
+    missingFields: [
+      {
+        check: "Controlled hire confirmation/revocation smoke is explicitly approved",
+        path: "approvals.hireConfirmationApproved",
+        required: "true",
+      },
+      {
+        check: "Hire handoff controlled application alias is recorded",
+        path: "scopes.hireHandoff.applicationAlias",
+        required: "Concrete non-placeholder non-secret value",
+      },
+    ],
+    plan: {
+      approvals: { hireConfirmationApproved: false },
+      scopes: { hireHandoff: { applicationAlias: "" } },
+    },
+  };
+
+  const files = {
+    operations: path.join(dir, "operations.json"),
+    roster: path.join(dir, "roster.json"),
+    application: path.join(dir, "application.json"),
+    smokePlan: path.join(dir, "smoke-plan.json"),
+  };
+  writeJson(files.operations, overrides.operations || operations);
+  writeJson(files.roster, overrides.roster || roster);
+  writeJson(files.application, overrides.application || application);
+  writeJson(files.smokePlan, overrides.smokePlan || smokePlan);
+  return files;
+}
+
+function runBundle(files, artifacts) {
+  return spawnSync(
+    process.execPath,
+    [
+      script,
+      `--operations-request=${files.operations}`,
+      `--roster-packet=${files.roster}`,
+      `--application-request=${files.application}`,
+      `--smoke-plan-request=${files.smokePlan}`,
+      `--artifacts=${artifacts}`,
+    ],
+    {
+      cwd: root,
+      encoding: "utf8",
+    },
+  );
+}
+
+test("approval bundle assembles current safe request packets into one non-secret operator packet", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pilot-approval-bundle-"));
+  const artifacts = path.join(tmp, "artifacts");
+  const files = fixturePackets(tmp);
+
+  const result = runBundle(files, artifacts);
+  const report = fs.readFileSync(path.join(artifacts, "pilot-approval-bundle-report.md"), "utf8");
+  const bundleMarkdown = fs.readFileSync(path.join(artifacts, "pilot-approval-bundle.md"), "utf8");
+  const bundleJson = JSON.parse(fs.readFileSync(path.join(artifacts, "pilot-approval-bundle.json"), "utf8"));
+
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(report, /Result: PASS/);
+  assert.match(bundleMarkdown, /Production Pilot Live Approval Bundle/);
+  assert.match(bundleMarkdown, /rollback\.jewelhireOwner/);
+  assert.match(bundleMarkdown, /consultant-denial/);
+  assert.match(bundleMarkdown, /production-pilot-application-approval\.json/);
+  assert.equal(bundleJson.productionMutationPerformed, false);
+  assert.equal(bundleJson.jewelLinkRepoPushOrDeployPerformed, false);
+  assert.equal(bundleJson.localIgnoredFileSkeletons.applicationApprovalFile.value.approvals.submissionId, "");
+});
+
+test("approval bundle fails closed when source packets contain unsafe values", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pilot-approval-bundle-unsafe-"));
+  const artifacts = path.join(tmp, "artifacts");
+  const unsafeToken = ["Bearer", "abcdefghijklmnop"].join(" ");
+  const files = fixturePackets(tmp, {
+    roster: {
+      createdAt: "2026-07-21T08:00:00Z",
+      valuesPrinted: false,
+      actions: [
+        {
+          id: "consultant-denial",
+          title: `Create user ${unsafeToken}`,
+        },
+      ],
+    },
+  });
+
+  const result = runBundle(files, artifacts);
+  const report = fs.readFileSync(path.join(artifacts, "pilot-approval-bundle-report.md"), "utf8");
+  const reportJson = fs.readFileSync(path.join(artifacts, "pilot-approval-bundle-report.json"), "utf8");
+
+  assert.notEqual(result.status, 0);
+  assert.match(report, /FAIL source request packets contain no unsafe secret or PII values/);
+  assert.match(reportJson, /unsafeFieldPaths/);
+  assert.equal(fs.existsSync(path.join(artifacts, "pilot-approval-bundle.md")), false);
+  assert.doesNotMatch(report, /abcdefghijklmnop/);
+});

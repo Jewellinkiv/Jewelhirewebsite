@@ -165,6 +165,9 @@ Guarded setup helper:
 Latest guarded dry-run request:
 `docs/qa-runs/pilot-application-submission-2026-07-21T08-11-57-776Z/pilot-application-submission-request.md`
 
+Consolidated approval bundle:
+`docs/qa-runs/pilot-approval-bundle-2026-07-21T08-23-17-123Z/pilot-approval-bundle.md`
+
 Use `npm run qa:pilot-application-submission` first in dry-run mode. Execute
 mode must use a local ignored approval file that records the approver, approval
 channel, timestamp, `controlledPublicApplicationSubmissionApproved: true`,
@@ -245,6 +248,7 @@ npm run qa:allowlisted-nonadmin-denial-source
 npm run qa:pilot-smoke-targets
 npm run qa:pilot-application-submission -- --target-report=<pilot-smoke-targets-report.json>
 npm run qa:pilot-smoke-plan -- --smoke-plan-file=.qa_tmp/production-pilot-smoke-plan.json
+npm run qa:pilot-approval-bundle
 npm run qa:public-fail-closed-smoke -- --cookie-file=<local-cookie-file> --store-id=<pilot-store-id> --expected-store-id=<pilot-store-id> --resume-application-id=<application-id>
 npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=docs/production-pilot-smoke-evidence.template.json
 npm run qa:pilot-live-readiness -- --readiness-file=.qa_tmp/production-pilot-live-readiness.json

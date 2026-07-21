@@ -143,7 +143,9 @@ without explicit approval.
    `docs/qa-runs/pilot-smoke-targets-2026-07-21T08-11-31-698Z/pilot-smoke-targets-request.md`,
    rerun `qa:pilot-roster` and `qa:pilot-smoke-targets`, close the 15 remaining items in
    `docs/qa-runs/pilot-smoke-plan-2026-07-21T08-13-07-305Z/pilot-smoke-plan-request.md`,
-   pass `qa:pilot-smoke-plan`, run the authenticated end-to-end smoke matrix,
+   generate `docs/qa-runs/pilot-approval-bundle-2026-07-21T08-23-17-123Z/pilot-approval-bundle.md`
+   or a fresher `qa:pilot-approval-bundle` packet to keep the local approval
+   files aligned, pass `qa:pilot-smoke-plan`, run the authenticated end-to-end smoke matrix,
    then fill and pass
    `docs/qa-runs/pilot-smoke-evidence-2026-07-21T01-16-46-543Z/pilot-smoke-evidence-request.md`.
 6. Move the go/no-go record to GO only after exact commits, build IDs,
