@@ -7,9 +7,13 @@ authorize any production mutation.
 
 ## Current closed evidence
 
-- JewelHire production migration ledger is clean.
-- JewelLink JewelHire integration/auth migration rows are active and
-  checksum-clean.
+- JewelHire production migration ledger is clean in
+  `docs/qa-runs/migration-ledgers-2026-07-21T05-45-00-000Z/`.
+- JewelLink migration ledger evidence passes in
+  `docs/qa-runs/migration-ledgers-2026-07-21T05-45-00-000Z/`: all 127
+  reviewed migrations are active, the seven JewelHire integration/auth rows
+  are checksum-clean, and historical non-integration drift is covered by the
+  matching recovery/object-state reports.
 - JewelHire integration config, JewelLink pilot rollout flags, shared SSO
   secrets, and integration handoff secrets pass production readiness checks.
 - Cloud Monitoring alert policies, attached enabled notification channels, log
@@ -207,6 +211,11 @@ npm run qa:pilot-smoke-plan -- --smoke-plan-file=.qa_tmp/production-pilot-smoke-
 npm run qa:public-fail-closed-smoke -- --cookie-file=<local-cookie-file> --store-id=<pilot-store-id> --expected-store-id=<pilot-store-id> --resume-application-id=<application-id>
 npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=docs/production-pilot-smoke-evidence.template.json
 npm run qa:pilot-live-readiness -- --readiness-file=.qa_tmp/production-pilot-live-readiness.json
+npm run qa:migration-ledgers -- \
+  --jewellink-repo=/Users/sterling/.codex/tmp/jewellink-app-origin-main-20260720 \
+  --jewellink-review-ref=origin/main \
+  --jewellink-drift-recovery-report=docs/qa-runs/jewellink-migration-drift-2026-07-21T03-45-00-000Z/jewellink-migration-drift-recovery-report.json \
+  --jewellink-object-state-report=docs/qa-runs/jewellink-migration-object-state-2026-07-21T03-16-00-000Z/jewellink-migration-object-state-report.json
 npm run qa:jewellink-migration-object-state
 node scripts/jewellink-migration-drift-recovery-audit.mjs \
   --jewellink-repo=/Users/sterling/.codex/tmp/jewellink-app-origin-main-20260720 \

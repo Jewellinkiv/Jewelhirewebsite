@@ -27,6 +27,23 @@ const JEWELLINK_REPO = path.resolve(
     process.env.JEWELLINK_REPO ||
     "/Users/sterling/.codex/tmp/jewellink-app-research-20260720",
 );
+const JEWELLINK_REVIEW_REF = args.get("jewellink-review-ref") || process.env.JEWELLINK_REVIEW_REF || "";
+const FIXTURE_JEWELHIRE_LEDGER = args.get("fixture-jewelhire-ledger")
+  ? path.resolve(process.cwd(), args.get("fixture-jewelhire-ledger"))
+  : "";
+const FIXTURE_JEWELLINK_LEDGER = args.get("fixture-jewellink-ledger")
+  ? path.resolve(process.cwd(), args.get("fixture-jewellink-ledger"))
+  : "";
+const JEWELLINK_DRIFT_RECOVERY_REPORT = args.get("jewellink-drift-recovery-report")
+  ? path.resolve(process.cwd(), args.get("jewellink-drift-recovery-report"))
+  : process.env.JEWELLINK_MIGRATION_DRIFT_RECOVERY_REPORT
+    ? path.resolve(process.cwd(), process.env.JEWELLINK_MIGRATION_DRIFT_RECOVERY_REPORT)
+    : "";
+const JEWELLINK_OBJECT_STATE_REPORT = args.get("jewellink-object-state-report")
+  ? path.resolve(process.cwd(), args.get("jewellink-object-state-report"))
+  : process.env.JEWELLINK_MIGRATION_OBJECT_STATE_REPORT
+    ? path.resolve(process.cwd(), process.env.JEWELLINK_MIGRATION_OBJECT_STATE_REPORT)
+    : "";
 
 const requiredJewelHireMigrations = [
   "0020_verified_applicant_signups",
@@ -56,6 +73,33 @@ function gcloud(commandArgs) {
 function record(name, pass, details = {}) {
   checks.push({ name, pass, ...details });
   console.log(`${pass ? "PASS" : "FAIL"} ${name}`);
+}
+
+function loadJsonFile(file, label) {
+  if (!file) return { ok: false, data: null, error: `${label} not provided` };
+  if (!fs.existsSync(file)) return { ok: false, data: null, error: `${label} not found` };
+  try {
+    return { ok: true, data: JSON.parse(fs.readFileSync(file, "utf8")), error: "" };
+  } catch (error) {
+    return { ok: false, data: null, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+function fixtureRows(file, label) {
+  const loaded = loadJsonFile(file, label);
+  if (!loaded.ok) throw new Error(loaded.error);
+  if (!Array.isArray(loaded.data)) throw new Error(`${label} must contain a JSON array`);
+  return loaded.data;
+}
+
+function sortedUnique(values) {
+  return [...new Set((values || []).map((value) => String(value || "").trim()).filter(Boolean))].sort();
+}
+
+function sameStringSet(left, right) {
+  const leftSet = sortedUnique(left);
+  const rightSet = sortedUnique(right);
+  return leftSet.length === rightSet.length && leftSet.every((value, index) => value === rightSet[index]);
 }
 
 function accessSecret({ project, name, version = "latest" }) {
@@ -101,8 +145,34 @@ async function withClient(rawUrl, callback) {
   }
 }
 
-async function readJewelHireLedger(rawUrl) {
+async function readJewelHireLedger(rawUrl, fixtureFile = "") {
   const files = loadMigrationFiles(path.resolve(process.cwd(), "db/migrations"));
+  if (fixtureFile) {
+    const rows = fixtureRows(fixtureFile, "JewelHire ledger fixture");
+    const verification = verifyMigrationLedger(files, rows, {
+      ledgerExists: true,
+      requireLedger: true,
+      requireZeroPending: true,
+    });
+    const appliedIds = new Set(rows.map((row) => row.id));
+    const missingRequired = requiredJewelHireMigrations.filter((id) => !appliedIds.has(id));
+    record("JewelHire schema_migrations table exists", true, { fixture: true });
+    record("JewelHire migration ledger has no checksum, filename, order, or pending issues", verification.valid, {
+      issueTypes: verification.issues.map((issue) => issue.type),
+      pendingCount: verification.pending.length,
+    });
+    record("JewelHire required launch migrations are applied", missingRequired.length === 0, {
+      missingRequired,
+    });
+    return {
+      target: { host: "fixture", database: "fixture", user: "" },
+      repositoryCount: verification.repositoryCount,
+      appliedCount: verification.appliedCount,
+      pendingCount: verification.pending.length,
+      issueTypes: verification.issues.map((issue) => issue.type),
+      missingRequired,
+    };
+  }
   return withClient(rawUrl, async (client) => {
     const table = await client.query("select to_regclass('schema_migrations') as table_name");
     const ledgerExists = Boolean(table.rows[0]?.table_name);
@@ -135,7 +205,27 @@ async function readJewelHireLedger(rawUrl) {
   });
 }
 
-function loadPrismaMigrations(repo) {
+function gitText(repo, commandArgs) {
+  return execFileSync("git", ["-C", repo, ...commandArgs], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
+function loadPrismaMigrations(repo, ref = "") {
+  if (ref) {
+    const names = gitText(repo, ["ls-tree", "-r", "--name-only", ref, "--", "prisma/migrations"])
+      .split(/\r?\n/)
+      .filter((name) => /\/migration\.sql$/.test(name))
+      .map((name) => name.split("/").at(-2))
+      .filter(Boolean)
+      .sort();
+    return names.map((name) => {
+      const text = gitText(repo, ["show", `${ref}:prisma/migrations/${name}/migration.sql`]);
+      return { name, checksum: crypto.createHash("sha256").update(text).digest("hex") };
+    });
+  }
+
   const migrationsDir = path.join(repo, "prisma", "migrations");
   const names = fs
     .readdirSync(migrationsDir)
@@ -147,31 +237,110 @@ function loadPrismaMigrations(repo) {
   });
 }
 
-function repoRevision(repo) {
+function repoRevision(repo, ref = "HEAD") {
   try {
-    return execFileSync("git", ["-C", repo, "rev-parse", "HEAD"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }).trim();
+    return gitText(repo, ["rev-parse", ref]).trim();
   } catch {
     return "";
   }
 }
 
-async function readJewelLinkLedger(rawUrl) {
-  const local = loadPrismaMigrations(JEWELLINK_REPO);
+function validateObjectStateReport(required) {
+  if (!required) {
+    return {
+      required,
+      valid: true,
+      path: "",
+      error: "",
+      pass: null,
+      valuesPrinted: false,
+      checkCount: 0,
+    };
+  }
+  const loaded = loadJsonFile(JEWELLINK_OBJECT_STATE_REPORT, "JewelLink object-state report");
+  const report = loaded.data || {};
+  return {
+    required,
+    valid: loaded.ok && report.pass === true && report.valuesPrinted === false,
+    path: JEWELLINK_OBJECT_STATE_REPORT,
+    error: loaded.ok ? "" : loaded.error,
+    pass: report.pass === true,
+    valuesPrinted: report.valuesPrinted === true,
+    checkCount: Array.isArray(report.checks) ? report.checks.length : 0,
+  };
+}
+
+function validateDriftRecoveryEvidence({ checksumDrift, integrationChecksumDrift, reviewedRepoCommit }) {
+  const driftNames = checksumDrift.map((row) => row.migration_name);
+  if (driftNames.length === 0) {
+    return {
+      needed: false,
+      valid: true,
+      recoveryReportValid: true,
+      objectStateRequired: false,
+      objectStateValid: true,
+      recoveredNames: [],
+      terminalCrlfRecoveredCount: 0,
+      reviewedSqlByteVariantRecoveredCount: 0,
+    };
+  }
+
+  const loaded = loadJsonFile(JEWELLINK_DRIFT_RECOVERY_REPORT, "JewelLink drift recovery report");
+  const report = loaded.data || {};
+  const jewelLink = report.jewelLink || {};
+  const recoveryRows = Array.isArray(report.recovery) ? report.recovery : [];
+  const recoveredNames = recoveryRows
+    .filter((row) => {
+      const hasRecovery =
+        (Array.isArray(row.exactHistoryMatches) && row.exactHistoryMatches.length > 0) ||
+        (Array.isArray(row.cloudBuildSourceMatches) && row.cloudBuildSourceMatches.length > 0) ||
+        (Array.isArray(row.reviewedSqlByteVariants) && row.reviewedSqlByteVariants.length > 0) ||
+        row.ownerAccepted === true ||
+        row.ownerAcceptance === true;
+      return hasRecovery;
+    })
+    .map((row) => row.migration);
+  const terminalCrlfRecoveredCount = Number(jewelLink.terminalCrlfRecoveredCount || 0);
+  const reviewedSqlByteVariantRecoveredCount = Number(jewelLink.reviewedSqlByteVariantRecoveredCount || 0);
+  const objectStateRequired = terminalCrlfRecoveredCount > 0;
+  const objectState = validateObjectStateReport(objectStateRequired);
+  const recoveryReportValid =
+    loaded.ok &&
+    report.pass === true &&
+    report.valuesPrinted === false &&
+    Number(jewelLink.driftCount) === driftNames.length &&
+    Number(jewelLink.recoveredCount) === driftNames.length &&
+    Number(jewelLink.unrecoveredCount) === 0 &&
+    Number(jewelLink.integrationDriftCount) === integrationChecksumDrift.length &&
+    integrationChecksumDrift.length === 0 &&
+    (!reviewedRepoCommit || !jewelLink.reviewedRepoCommit || jewelLink.reviewedRepoCommit === reviewedRepoCommit) &&
+    sameStringSet(recoveredNames, driftNames);
+
+  return {
+    needed: true,
+    valid: recoveryReportValid && objectState.valid,
+    recoveryReportValid,
+    objectStateRequired,
+    objectStateValid: objectState.valid,
+    path: JEWELLINK_DRIFT_RECOVERY_REPORT,
+    error: loaded.ok ? "" : loaded.error,
+    recoveredNames: sortedUnique(recoveredNames),
+    driftNames: sortedUnique(driftNames),
+    recoveredCount: Number(jewelLink.recoveredCount || 0),
+    unrecoveredCount: Number(jewelLink.unrecoveredCount || 0),
+    integrationDriftCount: Number(jewelLink.integrationDriftCount || 0),
+    terminalCrlfRecoveredCount,
+    reviewedSqlByteVariantRecoveredCount,
+    objectState,
+  };
+}
+
+async function readJewelLinkLedger(rawUrl, fixtureFile = "") {
+  const local = loadPrismaMigrations(JEWELLINK_REPO, JEWELLINK_REVIEW_REF);
   const localByName = new Map(local.map((migration) => [migration.name, migration]));
-  return withClient(rawUrl, async (client) => {
-    const table = await client.query("select to_regclass('public._prisma_migrations') as table_name");
-    const ledgerExists = Boolean(table.rows[0]?.table_name);
+  const reviewedRepoCommit = repoRevision(JEWELLINK_REPO, JEWELLINK_REVIEW_REF || "HEAD");
+  const analyzeRows = (rows, ledgerExists = true) => {
     record("JewelLink _prisma_migrations table exists", ledgerExists);
-    const rows = ledgerExists
-      ? (await client.query(
-          `select migration_name, checksum, finished_at::text, rolled_back_at::text
-           from public._prisma_migrations
-           order by started_at, migration_name`,
-        )).rows
-      : [];
     const active = rows.filter((row) => row.finished_at && !row.rolled_back_at);
     const rolledBack = rows.filter((row) => row.rolled_back_at);
     const unfinished = rows.filter((row) => !row.finished_at && !row.rolled_back_at);
@@ -206,13 +375,22 @@ async function readJewelLinkLedger(rawUrl) {
     record("JewelLink required JewelHire integration/auth migration checksums match", integrationChecksumDrift.length === 0, {
       driftCount: integrationChecksumDrift.length,
     });
-    record("JewelLink full active migration checksums match the reviewed repo", checksumDrift.length === 0, {
+    const driftRecovery = validateDriftRecoveryEvidence({
+      checksumDrift,
+      integrationChecksumDrift,
+      reviewedRepoCommit,
+    });
+    record("JewelLink historical checksum drift is absent or covered by passing recovery evidence", checksumDrift.length === 0 || driftRecovery.valid, {
       driftCount: checksumDrift.length,
       driftNames: checksumDrift.map((row) => row.migration_name),
+      recoveryEvidenceRequired: driftRecovery.needed,
+      recoveryReportValid: driftRecovery.recoveryReportValid,
+      objectStateRequired: driftRecovery.objectStateRequired,
+      objectStateValid: driftRecovery.objectStateValid,
     });
 
     return {
-      target: redactTarget(rawUrl),
+      target: fixtureFile ? { host: "fixture", database: "fixture", user: "" } : redactTarget(rawUrl),
       localCount: local.length,
       totalLedgerRows: rows.length,
       activeAppliedCount: active.length,
@@ -224,7 +402,26 @@ async function readJewelLinkLedger(rawUrl) {
       missingRequired,
       integrationChecksumDrift: integrationChecksumDrift.map((row) => row.migration_name),
       fullChecksumDrift: checksumDrift.map((row) => row.migration_name),
+      driftRecovery,
+      reviewedRef: JEWELLINK_REVIEW_REF || "HEAD",
+      reviewedRepoCommit,
     };
+  };
+
+  if (fixtureFile) {
+    return analyzeRows(fixtureRows(fixtureFile, "JewelLink ledger fixture"), true);
+  }
+  return withClient(rawUrl, async (client) => {
+    const table = await client.query("select to_regclass('public._prisma_migrations') as table_name");
+    const ledgerExists = Boolean(table.rows[0]?.table_name);
+    const rows = ledgerExists
+      ? (await client.query(
+          `select migration_name, checksum, finished_at::text, rolled_back_at::text
+           from public._prisma_migrations
+           order by started_at, migration_name`,
+        )).rows
+      : [];
+    return analyzeRows(rows, ledgerExists);
   });
 }
 
@@ -246,6 +443,7 @@ function markdown(report) {
     "## JewelLink",
     "",
     `- Reviewed repo: ${report.jewelLink.reviewedRepo}`,
+    `- Reviewed ref: ${report.jewelLink.reviewedRef || "HEAD"}`,
     `- Reviewed repo commit: ${report.jewelLink.reviewedRepoCommit || "unavailable"}`,
     `- Reviewed repo migrations: ${report.jewelLink.localCount}`,
     `- Active applied migrations: ${report.jewelLink.activeAppliedCount}`,
@@ -254,6 +452,14 @@ function markdown(report) {
     `- Missing required JewelHire integration/auth migrations: ${report.jewelLink.missingRequired.length}`,
     `- Required integration/auth checksum drift: ${report.jewelLink.integrationChecksumDrift.length}`,
     `- Full active checksum drift: ${report.jewelLink.fullChecksumDrift.length}`,
+    `- Drift recovery evidence: ${report.jewelLink.driftRecovery?.needed ? report.jewelLink.driftRecovery.valid ? "valid" : "invalid" : "not required"}`,
+    ...(report.jewelLink.driftRecovery?.needed
+      ? [
+          `- Drift recovery report: ${report.jewelLink.driftRecovery.path || "not provided"}`,
+          `- Object-state evidence required: ${report.jewelLink.driftRecovery.objectStateRequired ? "yes" : "no"}`,
+          `- Object-state evidence valid: ${report.jewelLink.driftRecovery.objectStateValid ? "yes" : "no"}`,
+        ]
+      : []),
     ...(report.jewelLink.fullChecksumDrift.length
       ? ["", "### Full Checksum Drift Names", "", ...report.jewelLink.fullChecksumDrift.map((name) => `- ${name}`)]
       : []),
@@ -267,25 +473,29 @@ function markdown(report) {
 }
 
 async function main() {
-  const jewelHireDatabaseUrl =
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL ||
-    accessSecret({ project: JEWELHIRE_PROJECT, name: JEWELHIRE_DB_SECRET, version: "latest" });
-  const jewelLinkDatabaseUrl =
-    process.env.JEWELLINK_DATABASE_URL ||
-    accessSecret({ project: JEWELLINK_PROJECT, name: JEWELLINK_DB_SECRET, version: "latest" });
+  const jewelHireDatabaseUrl = FIXTURE_JEWELHIRE_LEDGER
+    ? ""
+    : process.env.DATABASE_URL ||
+      process.env.POSTGRES_URL ||
+      accessSecret({ project: JEWELHIRE_PROJECT, name: JEWELHIRE_DB_SECRET, version: "latest" });
+  const jewelLinkDatabaseUrl = FIXTURE_JEWELLINK_LEDGER
+    ? ""
+    : process.env.JEWELLINK_DATABASE_URL ||
+      accessSecret({ project: JEWELLINK_PROJECT, name: JEWELLINK_DB_SECRET, version: "latest" });
 
-  record("JewelHire database credential is available for read-only ledger audit", Boolean(jewelHireDatabaseUrl), {
+  record("JewelHire database credential is available for read-only ledger audit", Boolean(jewelHireDatabaseUrl) || Boolean(FIXTURE_JEWELHIRE_LEDGER), {
+    fixture: Boolean(FIXTURE_JEWELHIRE_LEDGER),
     valuesPrinted: false,
   });
-  record("JewelLink database credential is available for read-only ledger audit", Boolean(jewelLinkDatabaseUrl), {
+  record("JewelLink database credential is available for read-only ledger audit", Boolean(jewelLinkDatabaseUrl) || Boolean(FIXTURE_JEWELLINK_LEDGER), {
+    fixture: Boolean(FIXTURE_JEWELLINK_LEDGER),
     valuesPrinted: false,
   });
 
-  const jewelHire = await readJewelHireLedger(jewelHireDatabaseUrl);
-  const jewelLink = await readJewelLinkLedger(jewelLinkDatabaseUrl);
+  const jewelHire = await readJewelHireLedger(jewelHireDatabaseUrl, FIXTURE_JEWELHIRE_LEDGER);
+  const jewelLink = await readJewelLinkLedger(jewelLinkDatabaseUrl, FIXTURE_JEWELLINK_LEDGER);
   jewelLink.reviewedRepo = JEWELLINK_REPO;
-  jewelLink.reviewedRepoCommit = repoRevision(JEWELLINK_REPO);
+  jewelLink.reviewedRepoCommit = jewelLink.reviewedRepoCommit || repoRevision(JEWELLINK_REPO);
   const failures = checks.filter((check) => !check.pass);
   const report = {
     createdAt: new Date().toISOString(),

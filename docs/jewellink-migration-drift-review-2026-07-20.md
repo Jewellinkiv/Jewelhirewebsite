@@ -10,7 +10,7 @@ drift found during pilot readiness. No database rows were changed.
 | JewelLink reviewed repo | `/Users/sterling/.codex/tmp/jewellink-app-origin-main-20260720` |
 | Reviewed live baseline | `55032dbbebc519d1718aa14871da2048f60d9487` |
 | Local no-push patch head | `f12e67d7202a6a567007605f7164d141638b5dbc` |
-| Ledger evidence | `docs/qa-runs/migration-ledgers-2026-07-20T22-39-30-599Z/migration-ledger-report.md` |
+| Ledger evidence | `docs/qa-runs/migration-ledgers-2026-07-21T05-45-00-000Z/migration-ledger-report.md` |
 | Repeatable recovery audit | `docs/qa-runs/jewellink-migration-drift-2026-07-21T03-45-00-000Z/jewellink-migration-drift-recovery-report.md` |
 | Object-state audit | `docs/qa-runs/jewellink-migration-object-state-2026-07-21T03-16-00-000Z/jewellink-migration-object-state-report.md` |
 | Owner acceptance request | Not required by the latest passing recovery audit |
