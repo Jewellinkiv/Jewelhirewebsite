@@ -47,7 +47,7 @@ only until a named approver accepts or revises them.
 ## JewelLink migration drift approval
 
 Latest audit:
-`docs/qa-runs/jewellink-migration-drift-2026-07-21T02-32-45-218Z/jewellink-migration-drift-recovery-report.md`
+`docs/qa-runs/jewellink-migration-drift-2026-07-21T03-05-00-000Z/jewellink-migration-drift-recovery-report.md`
 
 Fillable acceptance template:
 `docs/jewellink-migration-drift-owner-acceptance.template-2026-07-21.json`
@@ -56,8 +56,10 @@ Current state:
 
 - 25 older non-integration JewelLink Prisma rows have checksum drift.
 - 1 exact historical SQL file is recovered from searched git history.
-- 24 older non-integration rows remain unrecovered after standard refs, PR-head
-  refs, and Cloud Build source revision search.
+- 21 rows match the reviewed SQL exactly after deterministic CRLF line-ending
+  normalization.
+- 3 older non-integration rows remain unrecovered after standard refs, PR-head
+  refs, Cloud Build source revision search, and reviewed-SQL CRLF recovery.
 - The seven JewelHire integration/auth migration rows remain checksum-clean and
   are the hard launch boundary.
 
@@ -79,7 +81,7 @@ Required acceptance fields:
 - Review artifact or ticket reference.
 - Acceptance statement.
 - All three acknowledgement booleans set to true in the JSON file.
-- Accepted migration list exactly matching the 24 unrecovered historical rows.
+- Accepted migration list exactly matching the 3 unrecovered historical rows.
 
 ## JewelLink pilot persona approvals
 

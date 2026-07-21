@@ -130,6 +130,10 @@ function hashSql(text) {
   return crypto.createHash("sha256").update(text).digest("hex");
 }
 
+function toCrlf(text) {
+  return String(text || "").replace(/\r?\n/g, "\r\n");
+}
+
 function shortSha(value) {
   return value ? String(value).slice(0, 12) : "";
 }
@@ -266,7 +270,7 @@ function loadReviewedMigrations(repo, ref = REVIEW_REF) {
     .sort()
     .map((name) => {
       const text = runGit(["show", `${ref}:prisma/migrations/${name}/migration.sql`], { cwd: repo });
-      return { name, checksum: hashSql(text) };
+      return { name, checksum: hashSql(text), text };
     });
 }
 
@@ -501,6 +505,7 @@ function recoverMatches(repo, driftRows, cloudBuildSearch) {
       searchedPathCommits: commits.length,
       exactHistoryMatches: matches,
       cloudBuildSourceMatches: cloudBuildSearch.matchesByMigration?.get(row.migration_name) || [],
+      reviewedSqlByteVariants: hashSql(toCrlf(row.reviewedSql)) === row.checksum ? [{ variant: "CRLF line endings" }] : [],
     };
   });
 }
@@ -699,6 +704,7 @@ function markdown(report) {
     `- Cloud Build source revisions reachable locally: ${report.jewelLink.cloudBuildSourceSearch.reachableRevisionCount}`,
     `- Cloud Build source revisions unreachable locally: ${report.jewelLink.cloudBuildSourceSearch.unreachableRevisionCount}`,
     `- Cloud Build exact SQL matches: ${report.jewelLink.cloudBuildSourceSearch.matchCount}`,
+    `- Drift rows matching reviewed SQL with CRLF line endings: ${report.jewelLink.lineEndingRecoveredCount}`,
     `- Drift rows with exact SQL recovered from any searched source: ${report.jewelLink.recoveredCount}`,
     `- Drift rows still unrecovered: ${report.jewelLink.unrecoveredCount}`,
     `- Database owner acceptance attempted: ${report.jewelLink.databaseOwnerAcceptance.attempted}`,
@@ -707,8 +713,8 @@ function markdown(report) {
     "",
     "## Drift Recovery",
     "",
-    "| Migration | Applied checksum | Reviewed checksum | Applied window | History match | Cloud Build source match | Path commits searched |",
-    "| --- | --- | --- | --- | --- | --- | --- |",
+    "| Migration | Applied checksum | Reviewed checksum | Applied window | History match | Cloud Build source match | Reviewed SQL byte variant | Path commits searched |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ...report.recovery.map((row) => {
       const match = row.exactHistoryMatches.length
         ? row.exactHistoryMatches.map((item) => `\`${item.commit}\``).join(", ")
@@ -718,9 +724,12 @@ function markdown(report) {
             .map((item) => `\`${item.commit}\`${item.buildId ? ` / build \`${item.buildId}\`` : ""}`)
             .join(", ")
         : "No match";
+      const reviewedSqlByteVariant = row.reviewedSqlByteVariants.length
+        ? row.reviewedSqlByteVariants.map((item) => item.variant).join(", ")
+        : "No match";
       const appliedWindow =
         row.startedAt || row.finishedAt ? `${row.startedAt || "unknown"} to ${row.finishedAt || "unknown"}` : "unknown";
-      return `| \`${row.migration}\` | \`${row.appliedChecksumPrefix}\` | \`${row.reviewedChecksumPrefix}\` | ${appliedWindow} | ${match} | ${cloudBuildMatch} | ${row.searchedPathCommits} |`;
+      return `| \`${row.migration}\` | \`${row.appliedChecksumPrefix}\` | \`${row.reviewedChecksumPrefix}\` | ${appliedWindow} | ${match} | ${cloudBuildMatch} | ${reviewedSqlByteVariant} | ${row.searchedPathCommits} |`;
     }),
     "",
     "## Database Owner Acceptance",
@@ -769,6 +778,7 @@ async function main() {
     .map((row) => ({
       ...row,
       reviewedChecksum: reviewedByName.get(row.migration_name).checksum,
+      reviewedSql: reviewedByName.get(row.migration_name).text,
     }))
     .filter((row) => row.checksum !== row.reviewedChecksum);
 
@@ -783,7 +793,10 @@ async function main() {
   }
   const recovery = recoverMatches(JEWELLINK_REPO, driftRows, cloudBuildSource);
   const unrecovered = recovery.filter(
-    (row) => row.exactHistoryMatches.length === 0 && row.cloudBuildSourceMatches.length === 0,
+    (row) =>
+      row.exactHistoryMatches.length === 0 &&
+      row.cloudBuildSourceMatches.length === 0 &&
+      row.reviewedSqlByteVariants.length === 0,
   );
   const databaseOwnerAcceptance = validateOwnerAcceptance(unrecovered);
 
@@ -820,8 +833,14 @@ async function main() {
       reviewedMigrationCount: reviewed.length,
       driftCount: driftRows.length,
       historyRecoveredCount: recovery.filter((row) => row.exactHistoryMatches.length > 0).length,
+      lineEndingRecoveredCount: recovery.filter((row) =>
+        row.reviewedSqlByteVariants.some((item) => item.variant === "CRLF line endings"),
+      ).length,
       recoveredCount: recovery.filter(
-        (row) => row.exactHistoryMatches.length > 0 || row.cloudBuildSourceMatches.length > 0,
+        (row) =>
+          row.exactHistoryMatches.length > 0 ||
+          row.cloudBuildSourceMatches.length > 0 ||
+          row.reviewedSqlByteVariants.length > 0,
       ).length,
       unrecoveredCount: unrecovered.length,
       integrationDriftCount: integrationDrift.length,
