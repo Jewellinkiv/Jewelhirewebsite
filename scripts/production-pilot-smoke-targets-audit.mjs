@@ -191,9 +191,39 @@ async function queryJewelHire(databaseUrl, controlledEmail) {
       `,
       [PILOT_COMPANY_ID, PILOT_STORE_ID, normalizeEmail(controlledEmail)],
     );
+    const publicTargets = await client.query(
+      `
+        select s.id as store_id,
+               s.slug as store_slug,
+               spp.slug as public_page_slug,
+               spp.status as public_page_status,
+               pj.id as job_id,
+               pj.slug as job_slug,
+               pj.title as job_title,
+               pj.location as job_location,
+               pj.status as job_status,
+               pj.opened_at::text as job_opened_at,
+               pj.created_at::text as job_created_at
+        from companies c
+        join stores s on s.company_id = c.id
+        left join store_public_pages spp on spp.store_id = s.id and spp.status = 'published'
+        left join public_jobs pj on pj.store_id = s.id and pj.status = 'open'
+        where c.jewellink_company_id = $1
+          and ($2::text = '' or s.id = $2)
+        order by
+          case when spp.id is not null then 0 else 1 end,
+          case when pj.id is not null then 0 else 1 end,
+          pj.opened_at desc nulls last,
+          pj.created_at desc nulls last,
+          s.created_at asc,
+          s.id asc
+      `,
+      [PILOT_COMPANY_ID, PILOT_STORE_ID],
+    );
     return {
       pilotStores: pilotStores.rows,
       applications: applications.rows,
+      publicTargets: publicTargets.rows,
     };
   });
 }
@@ -300,14 +330,35 @@ function selectResumeApplication(applications) {
   return applications.find((row) => row.has_resume_attachment) || null;
 }
 
+function selectPublicSubmissionTarget(targets) {
+  return (targets || []).find((row) => row.public_page_slug && row.job_id) || null;
+}
+
+function publicSubmissionTarget(row) {
+  if (!row) return null;
+  const publicStoreSlug = row.public_page_slug || "";
+  return {
+    storeId: row.store_id || "",
+    publicStoreSlug,
+    endpointPath: publicStoreSlug ? `/api/public/stores/${publicStoreSlug}/applications` : "",
+    jobId: row.job_id || "",
+    publicPageStatus: row.public_page_status || "",
+    jobStatus: row.job_status || "",
+    jobOpenedAt: row.job_opened_at || "",
+  };
+}
+
 function summarize(snapshot) {
   const applications = snapshot.jewelHire?.db?.applications || [];
+  const publicTargets = snapshot.jewelHire?.db?.publicTargets || [];
   const selectedHire = selectHireApplication(applications);
   const selectedResume = selectResumeApplication(applications);
+  const selectedPublicSubmissionTarget = selectPublicSubmissionTarget(publicTargets);
   const pilotStores = snapshot.jewelHire?.db?.pilotStores || [];
   const controlledCredential = publicCredential(snapshot.jewelHire?.controlledCredential);
   const selectedHirePublic = publicApplication(selectedHire);
   const selectedResumePublic = publicApplication(selectedResume);
+  const selectedPublicSubmissionTargetPublic = publicSubmissionTarget(selectedPublicSubmissionTarget);
 
   return {
     createdAt: snapshot.createdAt || new Date().toISOString(),
@@ -338,6 +389,8 @@ function summarize(snapshot) {
       selectedHireApplication: selectedHirePublic,
       selectedResumeApplication: selectedResumePublic,
       sameApplicationForHireAndResume: Boolean(selectedHirePublic && selectedResumePublic && selectedHirePublic.applicationId === selectedResumePublic.applicationId),
+      publicSubmissionTargetCount: publicTargets.length,
+      selectedPublicSubmissionTarget: selectedPublicSubmissionTargetPublic,
     },
     smokePlanUpdates: {
       scopes: {
@@ -348,6 +401,12 @@ function summarize(snapshot) {
           storeId: selectedResumePublic?.storeId || selectedHirePublic?.storeId || "",
           expectedStoreId: selectedResumePublic?.storeId || selectedHirePublic?.storeId || "",
           resumeApplicationId: selectedResumePublic?.applicationId || "",
+        },
+      },
+      setup: {
+        publicApplication: {
+          endpointPath: selectedPublicSubmissionTargetPublic?.endpointPath || "",
+          jobId: selectedPublicSubmissionTargetPublic?.jobId || "",
         },
       },
     },
@@ -373,6 +432,7 @@ function buildRequest(report) {
 function reportMarkdown(report) {
   const hire = report.candidates.selectedHireApplication;
   const resume = report.candidates.selectedResumeApplication;
+  const publicTarget = report.candidates.selectedPublicSubmissionTarget;
   return [
     "# Production Pilot Smoke Targets Audit",
     "",
@@ -389,6 +449,16 @@ function reportMarkdown(report) {
     `| Hire handoff | ${hire?.applicationId || "Missing"} | ${hire?.storeId || ""} | ${hire?.stage || ""} | ${hire?.hasResumeAttachment ? "yes" : hire ? "no" : ""} | ${hire?.hasHireSync ? hire.hireSyncStatus || "yes" : hire ? "no" : ""} |`,
     `| Resume privacy | ${resume?.applicationId || "Missing"} | ${resume?.storeId || ""} | ${resume?.stage || ""} | ${resume?.hasResumeAttachment ? "yes" : resume ? "no" : ""} | ${resume?.hasHireSync ? resume.hireSyncStatus || "yes" : resume ? "no" : ""} |`,
     "",
+    "## Public Application Setup Target",
+    "",
+    "| Field | Value |",
+    "| --- | --- |",
+    `| Store ID | \`${publicTarget?.storeId || "TBD"}\` |`,
+    `| Public store slug | \`${publicTarget?.publicStoreSlug || "TBD"}\` |`,
+    `| Endpoint path | \`${publicTarget?.endpointPath || "TBD"}\` |`,
+    `| Job ID | \`${publicTarget?.jobId || "TBD"}\` |`,
+    `| Job status | \`${publicTarget?.jobStatus || "TBD"}\` |`,
+    "",
     "## Smoke Plan Updates",
     "",
     "| Field | Value |",
@@ -397,6 +467,8 @@ function reportMarkdown(report) {
     `| \`scopes.publicFailClosed.storeId\` | \`${report.smokePlanUpdates.scopes.publicFailClosed.storeId || "TBD"}\` |`,
     `| \`scopes.publicFailClosed.expectedStoreId\` | \`${report.smokePlanUpdates.scopes.publicFailClosed.expectedStoreId || "TBD"}\` |`,
     `| \`scopes.publicFailClosed.resumeApplicationId\` | \`${report.smokePlanUpdates.scopes.publicFailClosed.resumeApplicationId || "TBD"}\` |`,
+    `| setup public application endpoint path | \`${report.smokePlanUpdates.setup.publicApplication.endpointPath || "TBD"}\` |`,
+    `| setup public application job ID | \`${report.smokePlanUpdates.setup.publicApplication.jobId || "TBD"}\` |`,
     "",
     "## Checks",
     "",
@@ -466,6 +538,9 @@ async function main() {
   }
   record("controlled applicant has a pilot application", summary.candidates.controlledApplicationCount > 0, {
     required: "Existing controlled applicant application in pilot company/store",
+  });
+  record("public application submission target is available", Boolean(summary.candidates.selectedPublicSubmissionTarget), {
+    required: "Published public store page and open public job for the pilot JewelHire store",
   });
   record("controlled hire application target is available", Boolean(summary.candidates.selectedHireApplication), {
     required: "Pilot application for the controlled applicant with no existing hire sync and non-terminal stage",

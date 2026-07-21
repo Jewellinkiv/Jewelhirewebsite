@@ -51,10 +51,11 @@ The gate remains a live-pilot NO-GO item until this audit passes, then the
 resulting report can be referenced by the pilot smoke evidence packet.
 
 The latest target-finder run
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-23-06-388Z/` confirms the
-controlled applicant credential and pilot store are available, but no controlled
-pilot application exists yet. Create or approve that controlled application with
-a private resume attachment before copying hire/resume IDs into the smoke plan.
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-36-00-000Z/` confirms the
+controlled applicant credential, pilot store, published public store page, and
+open public job are available, but no controlled pilot application exists yet.
+Create or approve that controlled application with a private resume attachment
+before copying hire/resume IDs into the smoke plan.
 
 ## Secret Handling
 

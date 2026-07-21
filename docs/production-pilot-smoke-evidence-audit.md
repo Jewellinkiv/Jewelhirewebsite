@@ -25,10 +25,10 @@ JewelCert, team-invite, or resume privacy smoke runs in production.
 
 For the hire and resume privacy target IDs, run `npm run qa:pilot-smoke-targets`
 before filling the smoke plan. The latest production run
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-23-06-388Z/` confirms the
-controlled applicant credential and pilot store, but it still needs a
-controlled pilot application with a private resume attachment before those smoke
-rows can proceed.
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-36-00-000Z/` confirms the
+controlled applicant credential, pilot store, published public store page, and
+open public job, but it still needs a controlled pilot application with a
+private resume attachment before those smoke rows can proceed.
 
 For the current pilot evidence matrix, copy
 `docs/production-pilot-smoke-evidence.template.json` to an ignored local path

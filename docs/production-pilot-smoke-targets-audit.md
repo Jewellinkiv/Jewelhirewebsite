@@ -23,6 +23,8 @@ specific JewelHire store. The report is written under
   the fallback JewelHire database secret, or local ignored environment.
 - The controlled applicant smoke credential exists and has a native password.
 - The pilot JewelLink company has at least one linked JewelHire store.
+- A published public store page and open public job exist for submitting the
+  controlled pilot application through the normal public application flow.
 - The controlled applicant has an existing pilot application.
 - A non-terminal application without an existing JewelLink hire sync is
   available for the hire handoff smoke.
@@ -31,11 +33,13 @@ specific JewelHire store. The report is written under
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-23-06-388Z/` confirms the
-database credential, controlled applicant smoke credential, and linked pilot
-store are ready. It fails because the controlled applicant does not yet have a
-pilot application, so no hire handoff target or resume privacy target can be
-copied into the smoke plan.
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-36-00-000Z/` confirms the
+database credential, controlled applicant smoke credential, linked pilot store,
+published public store page, and open public job are ready. It records the
+non-secret public application endpoint path and job ID to use after the missing
+production-smoke approvals are granted. It still fails because the controlled
+applicant does not yet have a pilot application, so no hire handoff target or
+resume privacy target can be copied into the smoke plan.
 
 The gate remains a live-pilot NO-GO item until a controlled applicant submits or
 has approved a pilot-store application with a private resume attachment, then

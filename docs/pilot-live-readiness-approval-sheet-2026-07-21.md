@@ -115,14 +115,17 @@ for:
 - Team-invite fail-closed and resume privacy evidence.
 
 Controlled smoke target finder:
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-23-06-388Z/pilot-smoke-targets-report.md`
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-36-00-000Z/pilot-smoke-targets-report.md`
 
 That read-only run confirms the controlled applicant smoke credential and
-linked pilot JewelHire store are ready, but the controlled applicant has no
-pilot application yet. Before the smoke plan can pass, create or approve one
-controlled pilot-store application for that applicant with a private resume
-attachment, then rerun `qa:pilot-smoke-targets` and copy only the non-secret
-application IDs into the ignored smoke plan.
+linked pilot JewelHire store are ready. It also records the public application
+endpoint path `/api/public/stores/diamond-exchange-58deb73e/applications` and
+job ID `job-d389b48d-3bd4-463f-9151-4ff7ed947e8f` for the controlled
+application setup. The controlled applicant still has no pilot application yet.
+Before the smoke plan can pass, create or approve one controlled pilot-store
+application for that applicant with a private resume attachment, then rerun
+`qa:pilot-smoke-targets` and copy only the non-secret application IDs into the
+ignored smoke plan.
 
 The team-invite and resume privacy rows now have a dedicated JewelHire-side
 producer:

@@ -34,6 +34,21 @@ function fixture(overrides = {}) {
         pilotStores: [
           { store_id: "store_1", company_id: "co_1", company_status: "active", store_status: "active" },
         ],
+        publicTargets: [
+          {
+            store_id: "store_1",
+            store_slug: "pilot-store",
+            public_page_slug: "pilot-careers",
+            public_page_status: "published",
+            job_id: "job_sales_1",
+            job_slug: "sales-associate",
+            job_title: "Sales Associate",
+            job_location: "loc_1",
+            job_status: "open",
+            job_opened_at: "2026-07-21T03:00:00.000Z",
+            job_created_at: "2026-07-21T02:00:00.000Z",
+          },
+        ],
         applications: [
           {
             application_id: "app_controlled_1",
@@ -99,6 +114,8 @@ test("complete smoke target fixture passes without writing full emails or resume
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(markdown, /Result: PASS/);
   assert.match(markdown, /app_controlled_1/);
+  assert.match(markdown, /Public Application Setup Target/);
+  assert.match(markdown, /job_sales_1/);
   assert.match(markdown, /scopes\.hireHandoff\.applicationAlias/);
   assert.match(markdown, /scopes\.publicFailClosed\.resumeApplicationId/);
   assert.equal(requestMarkdown, "");
@@ -114,6 +131,7 @@ test("missing controlled targets fail with actionable request and no secret leak
       ...fixture().jewelHire,
       db: {
         pilotStores: fixture().jewelHire.db.pilotStores,
+        publicTargets: fixture().jewelHire.db.publicTargets,
         applications: [
           {
             ...fixture().jewelHire.db.applications[0],
