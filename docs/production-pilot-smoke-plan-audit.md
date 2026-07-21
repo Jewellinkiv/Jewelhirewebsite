@@ -48,12 +48,12 @@ approval file described in
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T06-28-39-016Z/` records the
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T06-50-58-553Z/` records the
 operator-approved live-email and JewelLink pilot-flag movement scope in an
 ignored local smoke plan while leaving unapproved production mutations closed.
 It records 59 checks, 44 passing checks, 15 missing or invalid checks, and
 writes
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T06-28-39-016Z/pilot-smoke-plan-request.md`.
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T06-50-58-553Z/pilot-smoke-plan-request.md`.
 
 The current source-test artifact
 `docs/qa-runs/allowlisted-nonadmin-denial-source-2026-07-21T06-02-00-000Z/allowlisted-nonadmin-denial-source-report.md`
@@ -66,7 +66,7 @@ The gate remains a live-pilot NO-GO item until this audit passes, then the
 resulting report can be referenced by the pilot smoke evidence packet.
 
 The latest target-finder run
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T06-27-56-638Z/` confirms the
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T07-30-50-313Z/` confirms the
 controlled applicant credential, pilot store, published public store page, and
 open public job are available, but no controlled pilot application exists yet.
 Create or approve that controlled application with a private resume attachment

@@ -1,0 +1,20 @@
+{
+  "createdAt": "2026-07-21T07:30:52.842Z",
+  "valuesPrinted": false,
+  "status": "needed",
+  "verificationCommand": "npm run qa:pilot-smoke-targets",
+  "missingEvidence": [
+    {
+      "check": "controlled applicant has a pilot application",
+      "needed": "Existing controlled applicant application in pilot company/store"
+    },
+    {
+      "check": "controlled hire application target is available",
+      "needed": "Pilot application for the controlled applicant with no existing hire sync and non-terminal stage"
+    },
+    {
+      "check": "controlled resume privacy application target is available",
+      "needed": "Pilot application for the controlled applicant with a private resume attachment"
+    }
+  ]
+}

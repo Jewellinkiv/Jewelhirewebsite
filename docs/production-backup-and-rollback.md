@@ -62,6 +62,13 @@ JewelLink health scheduler evidence, with the monitoring channel IDs now
 explicitly recorded in `docs/production-operations-evidence-2026-07-21.json`.
 Rollback owner/window/threshold approval remains open.
 
+2026-07-21T07:30Z hardened operations evidence refresh:
+`docs/qa-runs/operations-readiness-2026-07-21T07-30-50-285Z/` reconfirms the
+backup, monitoring, live rollback target, external database host, and JewelLink
+health scheduler evidence after the audit was hardened to reject placeholder
+rollback approvals. Rollback owner/window/threshold approval remains the only
+open operations gate.
+
 2026-07-21 operator evidence packet: copy
 `docs/production-operations-evidence.template.json` to a local ignored path such
 as `.qa_tmp/production-operations-evidence.json`, fill it with only non-secret

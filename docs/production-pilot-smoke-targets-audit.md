@@ -33,7 +33,7 @@ specific JewelHire store. The report is written under
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-36-00-000Z/` confirms the
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T07-30-50-313Z/` confirms the
 database credential, controlled applicant smoke credential, linked pilot store,
 published public store page, and open public job are ready. It records the
 non-secret public application endpoint path and job ID to use after the missing
