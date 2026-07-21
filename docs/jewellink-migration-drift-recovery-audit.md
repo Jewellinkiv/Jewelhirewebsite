@@ -63,7 +63,7 @@ The report is written under `docs/qa-runs/jewellink-migration-drift-*` unless
 
 ## Latest Production Result
 
-`docs/qa-runs/jewellink-migration-drift-2026-07-21T00-55-59-144Z/` reviewed
+`docs/qa-runs/jewellink-migration-drift-2026-07-21T02-32-45-218Z/` reviewed
 JewelLink `origin/main` commit `55032dbbebc519d1718aa14871da2048f60d9487`,
 fetched standard and PR-head refs, searched 302 refs, searched 489 successful
 Cloud Build records / 258 reachable source revisions, and confirmed:
@@ -80,7 +80,7 @@ Cloud Build records / 258 reachable source revisions, and confirmed:
 - The drifted applied windows now span May 20, May 30, June 4, June 12,
   June 15, June 24, June 26, July 2, and July 8, 2026.
 - The run generated
-  `docs/qa-runs/jewellink-migration-drift-2026-07-21T00-55-59-144Z/jewellink-migration-drift-owner-acceptance-request.md`
+  `docs/qa-runs/jewellink-migration-drift-2026-07-21T02-32-45-218Z/jewellink-migration-drift-owner-acceptance-request.md`
   and matching JSON for the 24 unrecovered historical rows.
 
 This remains a live-pilot NO-GO item until the missing applied SQL is recovered,

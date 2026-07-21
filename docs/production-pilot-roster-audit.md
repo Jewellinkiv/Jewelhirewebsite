@@ -46,13 +46,13 @@ denial personas; it is an approval aid only and does not mutate either product.
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-roster-2026-07-21T01-47-56-756Z/` confirms Diamond
+`docs/qa-runs/pilot-roster-2026-07-21T02-31-32-809Z/` confirms Diamond
 Exchange `comp_1`, locations `loc_1`-`loc_6`, Director/Manager/Student SSO
 candidates, a platform-admin candidate, clean admin allowlist, and JewelHire
 smoke credential auth prerequisites. It still fails because the controlled
 Consultant-denial and paused-company denial personas are missing. The same run
 generated
-`docs/qa-runs/pilot-roster-2026-07-21T01-47-56-756Z/pilot-roster-provisioning-packet.md`
+`docs/qa-runs/pilot-roster-2026-07-21T02-31-32-809Z/pilot-roster-provisioning-packet.md`
 with the two approval-required JewelLink production account actions.
 
 Credential presence is not sufficient for GO evidence. Run
