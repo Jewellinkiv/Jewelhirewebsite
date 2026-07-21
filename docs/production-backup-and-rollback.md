@@ -50,7 +50,7 @@ artifacts are retained outside the repositories in the operator backup folder;
 the shared passphrase is stored in Secret Manager secret
 `jewelhire-pilot-logical-backup-passphrase-20260721` version `1`, and no
 plaintext dump is retained. The operations audit in
-`docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/` now passes all
+`docs/qa-runs/operations-readiness-2026-07-21T04-11-01-000Z/` now passes all
 backup, monitoring, live rollback target, external database host, and JewelLink
 health scheduler checks. The remaining failures are the six approval fields for
 rollback owners, the exact observation window, and rollback thresholds.

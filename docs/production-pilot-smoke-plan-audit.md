@@ -36,12 +36,12 @@ the prerequisite PASS artifacts.
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T03-46-39-000Z/` records the
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T04-11-01-000Z/` records the
 operator-approved live-email and JewelLink pilot-flag movement scope in an
 ignored local smoke plan while leaving unapproved production mutations closed.
 It records 53 checks, 40 passing checks, 13 missing or invalid checks, and
 writes
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T03-46-39-000Z/pilot-smoke-plan-request.md`.
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T04-11-01-000Z/pilot-smoke-plan-request.md`.
 
 The gate remains a live-pilot NO-GO item until this audit passes, then the
 resulting report can be referenced by the pilot smoke evidence packet.

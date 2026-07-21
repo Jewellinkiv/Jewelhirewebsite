@@ -23,7 +23,7 @@ authorize any production mutation.
 ## Operations approval fields
 
 Latest audit:
-`docs/qa-runs/operations-readiness-2026-07-21T02-23-48-469Z/operations-readiness-report.md`
+`docs/qa-runs/operations-readiness-2026-07-21T04-11-01-000Z/operations-readiness-report.md`
 
 Fillable template:
 `docs/production-operations-evidence.approval-template-2026-07-21.json`
@@ -73,7 +73,7 @@ ledger repair is authorized or needed for this closure evidence.
 ## JewelLink pilot persona approvals
 
 Latest roster audit:
-`docs/qa-runs/pilot-roster-2026-07-21T03-54-09-000Z/pilot-roster-report.md`
+`docs/qa-runs/pilot-roster-2026-07-21T04-11-01-000Z/pilot-roster-report.md`
 
 The roster is blocked only on these JewelLink production personas:
 
@@ -97,7 +97,7 @@ Fillable smoke plan preflight template:
 `docs/production-pilot-smoke-plan.template.json`
 
 Latest smoke plan request:
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T03-46-39-000Z/pilot-smoke-plan-request.md`
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T04-11-01-000Z/pilot-smoke-plan-request.md`
 
 Fillable smoke evidence template:
 `docs/production-pilot-smoke-evidence.template.json`
