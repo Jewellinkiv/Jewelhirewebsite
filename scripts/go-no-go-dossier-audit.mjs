@@ -53,6 +53,24 @@ const unresolvedMarkers = [
   "NOT SET",
 ];
 
+const smokeEvidenceSections = [
+  "## Authenticated SSO smoke matrix",
+  "## Hire handoff smoke",
+  "## JewelCert smoke",
+  "## Public and fail-closed smoke",
+];
+
+const weakSmokeEvidencePatterns = [
+  /\bTBD\b/i,
+  /\bnot run\b/i,
+  /\bmissing\b/i,
+  /\bneeds?\b/i,
+  /\bcandidate selected\b/i,
+  /\bsource-test\b/i,
+  /\bclean-allowlist evidence\b/i,
+  /\bapproved\b(?!.*docs\/qa-runs\/)/i,
+];
+
 const checks = [];
 
 function record(name, pass, details = {}) {
@@ -63,6 +81,43 @@ function record(name, pass, details = {}) {
 function decision(text) {
   const match = text.match(/^Decision:\s+\*\*(.+?)\*\*/m);
   return match ? match[1].trim() : "";
+}
+
+function sectionText(text, section) {
+  const start = text.indexOf(section);
+  if (start === -1) return "";
+  const next = text.slice(start + section.length).match(/\n## /);
+  return next ? text.slice(start, start + section.length + next.index) : text.slice(start);
+}
+
+function tableRows(section) {
+  return section
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("|") && line.endsWith("|"))
+    .filter((line) => !/^\|\s*-+/.test(line))
+    .slice(1)
+    .map((line) =>
+      line
+        .slice(1, -1)
+        .split("|")
+        .map((cell) => cell.trim()),
+    );
+}
+
+function smokeEvidenceGaps(text) {
+  return smokeEvidenceSections.flatMap((sectionName) => {
+    const section = sectionText(text, sectionName);
+    return tableRows(section)
+      .filter((cells) => cells.length >= 3)
+      .map((cells) => ({
+        section: sectionName.replace(/^##\s+/, ""),
+        item: cells[0].replace(/`/g, ""),
+        evidence: cells.at(-1) || "",
+      }))
+      .filter((row) => !row.evidence.includes("docs/qa-runs/") || weakSmokeEvidencePatterns.some((pattern) => pattern.test(row.evidence)))
+      .map((row) => `${row.section}: ${row.item}`);
+  });
 }
 
 function main() {
@@ -97,6 +152,8 @@ function main() {
 
   if (/^GO\b/.test(currentDecision)) {
     record("GO decision has no unresolved evidence placeholders", unresolved.length === 0, { unresolvedMarkers: unresolved });
+    const weakSmokeEvidence = smokeEvidenceGaps(text);
+    record("GO decision has concrete smoke evidence artifacts", weakSmokeEvidence.length === 0, { weakSmokeEvidence });
   } else {
     record("NO-GO decision preserves unresolved evidence placeholders", unresolved.length > 0, { unresolvedMarkers: unresolved });
   }

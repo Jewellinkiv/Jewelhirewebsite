@@ -12,6 +12,10 @@ Do not paste secret values, database URLs, bearer tokens, cookies, passwords,
 or customer PII into this dossier. Record artifact paths, run IDs, revision
 names, nonsecret IDs, and pass/fail decisions only.
 
+Smoke evidence is GO-valid only when each smoke row links to a concrete
+non-secret artifact under `docs/qa-runs/`. Notes such as "completed", "candidate
+selected", "approved", or "not run" are not sufficient GO evidence.
+
 ## Current source state
 
 | Product | State | Evidence |
