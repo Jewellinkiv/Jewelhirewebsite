@@ -101,9 +101,9 @@ ledger repair is authorized or needed for this closure evidence.
 ## JewelLink denial scope approvals
 
 Latest roster audit:
-`docs/qa-runs/pilot-roster-2026-07-21T09-43-22-854Z/pilot-roster-report.md`
+`docs/qa-runs/pilot-roster-2026-07-21T15-37-32-626Z/pilot-roster-report.md`
 
-That roster artifact predates the scoped denial decision:
+That roster artifact applies the scoped denial decision:
 `docs/production-pilot-denial-scope-decision-2026-07-21.json`
 
 The current pilot scope no longer requests creating those two JewelLink
@@ -114,9 +114,9 @@ production users:
 | Consultant denial | Use source-policy evidence because Consultants cannot access JewelHire; do not create a controlled `CONSULTANT` production user solely for this pilot |
 | Paused-company denial | Defer for the current pilot; follow-up required before broad readiness |
 
-After refreshing `gcloud` auth, rerun `qa:pilot-roster` so the next live roster
-artifact closes these rows under the scoped decision. Do not commit full email
-addresses, passwords, database URLs, bearer tokens, cookies, or customer data.
+The refreshed provisioning packet records 0 required JewelLink production
+account actions. Do not commit full email addresses, passwords, database URLs,
+bearer tokens, cookies, or customer data.
 
 Only then should the authenticated SSO smoke matrix proceed.
 

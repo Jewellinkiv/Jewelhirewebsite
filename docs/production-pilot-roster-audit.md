@@ -49,17 +49,15 @@ denial personas; it is an approval aid only and does not mutate either product.
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-roster-2026-07-21T09-43-22-854Z/` is the latest live
-pre-scope-decision artifact. It confirms Diamond Exchange `comp_1`, locations
-`loc_1`-`loc_6`, Director/Manager/Student SSO candidates, a platform-admin
-candidate, clean admin allowlist, and JewelHire smoke credential auth
-prerequisites, but predates
-`docs/production-pilot-denial-scope-decision-2026-07-21.json`.
+`docs/qa-runs/pilot-roster-2026-07-21T15-37-32-626Z/` is the latest live
+artifact. It confirms Diamond Exchange `comp_1`, locations `loc_1`-`loc_6`,
+Director/Manager/Student SSO candidates, a platform-admin candidate, clean admin
+allowlist, JewelHire smoke credential auth prerequisites, accepted Consultant
+source-policy evidence from
+`docs/production-pilot-denial-scope-decision-2026-07-21.json`, and the
+paused-company pilot-scope deferral.
 
-That scope decision records Consultant denial as source-policy evidence and
-paused-company denial as deferred for the current pilot. Rerun
-`qa:pilot-roster` after refreshing `gcloud` auth to produce the next live
-roster artifact.
+The provisioning packet records 0 required JewelLink production account actions.
 
 Credential presence is not sufficient for GO evidence. Run
 `npm run qa:smoke-credential-auth` and require a passing report before using the
