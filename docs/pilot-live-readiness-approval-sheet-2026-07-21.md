@@ -5,6 +5,14 @@ approval before the controlled JewelHire/JewelLink pilot can move to GO. It is
 not itself an approval, does not authorize a JewelLink repo push, and does not
 authorize any production mutation.
 
+Execution goal packet:
+`docs/pilot-live-readiness-goal-2026-07-21.md`
+
+Use the goal packet as the sequenced tracker for the remaining operations,
+persona, application, smoke, and final manifest work. The validators still
+require the concrete PASS artifacts and non-secret approval references listed
+below before any gate changes to GO.
+
 ## Current closed evidence
 
 - JewelHire production migration ledger is clean in
