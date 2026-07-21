@@ -1,0 +1,112 @@
+{
+  "createdAt": "2026-07-21T08:31:06.495Z",
+  "valuesPrinted": false,
+  "status": "needed",
+  "instructions": "Fill the evidence object with non-secret backup, rollback, monitoring, and owner evidence, then rerun qa:operations-readiness with --operations-evidence-file=<path>.",
+  "verificationCommand": "npm run qa:operations-readiness -- --operations-evidence-file=<path>",
+  "observedTargets": {
+    "jewelhire": {
+      "project": "jewelhire-prod-20260626",
+      "service": "jewelhire",
+      "latestReadyRevision": "jewelhire-00111-dup",
+      "liveTraffic": [
+        {
+          "revisionName": "jewelhire-00111-dup",
+          "tag": "candidate-29518763228",
+          "percent": 100,
+          "latestRevision": false
+        }
+      ],
+      "databaseHost": "us-east-1.pg.psdb.cloud",
+      "databaseProviderHint": "external Postgres on pg.psdb.cloud"
+    },
+    "jewellink": {
+      "project": "academy-460316",
+      "service": "jewellink-dev",
+      "latestReadyRevision": "jewellink-dev-01154-xpx",
+      "liveTraffic": [
+        {
+          "revisionName": "jewellink-dev-01154-xpx",
+          "tag": null,
+          "percent": 100,
+          "latestRevision": true
+        }
+      ],
+      "databaseHost": "us-east-4.pg.psdb.cloud",
+      "databaseProviderHint": "external Postgres on pg.psdb.cloud"
+    }
+  },
+  "missingFields": [
+    {
+      "path": "rollback.jewelhireOwner",
+      "label": "JewelHire traffic rollback owner",
+      "required": "Named owner and contact or approval channel"
+    },
+    {
+      "path": "rollback.jewellinkOwner",
+      "label": "JewelLink traffic rollback owner",
+      "required": "Named owner and contact or approval channel"
+    },
+    {
+      "path": "rollback.jewellinkIamOwner",
+      "label": "JewelLink IAM/config rollback owner",
+      "required": "Named owner and contact or approval channel"
+    },
+    {
+      "path": "rollback.databaseRecoveryOwner",
+      "label": "Database recovery owner",
+      "required": "Named owner and contact or approval channel"
+    },
+    {
+      "path": "rollback.observationWindow",
+      "label": "Staffed observation window",
+      "required": "Approved UTC start/end window"
+    },
+    {
+      "path": "rollback.rollbackThresholds",
+      "label": "Immediate rollback thresholds",
+      "required": "Approved stop/rollback threshold summary"
+    }
+  ],
+  "blockingChecks": [
+    "JewelHire rollback owner is recorded",
+    "JewelLink rollback owner is recorded",
+    "JewelLink IAM rollback owner is recorded",
+    "Database recovery owner is recorded",
+    "Observation window is recorded",
+    "Immediate rollback thresholds are recorded"
+  ],
+  "evidence": {
+    "backups": {
+      "jewelhire": {
+        "method": "",
+        "id": "",
+        "completedAt": "",
+        "verifiedAt": "",
+        "retention": "",
+        "restoreEvidence": "",
+        "logicalSha256": ""
+      },
+      "jewellink": {
+        "method": "",
+        "id": "",
+        "completedAt": "",
+        "verifiedAt": "",
+        "retention": "",
+        "restoreEvidence": "",
+        "logicalSha256": ""
+      }
+    },
+    "rollback": {
+      "jewelhireOwner": "",
+      "jewellinkOwner": "",
+      "jewellinkIamOwner": "",
+      "databaseRecoveryOwner": "",
+      "observationWindow": "",
+      "rollbackThresholds": ""
+    },
+    "monitoring": {
+      "channel": ""
+    }
+  }
+}

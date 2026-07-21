@@ -16,7 +16,7 @@ The report is written under `docs/qa-runs/pilot-approval-bundle-*` unless
 `--artifacts=<dir>` is supplied.
 
 The latest production result is
-`docs/qa-runs/pilot-approval-bundle-2026-07-21T08-23-17-123Z/`. It passes and
+`docs/qa-runs/pilot-approval-bundle-2026-07-21T08-31-38-716Z/`. It passes and
 writes `pilot-approval-bundle.md`.
 
 ## What It Combines

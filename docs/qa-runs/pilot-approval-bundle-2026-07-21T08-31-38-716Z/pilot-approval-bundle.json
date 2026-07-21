@@ -1,0 +1,359 @@
+{
+  "createdAt": "2026-07-21T08:31:38.719Z",
+  "valuesPrinted": false,
+  "status": "approval-needed",
+  "productionMutationPerformed": false,
+  "jewelLinkRepoPushOrDeployPerformed": false,
+  "sourceArtifacts": {
+    "operations-request": "docs/qa-runs/operations-readiness-2026-07-21T08-30-56-864Z/operations-readiness-evidence-request.json",
+    "roster-packet": "docs/qa-runs/pilot-roster-2026-07-21T08-30-56-900Z/pilot-roster-provisioning-packet.json",
+    "application-request": "docs/qa-runs/pilot-application-submission-2026-07-21T08-31-25-486Z/pilot-application-submission-request.json",
+    "smoke-plan-request": "docs/qa-runs/pilot-smoke-plan-2026-07-21T08-13-07-305Z/pilot-smoke-plan-request.json"
+  },
+  "runtimeTargets": {
+    "jewelhire": {
+      "project": "jewelhire-prod-20260626",
+      "service": "jewelhire",
+      "latestReadyRevision": "jewelhire-00111-dup",
+      "liveTraffic": [
+        {
+          "revisionName": "jewelhire-00111-dup",
+          "tag": "candidate-29518763228",
+          "percent": 100,
+          "latestRevision": false
+        }
+      ],
+      "databaseHost": "us-east-1.pg.psdb.cloud",
+      "databaseProviderHint": "external Postgres on pg.psdb.cloud"
+    },
+    "jewellink": {
+      "project": "academy-460316",
+      "service": "jewellink-dev",
+      "latestReadyRevision": "jewellink-dev-01154-xpx",
+      "liveTraffic": [
+        {
+          "revisionName": "jewellink-dev-01154-xpx",
+          "tag": null,
+          "percent": 100,
+          "latestRevision": true
+        }
+      ],
+      "databaseHost": "us-east-4.pg.psdb.cloud",
+      "databaseProviderHint": "external Postgres on pg.psdb.cloud"
+    }
+  },
+  "openApprovals": [
+    {
+      "area": "Operations rollback",
+      "field": "rollback.jewelhireOwner",
+      "required": "Named owner and contact or approval channel",
+      "label": "JewelHire traffic rollback owner"
+    },
+    {
+      "area": "Operations rollback",
+      "field": "rollback.jewellinkOwner",
+      "required": "Named owner and contact or approval channel",
+      "label": "JewelLink traffic rollback owner"
+    },
+    {
+      "area": "Operations rollback",
+      "field": "rollback.jewellinkIamOwner",
+      "required": "Named owner and contact or approval channel",
+      "label": "JewelLink IAM/config rollback owner"
+    },
+    {
+      "area": "Operations rollback",
+      "field": "rollback.databaseRecoveryOwner",
+      "required": "Named owner and contact or approval channel",
+      "label": "Database recovery owner"
+    },
+    {
+      "area": "Operations rollback",
+      "field": "rollback.observationWindow",
+      "required": "Approved UTC start/end window",
+      "label": "Staffed observation window"
+    },
+    {
+      "area": "Operations rollback",
+      "field": "rollback.rollbackThresholds",
+      "required": "Approved stop/rollback threshold summary",
+      "label": "Immediate rollback thresholds"
+    },
+    {
+      "area": "JewelLink controlled persona",
+      "field": "consultant-denial",
+      "required": "Create controlled JewelLink CONSULTANT denial persona",
+      "label": "Authenticated JewelLink SSO smoke must prove CONSULTANT users fail closed in JewelHire.",
+      "constraints": [
+        "Company must be the pilot company comp_1.",
+        "Role must be CONSULTANT.",
+        "User must be active and MFA-backed for the smoke window.",
+        "Primary location should be one of: loc_1, loc_2, loc_3, loc_4, loc_5, loc_6.",
+        "User must not be included in the JewelHire platform-admin allowlist.",
+        "Use a controlled test mailbox only; do not record the full address in Git or qa-runs."
+      ]
+    },
+    {
+      "area": "JewelLink controlled persona",
+      "field": "paused-company-denial",
+      "required": "Create controlled active user in a paused JewelLink company",
+      "label": "Authenticated JewelLink SSO smoke must prove paused-company access fails closed in JewelHire.",
+      "constraints": [
+        "Company must be paused in JewelLink.",
+        "User must be active and MFA-backed for the smoke window.",
+        "User must not belong to the pilot company.",
+        "User must not be included in the JewelHire platform-admin allowlist.",
+        "Use a controlled test mailbox only; do not record the full address in Git or qa-runs."
+      ]
+    },
+    {
+      "area": "Controlled public application setup",
+      "field": "execution mode is explicitly requested",
+      "required": "--execute for production write; dry-run is safe by default",
+      "label": "Approval-gated JewelHire production write"
+    },
+    {
+      "area": "Controlled public application setup",
+      "field": "local ignored execution approval file",
+      "required": "Before rerunning with --execute, record approver, approval channel, approvedAt, controlledPublicApplicationSubmissionApproved, liveEmailSendsAcknowledged, controlledApplicantMailboxApproved, and a stable submissionId.",
+      "label": "Approval-gated JewelHire production write"
+    },
+    {
+      "area": "Approval",
+      "field": "approvals.productionUserCreationApproved",
+      "required": "true",
+      "label": "Controlled production user/persona creation is explicitly approved"
+    },
+    {
+      "area": "Approval",
+      "field": "approvals.hireConfirmationApproved",
+      "required": "true",
+      "label": "Controlled hire confirmation/revocation smoke is explicitly approved"
+    },
+    {
+      "area": "Approval",
+      "field": "approvals.jewelCertProductionMutationApproved",
+      "required": "true",
+      "label": "Controlled JewelCert invite/completion/result smoke is explicitly approved"
+    },
+    {
+      "area": "Approval",
+      "field": "approvals.publicFailClosedProbeApproved",
+      "required": "true",
+      "label": "Authenticated public/fail-closed probes are explicitly approved"
+    },
+    {
+      "area": "Approval",
+      "field": "approvals.rollbackWindowApproved",
+      "required": "true",
+      "label": "Rollback owner/window/threshold evidence is explicitly approved"
+    },
+    {
+      "area": "Prerequisite artifact",
+      "field": "prerequisites.operationsReadinessReport",
+      "required": "Existing PASS docs/qa-runs operations-readiness report with rollback owner/window evidence closed",
+      "label": "Operations readiness report is a concrete PASS artifact"
+    },
+    {
+      "area": "Prerequisite artifact",
+      "field": "prerequisites.pilotRosterReport",
+      "required": "Existing PASS docs/qa-runs pilot-roster report with all SSO personas ready",
+      "label": "Pilot roster report is a concrete PASS artifact"
+    },
+    {
+      "area": "Persona or acceptance",
+      "field": "personas.consultantDenialAlias",
+      "required": "Concrete non-placeholder non-secret value",
+      "label": "Consultant-denial SSO persona alias is recorded"
+    },
+    {
+      "area": "Persona or acceptance",
+      "field": "personas.pausedCompanyDenialAlias",
+      "required": "Concrete non-placeholder non-secret value",
+      "label": "Paused-company denial persona alias is recorded"
+    },
+    {
+      "area": "Persona or acceptance",
+      "field": "personas.allowlistedNonAdminDenialEvidence.acceptedBy",
+      "required": "Concrete non-placeholder non-secret value",
+      "label": "Allowlisted non-admin source-test acceptance approver is recorded"
+    },
+    {
+      "area": "Persona or acceptance",
+      "field": "personas.allowlistedNonAdminDenialEvidence.acceptanceChannel",
+      "required": "Concrete non-placeholder non-secret value",
+      "label": "Allowlisted non-admin source-test acceptance channel is recorded"
+    },
+    {
+      "area": "Persona or acceptance",
+      "field": "personas.allowlistedNonAdminDenialEvidence.acceptedAt",
+      "required": "ISO-like UTC timestamp",
+      "label": "Allowlisted non-admin source-test acceptance timestamp is ISO-like UTC"
+    },
+    {
+      "area": "Smoke scope",
+      "field": "scopes.authenticatedSso.approvedPersonaMatrix",
+      "required": "true",
+      "label": "Authenticated SSO persona matrix is approved"
+    },
+    {
+      "area": "Smoke scope",
+      "field": "scopes.hireHandoff.applicationAlias",
+      "required": "Concrete non-placeholder non-secret value",
+      "label": "Hire handoff controlled application alias is recorded"
+    },
+    {
+      "area": "Smoke scope",
+      "field": "scopes.publicFailClosed.resumeApplicationId",
+      "required": "Concrete non-placeholder non-secret value",
+      "label": "Public/fail-closed resume application ID is recorded"
+    }
+  ],
+  "localIgnoredFileSkeletons": {
+    "operationsEvidenceFile": {
+      "recommendedPath": ".qa_tmp/production-operations-evidence.json",
+      "value": {
+        "backups": {
+          "jewelhire": {
+            "method": "encrypted-logical",
+            "id": "jewelhire-postgres-2026-07-21T02-02-42Z.dump.enc",
+            "completedAt": "2026-07-21T02:04:43.051Z",
+            "verifiedAt": "2026-07-21T02:04:43.174Z",
+            "retention": "Encrypted logical backup retained in operator backup folder for pilot rollback evidence; passphrase stored in Secret Manager secret jewelhire-pilot-logical-backup-passphrase-20260721 version 1.",
+            "restoreEvidence": "pg_restore --list verified 602 archive entries; restore-list artifact jewelhire-postgres-2026-07-21T02-02-42Z.restore-list.txt; restore-list sha256 bba55a29024f4b065787d18d0de2d84d1c03cf62469ddf47b643d3a4ebdb6eec.",
+            "logicalSha256": "3cbb0a1f6a9d511842b3864f1bb13274b0d7b9c750869eb3b168b28a2692b4a0"
+          },
+          "jewellink": {
+            "method": "encrypted-logical",
+            "id": "jewellink-postgres-2026-07-21T02-02-42Z.dump.enc",
+            "completedAt": "2026-07-21T02:19:00Z",
+            "verifiedAt": "2026-07-21T02:20:06.050Z",
+            "retention": "Encrypted logical backup retained in operator backup folder for pilot rollback evidence; passphrase stored in Secret Manager secret jewelhire-pilot-logical-backup-passphrase-20260721 version 1.",
+            "restoreEvidence": "pg_restore --list verified 2640 archive entries; restore-list artifact jewellink-postgres-2026-07-21T02-02-42Z.restore-list.txt; restore-list sha256 d975df3c2bdf09b2ce6956fba7c634cf9787a0432fc712afe6761d466f008ae1.",
+            "logicalSha256": "524d079ae12e47a931bd4b449cd88379f1f780fa6c129415ca92f98e35fbf7b8"
+          }
+        },
+        "rollback": {
+          "jewelhireOwner": "",
+          "jewellinkOwner": "",
+          "jewellinkIamOwner": "",
+          "databaseRecoveryOwner": "",
+          "observationWindow": "",
+          "rollbackThresholds": ""
+        },
+        "monitoring": {
+          "channel": ""
+        }
+      },
+      "verificationCommand": "npm run qa:operations-readiness -- --operations-evidence-file=.qa_tmp/production-operations-evidence.json"
+    },
+    "applicationApprovalFile": {
+      "recommendedPath": ".qa_tmp/production-pilot-application-approval.json",
+      "value": {
+        "approvals": {
+          "approver": "",
+          "approvalChannel": "",
+          "approvedAt": "",
+          "controlledPublicApplicationSubmissionApproved": false,
+          "liveEmailSendsAcknowledged": false,
+          "controlledApplicantMailboxApproved": false,
+          "submissionId": ""
+        }
+      },
+      "verificationCommand": "npm run qa:pilot-application-submission -- --execute --target-report=<pilot-smoke-targets-report.json> --approval-file=.qa_tmp/production-pilot-application-approval.json"
+    },
+    "smokePlanFile": {
+      "recommendedPath": ".qa_tmp/production-pilot-smoke-plan.json",
+      "value": {
+        "approvals": {
+          "approver": "",
+          "approvalChannel": "",
+          "approvedAt": "",
+          "scopeStatement": "",
+          "liveEmailSendsAcknowledged": false,
+          "jewelLinkPilotFlagMovementApproved": false,
+          "productionUserCreationApproved": false,
+          "hireConfirmationApproved": false,
+          "jewelCertProductionMutationApproved": false,
+          "publicFailClosedProbeApproved": false,
+          "rollbackWindowApproved": false
+        },
+        "prerequisites": {
+          "operationsReadinessReport": "",
+          "pilotRosterReport": "",
+          "integrationSmokePreflightReport": "",
+          "smokeCredentialAuthReport": ""
+        },
+        "personas": {
+          "directorAlias": "",
+          "managerAlias": "",
+          "studentAlias": "",
+          "consultantDenialAlias": "",
+          "platformAdminAlias": "",
+          "allowlistedNonAdminDenialAlias": "",
+          "allowlistedNonAdminDenialEvidence": {
+            "strategy": "",
+            "sourceTestReport": "",
+            "cleanAllowlistReport": "",
+            "acceptedBy": "",
+            "acceptanceChannel": "",
+            "acceptedAt": ""
+          },
+          "pausedCompanyDenialAlias": ""
+        },
+        "scopes": {
+          "authenticatedSso": {
+            "enabled": true,
+            "operatorAlias": "",
+            "approvedPersonaMatrix": false,
+            "nonPilotDataAvoidance": false
+          },
+          "hireHandoff": {
+            "enabled": true,
+            "applicationAlias": "",
+            "controlledMailboxAlias": "",
+            "targetCompanyId": "comp_1",
+            "previewBeforeConfirm": false,
+            "repeatConfirmIdempotencyCheck": false,
+            "revokeOrCancelCheck": false
+          },
+          "jewelCert": {
+            "enabled": true,
+            "inviteSourceAlias": "",
+            "controlledMailboxAlias": "",
+            "resultSyncTarget": "comp_1",
+            "retryFailureMode": "",
+            "liveEmailExpected": false
+          },
+          "publicFailClosed": {
+            "enabled": true,
+            "storeId": "",
+            "expectedStoreId": "",
+            "resumeApplicationId": "",
+            "cookieFileLocalIgnored": false,
+            "teamInvitesDisabledPrecheckRequired": false
+          }
+        },
+        "stopConditions": [
+          "Cross-store or cross-company data exposure",
+          "Unexpected role elevation or Consultant access",
+          "Duplicate hire provisioning or wrong JewelLink user link",
+          "JewelCert result sync to the wrong store/company/user",
+          "Email/provider delivery to an unintended recipient",
+          "Any evidence artifact prints a secret, token, cookie, password, database URL, or customer data"
+        ]
+      },
+      "verificationCommand": "npm run qa:pilot-smoke-plan -- --smoke-plan-file=.qa_tmp/production-pilot-smoke-plan.json"
+    }
+  },
+  "recommendedSequence": [
+    "Fill operations rollback owners, exact UTC observation window, and rollback thresholds in the local operations evidence file; rerun qa:operations-readiness and require PASS.",
+    "Create or approve the two controlled JewelLink production personas from the roster packet; rerun qa:pilot-roster and require PASS.",
+    "After explicit controlled-application approval, fill the local application approval file with a stable submissionId and execute qa:pilot-application-submission once.",
+    "Rerun qa:pilot-smoke-targets and copy only non-secret application IDs into the local smoke plan.",
+    "Fill the smoke-plan approvals, persona aliases, acceptance metadata, and controlled IDs; rerun qa:pilot-smoke-plan and require PASS before live authenticated smokes.",
+    "Run authenticated SSO, hire, JewelCert, and public fail-closed smokes; fill the smoke evidence file and require qa:pilot-smoke-evidence PASS.",
+    "Only after the dossier is changed to GO and all PASS artifacts exist, fill the final live-readiness manifest and require qa:pilot-live-readiness PASS."
+  ],
+  "secretHandling": "Do not place full email addresses, passwords, database URLs, bearer tokens, cookies, customer data, secret values, full production extracts, or raw resume content in any committed evidence or local approval file."
+}
