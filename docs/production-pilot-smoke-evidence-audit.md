@@ -23,6 +23,13 @@ fill it only after approvals, roster, rollback, and prerequisite PASS artifacts
 exist. Require `qa:pilot-smoke-plan` to pass before any authenticated SSO, hire,
 JewelCert, team-invite, or resume privacy smoke runs in production.
 
+For the hire and resume privacy target IDs, run `npm run qa:pilot-smoke-targets`
+before filling the smoke plan. The latest production run
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-23-06-388Z/` confirms the
+controlled applicant credential and pilot store, but it still needs a
+controlled pilot application with a private resume attachment before those smoke
+rows can proceed.
+
 For the current pilot evidence matrix, copy
 `docs/production-pilot-smoke-evidence.template.json` to an ignored local path
 and fill each row only after the corresponding authenticated smoke has a

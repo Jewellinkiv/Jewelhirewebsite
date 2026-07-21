@@ -114,6 +114,16 @@ for:
 - JewelCert invite, completion, scoped JewelLink sync, and retry evidence.
 - Team-invite fail-closed and resume privacy evidence.
 
+Controlled smoke target finder:
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-23-06-388Z/pilot-smoke-targets-report.md`
+
+That read-only run confirms the controlled applicant smoke credential and
+linked pilot JewelHire store are ready, but the controlled applicant has no
+pilot application yet. Before the smoke plan can pass, create or approve one
+controlled pilot-store application for that applicant with a private resume
+attachment, then rerun `qa:pilot-smoke-targets` and copy only the non-secret
+application IDs into the ignored smoke plan.
+
 The team-invite and resume privacy rows now have a dedicated JewelHire-side
 producer:
 
@@ -156,6 +166,7 @@ place:
 ```bash
 npm run qa:operations-readiness -- --operations-evidence-file=docs/production-operations-evidence.approval-template-2026-07-21.json
 npm run qa:pilot-roster
+npm run qa:pilot-smoke-targets
 npm run qa:pilot-smoke-plan -- --smoke-plan-file=.qa_tmp/production-pilot-smoke-plan.json
 npm run qa:public-fail-closed-smoke -- --cookie-file=<local-cookie-file> --store-id=<pilot-store-id> --expected-store-id=<pilot-store-id> --resume-application-id=<application-id>
 npm run qa:pilot-smoke-evidence -- --smoke-evidence-file=docs/production-pilot-smoke-evidence.template.json

@@ -18,6 +18,10 @@ Copy `docs/production-pilot-smoke-plan.template.json` to an ignored local path
 and fill it only after the operator has the final non-secret approval scope and
 the prerequisite PASS artifacts.
 
+Run `npm run qa:pilot-smoke-targets` before filling the hire and resume smoke
+target fields. That read-only helper finds the controlled application IDs or
+writes an evidence request when the controlled pilot application is not ready.
+
 ## What It Proves
 
 - Live email sends, JewelLink pilot flag movement, controlled production persona
@@ -45,6 +49,12 @@ writes
 
 The gate remains a live-pilot NO-GO item until this audit passes, then the
 resulting report can be referenced by the pilot smoke evidence packet.
+
+The latest target-finder run
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-23-06-388Z/` confirms the
+controlled applicant credential and pilot store are available, but no controlled
+pilot application exists yet. Create or approve that controlled application with
+a private resume attachment before copying hire/resume IDs into the smoke plan.
 
 ## Secret Handling
 
