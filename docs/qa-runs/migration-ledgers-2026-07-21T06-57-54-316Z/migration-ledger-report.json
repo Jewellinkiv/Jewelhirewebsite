@@ -1,0 +1,241 @@
+{
+  "createdAt": "2026-07-21T06:57:57.381Z",
+  "pass": true,
+  "failures": 0,
+  "valuesPrinted": false,
+  "jewelHire": {
+    "target": {
+      "host": "us-east-1.pg.psdb.cloud",
+      "database": "postgres",
+      "user": "po***"
+    },
+    "repositoryCount": 25,
+    "appliedCount": 25,
+    "pendingCount": 0,
+    "issueTypes": [],
+    "missingRequired": []
+  },
+  "jewelLink": {
+    "target": {
+      "host": "us-east-4.pg.psdb.cloud",
+      "database": "postgres",
+      "user": "ps***"
+    },
+    "localCount": 127,
+    "totalLedgerRows": 165,
+    "activeAppliedCount": 127,
+    "rolledBackHistoricalCount": 38,
+    "unfinishedCount": 0,
+    "duplicateActiveNames": [],
+    "activeMissingLocally": [],
+    "pendingLocal": [],
+    "missingRequired": [],
+    "integrationChecksumDrift": [],
+    "fullChecksumDrift": [
+      "20260520152458_add_hidden_lesson_ids",
+      "20260530033000_add_pos_register_sessions",
+      "20260530040000_add_pos_tender_settings",
+      "20260530043000_add_pos_refund_lines",
+      "20260530050000_add_pos_inventory_movements",
+      "20260530060000_add_pos_service_settings",
+      "20260530070000_add_pos_service_activity",
+      "20260530080000_add_pos_service_checkout_lines",
+      "20260530090000_add_pos_commissions",
+      "20260530101500_add_pos_commission_workflow",
+      "20260530110000_add_inventory_catalog_fields",
+      "20260531004500_add_whatsapp_models",
+      "20260602090000_add_pos_appearance_settings",
+      "20260603151500_add_pos_device_settings",
+      "20260603163000_linkd_lite_pos_appearance_defaults",
+      "20260604125555_course_package_tag",
+      "20260604142331_feature_announcements",
+      "20260604160127_webchat_sms_merge",
+      "20260611120000_add_payment_reconciliation_fields",
+      "20260612110000_shopify_inventory_import_foundation",
+      "20260623120000_make_stripe_primary_payment_provider",
+      "20260624182000_add_company_pos_sources",
+      "20260625105500_add_reminder_automation_delay_unit",
+      "20260701130000_add_pos_payment_reference_unique",
+      "20260708110000_add_pos_foundation_ledger_audit"
+    ],
+    "driftRecovery": {
+      "needed": true,
+      "valid": true,
+      "recoveryReportValid": true,
+      "objectStateRequired": true,
+      "objectStateValid": true,
+      "path": "/Users/sterling/Desktop/jewelhire/docs/qa-runs/jewellink-migration-drift-2026-07-21T03-45-00-000Z/jewellink-migration-drift-recovery-report.json",
+      "error": "",
+      "recoveredNames": [
+        "20260520152458_add_hidden_lesson_ids",
+        "20260530033000_add_pos_register_sessions",
+        "20260530040000_add_pos_tender_settings",
+        "20260530043000_add_pos_refund_lines",
+        "20260530050000_add_pos_inventory_movements",
+        "20260530060000_add_pos_service_settings",
+        "20260530070000_add_pos_service_activity",
+        "20260530080000_add_pos_service_checkout_lines",
+        "20260530090000_add_pos_commissions",
+        "20260530101500_add_pos_commission_workflow",
+        "20260530110000_add_inventory_catalog_fields",
+        "20260531004500_add_whatsapp_models",
+        "20260602090000_add_pos_appearance_settings",
+        "20260603151500_add_pos_device_settings",
+        "20260603163000_linkd_lite_pos_appearance_defaults",
+        "20260604125555_course_package_tag",
+        "20260604142331_feature_announcements",
+        "20260604160127_webchat_sms_merge",
+        "20260611120000_add_payment_reconciliation_fields",
+        "20260612110000_shopify_inventory_import_foundation",
+        "20260623120000_make_stripe_primary_payment_provider",
+        "20260624182000_add_company_pos_sources",
+        "20260625105500_add_reminder_automation_delay_unit",
+        "20260701130000_add_pos_payment_reference_unique",
+        "20260708110000_add_pos_foundation_ledger_audit"
+      ],
+      "driftNames": [
+        "20260520152458_add_hidden_lesson_ids",
+        "20260530033000_add_pos_register_sessions",
+        "20260530040000_add_pos_tender_settings",
+        "20260530043000_add_pos_refund_lines",
+        "20260530050000_add_pos_inventory_movements",
+        "20260530060000_add_pos_service_settings",
+        "20260530070000_add_pos_service_activity",
+        "20260530080000_add_pos_service_checkout_lines",
+        "20260530090000_add_pos_commissions",
+        "20260530101500_add_pos_commission_workflow",
+        "20260530110000_add_inventory_catalog_fields",
+        "20260531004500_add_whatsapp_models",
+        "20260602090000_add_pos_appearance_settings",
+        "20260603151500_add_pos_device_settings",
+        "20260603163000_linkd_lite_pos_appearance_defaults",
+        "20260604125555_course_package_tag",
+        "20260604142331_feature_announcements",
+        "20260604160127_webchat_sms_merge",
+        "20260611120000_add_payment_reconciliation_fields",
+        "20260612110000_shopify_inventory_import_foundation",
+        "20260623120000_make_stripe_primary_payment_provider",
+        "20260624182000_add_company_pos_sources",
+        "20260625105500_add_reminder_automation_delay_unit",
+        "20260701130000_add_pos_payment_reference_unique",
+        "20260708110000_add_pos_foundation_ledger_audit"
+      ],
+      "recoveredCount": 25,
+      "unrecoveredCount": 0,
+      "integrationDriftCount": 0,
+      "terminalCrlfRecoveredCount": 3,
+      "reviewedSqlByteVariantRecoveredCount": 24,
+      "objectState": {
+        "required": true,
+        "valid": true,
+        "path": "/Users/sterling/Desktop/jewelhire/docs/qa-runs/jewellink-migration-object-state-2026-07-21T03-16-00-000Z/jewellink-migration-object-state-report.json",
+        "error": "",
+        "pass": true,
+        "valuesPrinted": false,
+        "checkCount": 20
+      }
+    },
+    "reviewedRef": "origin/main",
+    "reviewedRepoCommit": "55032dbbebc519d1718aa14871da2048f60d9487",
+    "reviewedRepo": "/Users/sterling/.codex/tmp/jewellink-app-origin-main-20260720"
+  },
+  "checks": [
+    {
+      "name": "JewelHire database credential is available for read-only ledger audit",
+      "pass": true,
+      "fixture": false,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink database credential is available for read-only ledger audit",
+      "pass": true,
+      "fixture": false,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire schema_migrations table exists",
+      "pass": true
+    },
+    {
+      "name": "JewelHire migration ledger has no checksum, filename, order, or pending issues",
+      "pass": true,
+      "issueTypes": [],
+      "pendingCount": 0
+    },
+    {
+      "name": "JewelHire required launch migrations are applied",
+      "pass": true,
+      "missingRequired": []
+    },
+    {
+      "name": "JewelLink _prisma_migrations table exists",
+      "pass": true
+    },
+    {
+      "name": "JewelLink active ledger has no unfinished failed migration rows",
+      "pass": true,
+      "unfinishedCount": 0
+    },
+    {
+      "name": "JewelLink active migration names are unique",
+      "pass": true,
+      "duplicateCount": 0
+    },
+    {
+      "name": "JewelLink active migration names all exist in the reviewed repo",
+      "pass": true,
+      "missingLocalCount": 0
+    },
+    {
+      "name": "JewelLink reviewed repo migrations are all active in production",
+      "pass": true,
+      "pendingLocalCount": 0
+    },
+    {
+      "name": "JewelLink required JewelHire integration/auth migrations are active",
+      "pass": true,
+      "missingRequired": []
+    },
+    {
+      "name": "JewelLink required JewelHire integration/auth migration checksums match",
+      "pass": true,
+      "driftCount": 0
+    },
+    {
+      "name": "JewelLink historical checksum drift is absent or covered by passing recovery evidence",
+      "pass": true,
+      "driftCount": 25,
+      "driftNames": [
+        "20260520152458_add_hidden_lesson_ids",
+        "20260530033000_add_pos_register_sessions",
+        "20260530040000_add_pos_tender_settings",
+        "20260530043000_add_pos_refund_lines",
+        "20260530050000_add_pos_inventory_movements",
+        "20260530060000_add_pos_service_settings",
+        "20260530070000_add_pos_service_activity",
+        "20260530080000_add_pos_service_checkout_lines",
+        "20260530090000_add_pos_commissions",
+        "20260530101500_add_pos_commission_workflow",
+        "20260530110000_add_inventory_catalog_fields",
+        "20260531004500_add_whatsapp_models",
+        "20260602090000_add_pos_appearance_settings",
+        "20260603151500_add_pos_device_settings",
+        "20260603163000_linkd_lite_pos_appearance_defaults",
+        "20260604125555_course_package_tag",
+        "20260604142331_feature_announcements",
+        "20260604160127_webchat_sms_merge",
+        "20260611120000_add_payment_reconciliation_fields",
+        "20260612110000_shopify_inventory_import_foundation",
+        "20260623120000_make_stripe_primary_payment_provider",
+        "20260624182000_add_company_pos_sources",
+        "20260625105500_add_reminder_automation_delay_unit",
+        "20260701130000_add_pos_payment_reference_unique",
+        "20260708110000_add_pos_foundation_ledger_audit"
+      ],
+      "recoveryEvidenceRequired": true,
+      "recoveryReportValid": true,
+      "objectStateRequired": true,
+      "objectStateValid": true
+    }
+  ]
+}
