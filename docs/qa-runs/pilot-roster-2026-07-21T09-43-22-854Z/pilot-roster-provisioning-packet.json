@@ -1,0 +1,53 @@
+{
+  "createdAt": "2026-07-21T09:43:26.069Z",
+  "valuesPrinted": false,
+  "pilotCompanyId": "comp_1",
+  "expectedLocationIds": [
+    "loc_1",
+    "loc_2",
+    "loc_3",
+    "loc_4",
+    "loc_5",
+    "loc_6"
+  ],
+  "actionCount": 2,
+  "actions": [
+    {
+      "id": "consultant-denial",
+      "title": "Create controlled JewelLink CONSULTANT denial persona",
+      "status": "needed",
+      "systemOfRecord": "JewelLink production",
+      "productionMutationRequired": true,
+      "approvalRequired": true,
+      "purpose": "Authenticated JewelLink SSO smoke must prove CONSULTANT users fail closed in JewelHire.",
+      "constraints": [
+        "Company must be the pilot company comp_1.",
+        "Role must be CONSULTANT.",
+        "User must be active and MFA-backed for the smoke window.",
+        "Primary location should be one of: loc_1, loc_2, loc_3, loc_4, loc_5, loc_6.",
+        "User must not be included in the JewelHire platform-admin allowlist.",
+        "Use a controlled test mailbox only; do not record the full address in Git or qa-runs."
+      ],
+      "verification": "Rerun qa:pilot-roster and require PASS Consultant denial candidate exists."
+    },
+    {
+      "id": "paused-company-denial",
+      "title": "Create controlled active user in a paused JewelLink company",
+      "status": "needed",
+      "systemOfRecord": "JewelLink production",
+      "productionMutationRequired": true,
+      "approvalRequired": true,
+      "purpose": "Authenticated JewelLink SSO smoke must prove paused-company access fails closed in JewelHire.",
+      "constraints": [
+        "Company must be paused in JewelLink.",
+        "User must be active and MFA-backed for the smoke window.",
+        "User must not belong to the pilot company.",
+        "User must not be included in the JewelHire platform-admin allowlist.",
+        "Use a controlled test mailbox only; do not record the full address in Git or qa-runs."
+      ],
+      "verification": "Rerun qa:pilot-roster and require PASS paused-company denial candidate exists."
+    }
+  ],
+  "verificationCommand": "npm run qa:pilot-roster",
+  "secretHandling": "Do not place full email addresses, passwords, database URLs, bearer tokens, cookies, customer data, or secret values in this packet."
+}

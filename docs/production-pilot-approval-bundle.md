@@ -16,16 +16,18 @@ The report is written under `docs/qa-runs/pilot-approval-bundle-*` unless
 `--artifacts=<dir>` is supplied.
 
 The latest production result is
-`docs/qa-runs/pilot-approval-bundle-2026-07-21T09-37-25-198Z/`. It passes,
-writes `pilot-approval-bundle.md`, uses the latest operations request, and
-preserves the already-recorded backup and monitoring evidence in the local
-operations evidence skeleton while leaving the six rollback approval fields
-empty.
+`docs/qa-runs/pilot-approval-bundle-2026-07-21T09-44-46-590Z/`. It passes,
+writes `pilot-approval-bundle.md`, uses the latest operations, roster, and
+smoke-target request packets, and preserves the already-recorded backup and
+monitoring evidence in the local operations evidence skeleton while leaving
+the six rollback approval fields empty.
 
 ## What It Combines
 
 - Operations rollback owner/window/threshold request fields.
 - JewelLink controlled persona provisioning actions.
+- Controlled smoke target request fields for the missing pilot application and
+  private resume evidence.
 - Controlled public application submission approval-file requirements.
 - Smoke-plan approval, persona, acceptance, application, and resume ID gaps.
 - A single operator reply template that collects rollback owners, controlled

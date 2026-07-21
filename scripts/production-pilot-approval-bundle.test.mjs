@@ -57,6 +57,20 @@ function fixturePackets(dir, overrides = {}) {
       },
     ],
   };
+  const smokeTargets = {
+    createdAt: "2026-07-21T08:00:00Z",
+    valuesPrinted: false,
+    missingEvidence: [
+      {
+        check: "controlled applicant has a pilot application",
+        needed: "Existing controlled applicant application in pilot company/store",
+      },
+      {
+        check: "controlled resume privacy application target is available",
+        needed: "Pilot application for the controlled applicant with a private resume attachment",
+      },
+    ],
+  };
   const smokePlan = {
     createdAt: "2026-07-21T08:00:00Z",
     valuesPrinted: false,
@@ -82,6 +96,7 @@ function fixturePackets(dir, overrides = {}) {
     operations: path.join(dir, "operations.json"),
     operationsEvidence: path.join(dir, "operations-evidence.json"),
     roster: path.join(dir, "roster.json"),
+    smokeTargets: path.join(dir, "smoke-targets.json"),
     application: path.join(dir, "application.json"),
     smokePlan: path.join(dir, "smoke-plan.json"),
   };
@@ -95,6 +110,7 @@ function fixturePackets(dir, overrides = {}) {
     },
   );
   writeJson(files.roster, overrides.roster || roster);
+  writeJson(files.smokeTargets, overrides.smokeTargets || smokeTargets);
   writeJson(files.application, overrides.application || application);
   writeJson(files.smokePlan, overrides.smokePlan || smokePlan);
   return files;
@@ -108,6 +124,7 @@ function runBundle(files, artifacts) {
       `--operations-request=${files.operations}`,
       `--operations-evidence=${files.operationsEvidence}`,
       `--roster-packet=${files.roster}`,
+      `--smoke-targets-request=${files.smokeTargets}`,
       `--application-request=${files.application}`,
       `--smoke-plan-request=${files.smokePlan}`,
       `--artifacts=${artifacts}`,
@@ -134,6 +151,7 @@ test("approval bundle assembles current safe request packets into one non-secret
   assert.match(bundleMarkdown, /Production Pilot Live Approval Bundle/);
   assert.match(bundleMarkdown, /rollback\.jewelhireOwner/);
   assert.match(bundleMarkdown, /consultant-denial/);
+  assert.match(bundleMarkdown, /controlled resume privacy application target/);
   assert.match(bundleMarkdown, /Operator Reply Template/);
   assert.match(bundleMarkdown, /Approval metadata/);
   assert.match(bundleMarkdown, /I approve the controlled JewelHire\/JewelLink pilot readiness work/);
@@ -142,6 +160,7 @@ test("approval bundle assembles current safe request packets into one non-secret
   assert.match(bundleMarkdown, /production-pilot-application-approval\.json/);
   assert.equal(bundleJson.productionMutationPerformed, false);
   assert.equal(bundleJson.jewelLinkRepoPushOrDeployPerformed, false);
+  assert.equal(bundleJson.sourceArtifacts["smoke-targets-request"].endsWith("smoke-targets.json"), true);
   assert.match(bundleJson.operatorReplyTemplate, /Approved at: <UTC timestamp>/);
   assert.match(bundleJson.operatorReplyTemplate, /Stable controlled application submission ID: <idempotency key>/);
   assert.match(bundleJson.operatorReplyTemplate, /Public\/fail-closed expected store ID: <same store id>/);

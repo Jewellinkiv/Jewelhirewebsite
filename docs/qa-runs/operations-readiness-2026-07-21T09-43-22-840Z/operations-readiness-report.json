@@ -1,0 +1,590 @@
+{
+  "createdAt": "2026-07-21T09:43:32.563Z",
+  "pass": false,
+  "failures": 6,
+  "valuesPrinted": false,
+  "expectedJewelLinkHealthJob": "jewellink-jewelhire-integration-health",
+  "declaredEvidence": {
+    "backups": {
+      "jewelhire": {
+        "method": true,
+        "backupIdRecorded": true,
+        "completedAt": true,
+        "verifiedAt": true,
+        "retentionEvidenceRecorded": true,
+        "restoreEvidenceRecorded": true,
+        "logicalSha256Recorded": true
+      },
+      "jewellink": {
+        "method": true,
+        "backupIdRecorded": true,
+        "completedAt": true,
+        "verifiedAt": true,
+        "retentionEvidenceRecorded": true,
+        "restoreEvidenceRecorded": true,
+        "logicalSha256Recorded": true
+      }
+    },
+    "rollback": {
+      "jewelhireOwner": false,
+      "jewellinkOwner": false,
+      "jewellinkIamOwner": false,
+      "databaseRecoveryOwner": false,
+      "observationWindow": false,
+      "rollbackThresholds": false
+    },
+    "monitoring": {
+      "channel": true
+    }
+  },
+  "products": {
+    "jewelhire": {
+      "project": "jewelhire-prod-20260626",
+      "region": "us-central1",
+      "service": "jewelhire",
+      "serviceUrl": "https://jewelhire-azgiue5n5q-uc.a.run.app",
+      "latestReadyRevision": "jewelhire-00111-dup",
+      "liveTraffic": [
+        {
+          "revisionName": "jewelhire-00111-dup",
+          "tag": "candidate-29518763228",
+          "percent": 100,
+          "latestRevision": false
+        }
+      ],
+      "images": [],
+      "databaseTarget": {
+        "host": "us-east-1.pg.psdb.cloud",
+        "database": "postgres",
+        "providerHint": "external Postgres on pg.psdb.cloud"
+      },
+      "scheduler": {
+        "readable": false,
+        "jobs": []
+      },
+      "monitoring": {
+        "policies": [
+          {
+            "name": "9567259419796776304",
+            "displayName": "JewelHire pilot Cloud Run 5xx responses",
+            "enabled": true,
+            "conditionCount": 0,
+            "notificationChannels": [
+              "10170517523806111204"
+            ]
+          }
+        ],
+        "notificationChannels": [
+          {
+            "name": "10170517523806111204",
+            "type": "email",
+            "enabled": true,
+            "verificationStatus": ""
+          }
+        ],
+        "enabledAttachedNotificationChannelIds": [
+          "10170517523806111204"
+        ],
+        "loggingMetrics": [
+          {
+            "name": "jewelhire_pilot_cloud_run_5xx",
+            "description": "Pilot readiness count of Cloud Run 5xx log entries for jewelhire.",
+            "type": "logging.googleapis.com/user/jewelhire_pilot_cloud_run_5xx"
+          }
+        ]
+      },
+      "cloudSql": [],
+      "backup": {
+        "method": "encrypted-logical",
+        "backupIdRecorded": true,
+        "completedAt": "2026-07-21T02:04:43.051Z",
+        "verifiedAt": "2026-07-21T02:04:43.174Z",
+        "retentionEvidenceRecorded": true,
+        "restoreEvidenceRecorded": true,
+        "logicalSha256Recorded": true
+      }
+    },
+    "jewellink": {
+      "project": "academy-460316",
+      "region": "us-central1",
+      "service": "jewellink-dev",
+      "serviceUrl": "https://jewellink-dev-5wjpjpkoia-uc.a.run.app",
+      "latestReadyRevision": "jewellink-dev-01154-xpx",
+      "liveTraffic": [
+        {
+          "revisionName": "jewellink-dev-01154-xpx",
+          "tag": null,
+          "percent": 100,
+          "latestRevision": true
+        }
+      ],
+      "images": [],
+      "databaseTarget": {
+        "host": "us-east-4.pg.psdb.cloud",
+        "database": "postgres",
+        "providerHint": "external Postgres on pg.psdb.cloud"
+      },
+      "scheduler": {
+        "readable": true,
+        "jobs": [
+          {
+            "name": "jewellink-jewelhire-integration-health",
+            "state": "ENABLED",
+            "schedule": "*/5 * * * *",
+            "timeZone": "Etc/UTC",
+            "lastAttemptTime": "2026-07-21T09:40:09.936326Z",
+            "statusCode": null,
+            "method": "POST",
+            "uriPath": "jewellink-dev-5wjpjpkoia-uc.a.run.app/api/cron/jewelhire-integration-health"
+          },
+          {
+            "name": "cardpointe-reconciliation",
+            "state": "ENABLED",
+            "schedule": "*/15 * * * *",
+            "timeZone": "America/Chicago",
+            "lastAttemptTime": "2026-07-21T09:30:28.042167Z",
+            "statusCode": null,
+            "method": "POST",
+            "uriPath": "ai.jewellink.com/api/cron/payments/cardpointe-reconciliation"
+          },
+          {
+            "name": "jewellink-operational-notifications",
+            "state": "ENABLED",
+            "schedule": "*/5 * * * *",
+            "timeZone": "America/Chicago",
+            "lastAttemptTime": "2026-07-21T09:40:12.446699Z",
+            "statusCode": null,
+            "method": "POST",
+            "uriPath": "jewellink-dev-5wjpjpkoia-uc.a.run.app/api/cron/operational-notifications"
+          },
+          {
+            "name": "EDTNightlySync",
+            "state": "ENABLED",
+            "schedule": "15 5 * * *",
+            "timeZone": "America/New_York",
+            "lastAttemptTime": "2026-07-21T09:15:10.223180Z",
+            "statusCode": null,
+            "method": "GET",
+            "uriPath": "jewellink-dev-5wjpjpkoia-uc.a.run.app/api/cron/edt-sync"
+          },
+          {
+            "name": "Follow-up-cron",
+            "state": "ENABLED",
+            "schedule": "*/2 * * * *",
+            "timeZone": "Etc/UTC",
+            "lastAttemptTime": "2026-07-21T09:42:11.299977Z",
+            "statusCode": null,
+            "method": "POST",
+            "uriPath": "jewellink-dev-481532612530.us-central1.run.app/api/cron/follow-ups"
+          },
+          {
+            "name": "EDTLawrenceNightlySync",
+            "state": "ENABLED",
+            "schedule": "30 4 * * *",
+            "timeZone": "America/New_York",
+            "lastAttemptTime": "2026-07-21T08:30:23.738991Z",
+            "statusCode": null,
+            "method": "POST",
+            "uriPath": "jewellink-dev-5wjpjpkoia-uc.a.run.app/api/cron/edt-sync/company"
+          },
+          {
+            "name": "meta-sync",
+            "state": "ENABLED",
+            "schedule": "*/2 * * * *",
+            "timeZone": "America/Chicago",
+            "lastAttemptTime": "2026-07-21T09:42:15.414998Z",
+            "statusCode": null,
+            "method": "POST",
+            "uriPath": "jewellink-dev-5wjpjpkoia-uc.a.run.app/api/cron/meta-sync"
+          }
+        ]
+      },
+      "monitoring": {
+        "policies": [
+          {
+            "name": "9688291971768655601",
+            "displayName": "JewelLink pilot Cloud Run 5xx responses",
+            "enabled": true,
+            "conditionCount": 0,
+            "notificationChannels": [
+              "6069355864943001083"
+            ]
+          }
+        ],
+        "notificationChannels": [
+          {
+            "name": "6069355864943001083",
+            "type": "email",
+            "enabled": true,
+            "verificationStatus": ""
+          }
+        ],
+        "enabledAttachedNotificationChannelIds": [
+          "6069355864943001083"
+        ],
+        "loggingMetrics": [
+          {
+            "name": "jewellink_pilot_cloud_run_5xx",
+            "description": "Pilot readiness count of Cloud Run 5xx log entries for jewellink-dev.",
+            "type": "logging.googleapis.com/user/jewellink_pilot_cloud_run_5xx"
+          }
+        ]
+      },
+      "cloudSql": [],
+      "backup": {
+        "method": "encrypted-logical",
+        "backupIdRecorded": true,
+        "completedAt": "2026-07-21T02:19:00Z",
+        "verifiedAt": "2026-07-21T02:20:06.050Z",
+        "retentionEvidenceRecorded": true,
+        "restoreEvidenceRecorded": true,
+        "logicalSha256Recorded": true
+      }
+    }
+  },
+  "jewelLinkHealthJob": {
+    "name": "jewellink-jewelhire-integration-health",
+    "state": "ENABLED",
+    "schedule": "*/5 * * * *",
+    "timeZone": "Etc/UTC",
+    "lastAttemptTime": "2026-07-21T09:40:09.936326Z",
+    "statusCode": null,
+    "method": "POST",
+    "uriPath": "jewellink-dev-5wjpjpkoia-uc.a.run.app/api/cron/jewelhire-integration-health"
+  },
+  "checks": [
+    {
+      "name": "JewelHire Cloud Run service metadata is readable",
+      "pass": true,
+      "project": "jewelhire-prod-20260626",
+      "region": "us-central1",
+      "service": "jewelhire",
+      "error": "",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire Cloud Run has a single 100% live revision",
+      "pass": true,
+      "liveTraffic": [
+        {
+          "revisionName": "jewelhire-00111-dup",
+          "tag": "candidate-29518763228",
+          "percent": 100,
+          "latestRevision": false
+        }
+      ],
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire production database credential is readable for host discovery",
+      "pass": true,
+      "error": "",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire production database target is identified without exposing credentials",
+      "pass": true,
+      "target": {
+        "host": "us-east-1.pg.psdb.cloud",
+        "database": "postgres",
+        "providerHint": "external Postgres on pg.psdb.cloud"
+      },
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire Cloud Scheduler metadata is readable or confirmed unavailable",
+      "pass": true,
+      "jobCount": 0,
+      "error": "ERROR: (gcloud.scheduler.jobs.list) PERMISSION_DENIED: Cloud Scheduler API has not been used in project jewelhire-prod-20260626 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/cloudscheduler.googleapis.com/overview?project=jewelhire-prod-20260626 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. This command is authenticated as [redacted-email] which is the active account specified by the [core/account] property. Cloud Scheduler API has not been used in project jewelhire-prod-20260626 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/cloudscheduler.googleapis.com/overview?project=jewelhire-prod-20260626 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. Google developers console API activation",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire Cloud Monitoring alert policies are readable",
+      "pass": true,
+      "policyCount": 1,
+      "error": "",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire has at least one enabled monitoring alert policy",
+      "pass": true,
+      "policyCount": 1,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire enabled monitoring alert policy has notification channel",
+      "pass": true,
+      "policyCount": 1,
+      "policyWithChannelCount": 1,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire Cloud Monitoring notification channels are readable",
+      "pass": true,
+      "notificationChannelCount": 1,
+      "error": "",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire attached notification channels are enabled",
+      "pass": true,
+      "attachedChannelCount": 1,
+      "enabledAttachedChannelCount": 1,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire Cloud Logging metric metadata is readable",
+      "pass": true,
+      "metricCount": 1,
+      "error": "",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire Cloud SQL metadata is readable or confirmed unavailable",
+      "pass": true,
+      "instanceCount": 0,
+      "error": "",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire backup method is recorded",
+      "pass": true,
+      "method": "encrypted-logical",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire backup identifier is recorded",
+      "pass": true,
+      "backupIdRecorded": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire backup completion timestamp is recorded",
+      "pass": true,
+      "backupCompletedAtRecorded": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire backup verification timestamp is recorded",
+      "pass": true,
+      "backupVerifiedAtRecorded": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire PITR or retention evidence is recorded",
+      "pass": true,
+      "retentionEvidenceRecorded": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire restore/list verification evidence is recorded",
+      "pass": true,
+      "restoreEvidenceRecorded": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire encrypted logical backup SHA-256 is recorded when required",
+      "pass": true,
+      "logicalBackup": true,
+      "sha256Recorded": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink Cloud Run service metadata is readable",
+      "pass": true,
+      "project": "academy-460316",
+      "region": "us-central1",
+      "service": "jewellink-dev",
+      "error": "",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink Cloud Run has a single 100% live revision",
+      "pass": true,
+      "liveTraffic": [
+        {
+          "revisionName": "jewellink-dev-01154-xpx",
+          "tag": null,
+          "percent": 100,
+          "latestRevision": true
+        }
+      ],
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink production database credential is readable for host discovery",
+      "pass": true,
+      "error": "",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink production database target is identified without exposing credentials",
+      "pass": true,
+      "target": {
+        "host": "us-east-4.pg.psdb.cloud",
+        "database": "postgres",
+        "providerHint": "external Postgres on pg.psdb.cloud"
+      },
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink Cloud Scheduler metadata is readable or confirmed unavailable",
+      "pass": true,
+      "jobCount": 7,
+      "error": "",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink Cloud Monitoring alert policies are readable",
+      "pass": true,
+      "policyCount": 1,
+      "error": "",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink has at least one enabled monitoring alert policy",
+      "pass": true,
+      "policyCount": 1,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink enabled monitoring alert policy has notification channel",
+      "pass": true,
+      "policyCount": 1,
+      "policyWithChannelCount": 1,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink Cloud Monitoring notification channels are readable",
+      "pass": true,
+      "notificationChannelCount": 1,
+      "error": "",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink attached notification channels are enabled",
+      "pass": true,
+      "attachedChannelCount": 1,
+      "enabledAttachedChannelCount": 1,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink Cloud Logging metric metadata is readable",
+      "pass": true,
+      "metricCount": 1,
+      "error": "",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink Cloud SQL metadata is readable or confirmed unavailable",
+      "pass": true,
+      "instanceCount": 0,
+      "error": "ERROR: (gcloud.sql.instances.list) [[redacted-email]] does not have permission to access projects instance [academy-460316] (or it may not exist): Cloud SQL Admin API has not been used in project academy-460316 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/sqladmin.googleapis.com/overview?project=academy-460316 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. This command is authenticated as [redacted-email] which is the active account specified by the [core/account] property. Cloud SQL Admin API has not been used in project academy-460316 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/sqladmin.googleapis.com/overview?project=academy-460316 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. Google developers console API activation",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink backup method is recorded",
+      "pass": true,
+      "method": "encrypted-logical",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink backup identifier is recorded",
+      "pass": true,
+      "backupIdRecorded": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink backup completion timestamp is recorded",
+      "pass": true,
+      "backupCompletedAtRecorded": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink backup verification timestamp is recorded",
+      "pass": true,
+      "backupVerifiedAtRecorded": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink PITR or retention evidence is recorded",
+      "pass": true,
+      "retentionEvidenceRecorded": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink restore/list verification evidence is recorded",
+      "pass": true,
+      "restoreEvidenceRecorded": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink encrypted logical backup SHA-256 is recorded when required",
+      "pass": true,
+      "logicalBackup": true,
+      "sha256Recorded": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink JewelHire integration health scheduler job exists",
+      "pass": true,
+      "expectedJob": "jewellink-jewelhire-integration-health",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink JewelHire integration health scheduler job is enabled",
+      "pass": true,
+      "expectedJob": "jewellink-jewelhire-integration-health",
+      "state": "ENABLED",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink JewelHire integration health scheduler targets the health endpoint",
+      "pass": true,
+      "expectedJob": "jewellink-jewelhire-integration-health",
+      "uriPath": "jewellink-dev-5wjpjpkoia-uc.a.run.app/api/cron/jewelhire-integration-health",
+      "valuesPrinted": false
+    },
+    {
+      "name": "Monitoring channel is recorded or attached and enabled",
+      "pass": true,
+      "declaredChannelRecorded": true,
+      "attachedEnabledMonitoringChannels": true,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire rollback owner is recorded",
+      "pass": false,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink rollback owner is recorded",
+      "pass": false,
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink IAM rollback owner is recorded",
+      "pass": false,
+      "valuesPrinted": false
+    },
+    {
+      "name": "Database recovery owner is recorded",
+      "pass": false,
+      "valuesPrinted": false
+    },
+    {
+      "name": "Observation window is recorded",
+      "pass": false,
+      "valuesPrinted": false
+    },
+    {
+      "name": "Immediate rollback thresholds are recorded",
+      "pass": false,
+      "valuesPrinted": false
+    }
+  ],
+  "operationsEvidenceRequest": {
+    "artifact": "operations-readiness-evidence-request.md",
+    "json": "operations-readiness-evidence-request.json"
+  }
+}

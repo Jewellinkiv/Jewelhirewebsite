@@ -24,6 +24,7 @@ Options:
   --operations-request=<path>       operations-readiness-evidence-request.json
   --operations-evidence=<path>      non-secret production operations evidence JSON
   --roster-packet=<path>            pilot-roster-provisioning-packet.json
+  --smoke-targets-request=<path>    pilot-smoke-targets-request.json
   --application-request=<path>      pilot-application-submission-request.json
   --smoke-plan-request=<path>       pilot-smoke-plan-request.json
 `);
@@ -45,6 +46,12 @@ const inputDefs = [
     label: "Pilot roster provisioning packet",
     prefix: "pilot-roster-",
     file: "pilot-roster-provisioning-packet.json",
+  },
+  {
+    key: "smoke-targets-request",
+    label: "Pilot smoke targets request",
+    prefix: "pilot-smoke-targets-",
+    file: "pilot-smoke-targets-request.json",
   },
   {
     key: "application-request",
@@ -174,6 +181,7 @@ function labelForSmokeField(field) {
 function buildBundle(inputs, sourceArtifacts, operationsEvidence) {
   const operationsMissing = Array.isArray(inputs.operations?.missingFields) ? inputs.operations.missingFields : [];
   const rosterActions = Array.isArray(inputs.roster?.actions) ? inputs.roster.actions : [];
+  const smokeTargetMissing = Array.isArray(inputs.smokeTargets?.missingEvidence) ? inputs.smokeTargets.missingEvidence : [];
   const applicationMissing = Array.isArray(inputs.application?.missingEvidence) ? inputs.application.missingEvidence : [];
   const smokeMissing = Array.isArray(inputs.smokePlan?.missingFields) ? inputs.smokePlan.missingFields : [];
 
@@ -198,6 +206,12 @@ function buildBundle(inputs, sourceArtifacts, operationsEvidence) {
         required: action.title || "",
         label: action.purpose || "",
         constraints: action.constraints || [],
+      })),
+      ...smokeTargetMissing.map((field) => ({
+        area: "Controlled smoke target setup",
+        field: field.check || "",
+        required: field.needed || "",
+        label: "Controlled JewelHire application/resume target",
       })),
       ...applicationMissing.map((field) => ({
         area: "Controlled public application setup",
@@ -435,6 +449,7 @@ function main() {
   const normalizedInputs = {
     operations: parsed["operations-request"],
     roster: parsed["roster-packet"],
+    smokeTargets: parsed["smoke-targets-request"],
     application: parsed["application-request"],
     smokePlan: parsed["smoke-plan-request"],
   };
