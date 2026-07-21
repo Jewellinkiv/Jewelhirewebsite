@@ -32,6 +32,12 @@ Options:
   --fixture-ledger=<path>        Read ledger rows from JSON instead of gcloud/DB
   --skip-fetch=1                 Do not fetch remote refs before history search
   --skip-pull-ref-fetch=1        Do not fetch GitHub PR-head refs before search
+  --include-cloud-build-source-search=1
+                                  Search JewelLink Cloud Build source revisions too
+  --cloud-builds-fixture=<path>  Read Cloud Build rows from JSON instead of gcloud
+  --cloud-build-region=<region>  Default: us-central1
+  --cloud-build-window-hours=<n> Default: 24 hours before/after drift rows
+  --cloud-build-limit=<n>        Default: 1000
 `);
   process.exit(0);
 }
@@ -49,6 +55,16 @@ const JEWELLINK_DB_SECRET = args.get("jewellink-db-secret") || process.env.JEWEL
 const FIXTURE_LEDGER = args.get("fixture-ledger") ? path.resolve(process.cwd(), args.get("fixture-ledger")) : "";
 const REVIEW_REF = args.get("review-ref") || process.env.JEWELLINK_REVIEW_REF || "HEAD";
 const JEWELLINK_REMOTE = args.get("jewellink-remote") || process.env.JEWELLINK_REMOTE || "origin";
+const CLOUD_BUILDS_FIXTURE = args.get("cloud-builds-fixture")
+  ? path.resolve(process.cwd(), args.get("cloud-builds-fixture"))
+  : "";
+const INCLUDE_CLOUD_BUILD_SOURCE_SEARCH =
+  args.get("include-cloud-build-source-search") === "1" ||
+  process.env.JEWELLINK_INCLUDE_CLOUD_BUILD_SOURCE_SEARCH === "1" ||
+  Boolean(CLOUD_BUILDS_FIXTURE);
+const CLOUD_BUILD_REGION = args.get("cloud-build-region") || process.env.JEWELLINK_CLOUD_BUILD_REGION || "us-central1";
+const CLOUD_BUILD_WINDOW_HOURS = Number(args.get("cloud-build-window-hours") || "24");
+const CLOUD_BUILD_LIMIT = Number(args.get("cloud-build-limit") || "1000");
 
 const requiredJewelLinkIntegrationMigrations = new Set([
   "20260712043000_add_jewelhire_sso_codes",
@@ -79,6 +95,23 @@ function sanitizeError(text) {
 
 function gcloud(commandArgs) {
   return execFileSync("gcloud", commandArgs, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+}
+
+function gcloudJson(commandArgs) {
+  const result = spawnSync("gcloud", commandArgs, {
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024 * 32,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, CLOUDSDK_CORE_DISABLE_PROMPTS: "1" },
+  });
+  if (result.status !== 0) {
+    return { ok: false, data: null, error: sanitizeError(result.stderr || result.stdout) };
+  }
+  try {
+    return { ok: true, data: result.stdout.trim() ? JSON.parse(result.stdout) : null, error: "" };
+  } catch (error) {
+    return { ok: false, data: null, error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 function accessSecret({ project, name, version = "latest" }) {
@@ -249,7 +282,176 @@ function fileAtCommit(repo, commit, migrationName) {
   return runGit(["show", `${commit}:${rel}`], { cwd: repo, allowFailure: true, encoding: "utf8" });
 }
 
-function recoverMatches(repo, driftRows) {
+function parseTimestampMs(value) {
+  if (!value) return NaN;
+  const normalized = String(value)
+    .trim()
+    .replace(" ", "T")
+    .replace(/([+-]\d{2})$/, "$1:00");
+  const date = new Date(normalized);
+  return Number.isFinite(date.getTime()) ? date.getTime() : NaN;
+}
+
+function driftTimeRange(rows) {
+  const times = rows
+    .flatMap((row) => [parseTimestampMs(row.started_at), parseTimestampMs(row.finished_at)])
+    .filter(Number.isFinite);
+  if (!times.length) return null;
+  const paddingMs = Number.isFinite(CLOUD_BUILD_WINDOW_HOURS) ? CLOUD_BUILD_WINDOW_HOURS * 60 * 60 * 1000 : 0;
+  return {
+    start: new Date(Math.min(...times) - paddingMs).toISOString(),
+    end: new Date(Math.max(...times) + paddingMs).toISOString(),
+  };
+}
+
+function rowTimeRange(row) {
+  const times = [parseTimestampMs(row.started_at), parseTimestampMs(row.finished_at)].filter(Number.isFinite);
+  if (!times.length) return null;
+  const paddingMs = Number.isFinite(CLOUD_BUILD_WINDOW_HOURS) ? CLOUD_BUILD_WINDOW_HOURS * 60 * 60 * 1000 : 0;
+  return {
+    startMs: Math.min(...times) - paddingMs,
+    endMs: Math.max(...times) + paddingMs,
+  };
+}
+
+function extractBuildRevisions(build) {
+  return [
+    build?.sourceProvenance?.resolvedGitSource?.revision,
+    build?.source?.developerConnectConfig?.revision,
+    build?.resolvedRepoSource?.commitSha,
+    build?.substitutions?.COMMIT_SHA,
+    build?.substitutions?.REVISION_ID,
+  ]
+    .filter(Boolean)
+    .filter((value) => /^[0-9a-f]{40}$/i.test(String(value)));
+}
+
+function readCloudBuilds({ range }) {
+  if (!INCLUDE_CLOUD_BUILD_SOURCE_SEARCH) {
+    return {
+      attempted: false,
+      ok: true,
+      error: "",
+      range,
+      builds: [],
+    };
+  }
+  if (CLOUD_BUILDS_FIXTURE) {
+    return {
+      attempted: true,
+      ok: true,
+      error: "",
+      range,
+      builds: JSON.parse(fs.readFileSync(CLOUD_BUILDS_FIXTURE, "utf8")),
+    };
+  }
+  if (!range) {
+    return {
+      attempted: true,
+      ok: false,
+      error: "No drift row timestamps are available for Cloud Build source search",
+      range,
+      builds: [],
+    };
+  }
+  return {
+    attempted: true,
+    range,
+    ...gcloudJson([
+      "builds",
+      "list",
+      "--project",
+      JEWELLINK_PROJECT,
+      "--region",
+      CLOUD_BUILD_REGION,
+      "--filter",
+      `createTime>="${range.start}" AND createTime<="${range.end}"`,
+      "--format=json(id,createTime,status,source.developerConnectConfig.revision,sourceProvenance.resolvedGitSource.revision,resolvedRepoSource.commitSha,substitutions.COMMIT_SHA,substitutions.REVISION_ID,substitutions.BRANCH_NAME,images)",
+      `--limit=${Number.isFinite(CLOUD_BUILD_LIMIT) ? CLOUD_BUILD_LIMIT : 1000}`,
+      "--quiet",
+    ]),
+  };
+}
+
+function cloudBuildSourceSearch(repo, driftRows) {
+  const range = driftTimeRange(driftRows);
+  const result = readCloudBuilds({ range });
+  const successfulBuilds = Array.isArray(result.data || result.builds)
+    ? (result.data || result.builds).filter((build) => build?.status === "SUCCESS")
+    : [];
+  const revisionBuilds = new Map();
+  const candidateRevisionsByMigration = new Map(driftRows.map((row) => [row.migration_name, new Map()]));
+  const windowsByMigration = new Map(driftRows.map((row) => [row.migration_name, rowTimeRange(row)]));
+
+  for (const build of successfulBuilds) {
+    const buildTime = parseTimestampMs(build.createTime);
+    for (const revision of extractBuildRevisions(build)) {
+      const buildEvidence = {
+        revision,
+        buildId: build.id || "",
+        createTime: build.createTime || "",
+        branch: build.substitutions?.BRANCH_NAME || "",
+      };
+      for (const row of driftRows) {
+        const window = windowsByMigration.get(row.migration_name);
+        if (window && Number.isFinite(buildTime) && (buildTime < window.startMs || buildTime > window.endMs)) continue;
+        const rowCandidates = candidateRevisionsByMigration.get(row.migration_name);
+        if (!rowCandidates.has(revision)) rowCandidates.set(revision, buildEvidence);
+        if (!revisionBuilds.has(revision)) revisionBuilds.set(revision, buildEvidence);
+      }
+    }
+  }
+
+  const reachableByRevision = new Map();
+  const isReachableCommit = (revision) => {
+    if (reachableByRevision.has(revision)) return reachableByRevision.get(revision);
+    const type = runGit(["cat-file", "-t", revision], { cwd: repo, allowFailure: true }).trim();
+    const reachable = type === "commit";
+    reachableByRevision.set(revision, reachable);
+    return reachable;
+  };
+
+  const matchesByMigration = new Map(driftRows.map((row) => [row.migration_name, []]));
+
+  for (const row of driftRows) {
+    const rowCandidates = candidateRevisionsByMigration.get(row.migration_name) || new Map();
+    for (const build of rowCandidates.values()) {
+      if (!isReachableCommit(build.revision)) continue;
+      const text = fileAtCommit(repo, build.revision, row.migration_name);
+      if (!text || hashSql(text) !== row.checksum) continue;
+      const matches = matchesByMigration.get(row.migration_name) || [];
+      if (matches.some((match) => match.fullCommit === build.revision)) continue;
+      matches.push({
+        commit: shortSha(build.revision),
+        fullCommit: build.revision,
+        buildId: shortSha(build.buildId || ""),
+        fullBuildId: build.buildId || "",
+        createTime: build.createTime,
+        branch: build.branch,
+      });
+      matchesByMigration.set(row.migration_name, matches);
+    }
+  }
+
+  const reachableRevisions = [...revisionBuilds.keys()].filter((revision) => isReachableCommit(revision)).length;
+  const unreachableRevisions = revisionBuilds.size - reachableRevisions;
+
+  return {
+    attempted: result.attempted,
+    ok: result.ok,
+    error: result.error || "",
+    range,
+    buildCount: Array.isArray(result.data || result.builds) ? (result.data || result.builds).length : 0,
+    successfulBuildCount: successfulBuilds.length,
+    sourceRevisionCount: revisionBuilds.size,
+    reachableRevisionCount: reachableRevisions,
+    unreachableRevisionCount: unreachableRevisions,
+    matchCount: [...matchesByMigration.values()].reduce((count, matches) => count + matches.length, 0),
+    matchesByMigration,
+  };
+}
+
+function recoverMatches(repo, driftRows, cloudBuildSearch) {
   return driftRows.map((row) => {
     const commits = commitsForMigration(repo, row.migration_name);
     const matches = [];
@@ -271,6 +473,7 @@ function recoverMatches(repo, driftRows) {
       integrationOrAuth: requiredJewelLinkIntegrationMigrations.has(row.migration_name),
       searchedPathCommits: commits.length,
       exactHistoryMatches: matches,
+      cloudBuildSourceMatches: cloudBuildSearch.matchesByMigration?.get(row.migration_name) || [],
     };
   });
 }
@@ -296,20 +499,38 @@ function markdown(report) {
     `- Active production migrations: ${report.jewelLink.activeAppliedCount}`,
     `- Reviewed repo migrations: ${report.jewelLink.reviewedMigrationCount}`,
     `- Full checksum drift: ${report.jewelLink.driftCount}`,
-    `- Drift rows with exact SQL recovered from fetched git history: ${report.jewelLink.recoveredCount}`,
+    `- Drift rows with exact SQL recovered from fetched git history: ${report.jewelLink.historyRecoveredCount}`,
+    `- Cloud Build source search attempted: ${report.jewelLink.cloudBuildSourceSearch.attempted}`,
+    `- Cloud Build source search status: ${report.jewelLink.cloudBuildSourceSearch.ok ? "ok" : "failed"}`,
+    `- Cloud Build source search range: ${
+      report.jewelLink.cloudBuildSourceSearch.range
+        ? `${report.jewelLink.cloudBuildSourceSearch.range.start} to ${report.jewelLink.cloudBuildSourceSearch.range.end}`
+        : "not available"
+    }`,
+    `- Cloud Build successful builds considered: ${report.jewelLink.cloudBuildSourceSearch.successfulBuildCount}`,
+    `- Cloud Build source revisions searched: ${report.jewelLink.cloudBuildSourceSearch.sourceRevisionCount}`,
+    `- Cloud Build source revisions reachable locally: ${report.jewelLink.cloudBuildSourceSearch.reachableRevisionCount}`,
+    `- Cloud Build source revisions unreachable locally: ${report.jewelLink.cloudBuildSourceSearch.unreachableRevisionCount}`,
+    `- Cloud Build exact SQL matches: ${report.jewelLink.cloudBuildSourceSearch.matchCount}`,
+    `- Drift rows with exact SQL recovered from any searched source: ${report.jewelLink.recoveredCount}`,
     `- Drift rows still unrecovered: ${report.jewelLink.unrecoveredCount}`,
     "",
     "## Drift Recovery",
     "",
-    "| Migration | Applied checksum | Reviewed checksum | Applied window | History match | Path commits searched |",
-    "| --- | --- | --- | --- | --- | --- |",
+    "| Migration | Applied checksum | Reviewed checksum | Applied window | History match | Cloud Build source match | Path commits searched |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
     ...report.recovery.map((row) => {
       const match = row.exactHistoryMatches.length
         ? row.exactHistoryMatches.map((item) => `\`${item.commit}\``).join(", ")
         : "No match";
+      const cloudBuildMatch = row.cloudBuildSourceMatches.length
+        ? row.cloudBuildSourceMatches
+            .map((item) => `\`${item.commit}\`${item.buildId ? ` / build \`${item.buildId}\`` : ""}`)
+            .join(", ")
+        : "No match";
       const appliedWindow =
         row.startedAt || row.finishedAt ? `${row.startedAt || "unknown"} to ${row.finishedAt || "unknown"}` : "unknown";
-      return `| \`${row.migration}\` | \`${row.appliedChecksumPrefix}\` | \`${row.reviewedChecksumPrefix}\` | ${appliedWindow} | ${match} | ${row.searchedPathCommits} |`;
+      return `| \`${row.migration}\` | \`${row.appliedChecksumPrefix}\` | \`${row.reviewedChecksumPrefix}\` | ${appliedWindow} | ${match} | ${cloudBuildMatch} | ${row.searchedPathCommits} |`;
     }),
     "",
     "## Closure Guidance",
@@ -345,16 +566,30 @@ async function main() {
     .filter((row) => row.checksum !== row.reviewedChecksum);
 
   const integrationDrift = driftRows.filter((row) => requiredJewelLinkIntegrationMigrations.has(row.migration_name));
-  const recovery = recoverMatches(JEWELLINK_REPO, driftRows);
-  const unrecovered = recovery.filter((row) => row.exactHistoryMatches.length === 0);
+  const cloudBuildSource = cloudBuildSourceSearch(JEWELLINK_REPO, driftRows);
+  if (cloudBuildSource.attempted) {
+    record("JewelLink Cloud Build source revision search completed", cloudBuildSource.ok, {
+      buildCount: cloudBuildSource.buildCount,
+      sourceRevisionCount: cloudBuildSource.sourceRevisionCount,
+      matchCount: cloudBuildSource.matchCount,
+    });
+  }
+  const recovery = recoverMatches(JEWELLINK_REPO, driftRows, cloudBuildSource);
+  const unrecovered = recovery.filter(
+    (row) => row.exactHistoryMatches.length === 0 && row.cloudBuildSourceMatches.length === 0,
+  );
 
   record("JewelLink active integration/auth migration rows have no checksum drift", integrationDrift.length === 0, {
     driftCount: integrationDrift.length,
   });
-  record("Every drifted JewelLink active migration has exact SQL recoverable from git history", unrecovered.length === 0, {
-    driftCount: driftRows.length,
-    unrecoveredCount: unrecovered.length,
-  });
+  record(
+    "Every drifted JewelLink active migration has exact SQL recoverable from git history or Cloud Build source revisions",
+    unrecovered.length === 0,
+    {
+      driftCount: driftRows.length,
+      unrecoveredCount: unrecovered.length,
+    },
+  );
 
   const report = {
     createdAt: new Date().toISOString(),
@@ -369,9 +604,24 @@ async function main() {
       activeAppliedCount: active.length,
       reviewedMigrationCount: reviewed.length,
       driftCount: driftRows.length,
-      recoveredCount: recovery.filter((row) => row.exactHistoryMatches.length > 0).length,
+      historyRecoveredCount: recovery.filter((row) => row.exactHistoryMatches.length > 0).length,
+      recoveredCount: recovery.filter(
+        (row) => row.exactHistoryMatches.length > 0 || row.cloudBuildSourceMatches.length > 0,
+      ).length,
       unrecoveredCount: unrecovered.length,
       integrationDriftCount: integrationDrift.length,
+      cloudBuildSourceSearch: {
+        attempted: cloudBuildSource.attempted,
+        ok: cloudBuildSource.ok,
+        error: cloudBuildSource.error,
+        range: cloudBuildSource.range,
+        buildCount: cloudBuildSource.buildCount,
+        successfulBuildCount: cloudBuildSource.successfulBuildCount,
+        sourceRevisionCount: cloudBuildSource.sourceRevisionCount,
+        reachableRevisionCount: cloudBuildSource.reachableRevisionCount,
+        unreachableRevisionCount: cloudBuildSource.unreachableRevisionCount,
+        matchCount: cloudBuildSource.matchCount,
+      },
     },
     recovery,
     checks,

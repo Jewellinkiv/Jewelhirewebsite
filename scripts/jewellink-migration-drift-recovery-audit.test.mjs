@@ -45,6 +45,7 @@ function commit(repo, message) {
 function buildRepo({ includeRecoveredDrift = true } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "jewellink-migration-drift-"));
   git(dir, ["init"]);
+  git(dir, ["branch", "-M", "main"]);
   writeMigration(dir, "20260712043000_add_jewelhire_sso_codes", "-- integration\ncreate table sso_codes(id text);\n");
   writeMigration(dir, "20260530033000_add_pos_register_sessions", "-- applied old\ncreate table register_sessions(id text);\n");
   if (!includeRecoveredDrift) {
@@ -60,11 +61,35 @@ function buildRepo({ includeRecoveredDrift = true } = {}) {
   return dir;
 }
 
-function runAudit(repo, rows) {
+function buildRepoWithCloudBuildOnlyDrift() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "jewellink-migration-cloud-drift-"));
+  git(dir, ["init"]);
+  git(dir, ["branch", "-M", "main"]);
+  writeMigration(dir, "20260712043000_add_jewelhire_sso_codes", "-- integration\ncreate table sso_codes(id text);\n");
+  writeMigration(dir, "20260530040000_add_pos_tender_settings", "-- reviewed only\ncreate table tender_settings(id text, updated_at timestamptz);\n");
+  commit(dir, "Reviewed migrations");
+  const reviewedCommit = git(dir, ["rev-parse", "HEAD"]);
+
+  git(dir, ["checkout", "--detach", reviewedCommit]);
+  writeMigration(dir, "20260530040000_add_pos_tender_settings", "-- applied from build\ncreate table tender_settings(id text);\n");
+  commit(dir, "Unreferenced Cloud Build source migration");
+  const cloudBuildCommit = git(dir, ["rev-parse", "HEAD"]);
+  git(dir, ["checkout", "main"]);
+
+  return { dir, cloudBuildCommit };
+}
+
+function runAudit(repo, rows, extraArgs = [], extraFiles = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "jewellink-drift-audit-"));
   const ledger = path.join(tmp, "ledger.json");
   const artifacts = path.join(tmp, "artifacts");
   fs.writeFileSync(ledger, `${JSON.stringify(rows, null, 2)}\n`);
+  const extraArgValues = [];
+  for (const [name, value] of Object.entries(extraFiles)) {
+    const file = path.join(tmp, name);
+    fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+    extraArgValues.push(`--${name.replace(/\.json$/, "").replaceAll("_", "-")}=${file}`);
+  }
   const result = spawnSync(
     process.execPath,
     [
@@ -73,6 +98,8 @@ function runAudit(repo, rows) {
       `--fixture-ledger=${ledger}`,
       `--artifacts=${artifacts}`,
       "--skip-fetch=1",
+      ...extraArgs,
+      ...extraArgValues,
     ],
     { cwd: root, encoding: "utf8" },
   );
@@ -143,5 +170,65 @@ test("fails when a drifted migration cannot be recovered from git history", () =
   assert.match(markdown, /Result: FAIL/);
   assert.match(markdown, /2026-05-30T04:00:00Z to 2026-05-30T04:01:00Z/);
   assert.match(markdown, /No match/);
-  assert.match(markdown, /FAIL Every drifted JewelLink active migration has exact SQL recoverable from git history/);
+  assert.match(
+    markdown,
+    /FAIL Every drifted JewelLink active migration has exact SQL recoverable from git history or Cloud Build source revisions/,
+  );
+});
+
+test("passes when a drifted migration is recovered from a Cloud Build source revision", () => {
+  const { dir: repo, cloudBuildCommit } = buildRepoWithCloudBuildOnlyDrift();
+  const integrationSql = "-- integration\ncreate table sso_codes(id text);\n";
+  const appliedFromBuild = "-- applied from build\ncreate table tender_settings(id text);\n";
+
+  const builds = [
+    {
+      id: "cloud-build-source-fixture-1",
+      createTime: "2026-05-30T04:02:00Z",
+      status: "SUCCESS",
+      sourceProvenance: {
+        resolvedGitSource: {
+          revision: cloudBuildCommit,
+          url: "https://github.com/Jewellinkiv/jewellink-app.git",
+        },
+      },
+      substitutions: {
+        BRANCH_NAME: "main",
+        COMMIT_SHA: cloudBuildCommit,
+        REVISION_ID: cloudBuildCommit,
+      },
+    },
+  ];
+
+  const { result, markdown, json } = runAudit(
+    repo,
+    [
+      {
+        migration_name: "20260712043000_add_jewelhire_sso_codes",
+        checksum: sha(integrationSql),
+        started_at: "2026-07-20T00:00:00Z",
+        finished_at: "2026-07-20T00:00:00Z",
+        rolled_back_at: null,
+      },
+      {
+        migration_name: "20260530040000_add_pos_tender_settings",
+        checksum: sha(appliedFromBuild),
+        started_at: "2026-05-30T04:00:00Z",
+        finished_at: "2026-05-30T04:01:00Z",
+        rolled_back_at: null,
+      },
+    ],
+    ["--include-cloud-build-source-search=1"],
+    { "cloud_builds_fixture.json": builds },
+  );
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(markdown, /Result: PASS/);
+  assert.match(markdown, /Drift rows with exact SQL recovered from fetched git history: 0/);
+  assert.match(markdown, /Cloud Build source revisions searched: 1/);
+  assert.match(markdown, /Cloud Build exact SQL matches: 1/);
+  assert.match(markdown, /Drift rows with exact SQL recovered from any searched source: 1/);
+  assert.match(markdown, new RegExp(cloudBuildCommit.slice(0, 12)));
+  assert.match(json, /"cloudBuildSourceMatches": \[/);
+  assert.doesNotMatch(`${markdown}\n${json}`, /postgres(?:ql)?:\/\//);
 });
