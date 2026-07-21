@@ -29,6 +29,18 @@ testUrl.searchParams.set("sslmode", "disable");
 const admin = new Client({ connectionString: adminUrl.toString(), ssl: false });
 let pool;
 let databaseCreated = false;
+let teardownStarted = false;
+
+function isExpectedTeardownPoolError(error) {
+  return error?.code === "57P01" || /terminating connection due to administrator command/i.test(error?.message || "");
+}
+
+function attachPoolErrorHandler(currentPool) {
+  currentPool.on("error", (error) => {
+    if (teardownStarted && isExpectedTeardownPoolError(error)) return;
+    throw error;
+  });
+}
 
 async function migrateDatabase() {
   const migrationClient = new Client({ connectionString: testUrl.toString(), ssl: false });
@@ -217,6 +229,7 @@ async function main() {
   const jewelLinkSso = await import("../lib/server/jewellink-sso.ts");
   const postgres = await import("../lib/server/postgres.ts");
   pool = postgres.getPostgresPool();
+  attachPoolErrorHandler(pool);
 
   // Exercise the local rehydration path behind a successful upstream
   // authorization-snapshot check. Without this stub, every revalidation exits
@@ -1329,6 +1342,7 @@ async function main() {
 try {
   await main();
 } finally {
+  teardownStarted = true;
   if (pool) await pool.end().catch(() => undefined);
   if (databaseCreated) {
     await admin.query(
