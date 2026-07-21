@@ -33,18 +33,17 @@ specific JewelHire store. The report is written under
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T09-43-22-860Z/` confirms the
-database credential, controlled applicant smoke credential, linked pilot store,
-published public store page, and open public job are ready. It records the
-non-secret public application endpoint path and job ID to use after the missing
-production-smoke approvals are granted. It still fails because the controlled
-applicant does not yet have a pilot application, so no hire handoff target or
-resume privacy target can be copied into the smoke plan.
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T15-52-45-780Z/` passes after the
+approved controlled application setup. It confirms the database credential,
+controlled applicant smoke credential, linked pilot store, published public
+store page, open public job, and a controlled pilot application with a private
+resume attachment.
 
-The gate remains a live-pilot NO-GO item until a controlled applicant submits or
-has approved a pilot-store application with a private resume attachment, then
-`qa:pilot-smoke-targets` passes and the resulting non-secret application IDs are
-copied into the ignored pilot smoke plan.
+The selected hire handoff and resume privacy target is
+`app-32dbfd01-3092-4190-9c15-cf43aa72ff46` in store
+`store-jl-58deb73ef9454405c4fe`. The application is still in `applied` stage,
+has no existing JewelLink hire sync, and is safe to copy into the ignored pilot
+smoke plan as the controlled application alias.
 
 The guarded JewelHire-side setup helper is documented in
 `docs/production-pilot-controlled-application-submission.md` and exposed as

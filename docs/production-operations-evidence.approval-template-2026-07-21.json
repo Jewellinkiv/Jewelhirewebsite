@@ -20,12 +20,12 @@
     }
   },
   "rollback": {
-    "jewelhireOwner": "",
-    "jewellinkOwner": "",
-    "jewellinkIamOwner": "",
-    "databaseRecoveryOwner": "",
-    "observationWindow": "",
-    "rollbackThresholds": ""
+    "jewelhireOwner": "Sterling, pilot operator, via Codex task 019f80f2-f82c-7cb3-86f5-3f1eb0b9107d.",
+    "jewellinkOwner": "Sterling, pilot operator, via Codex task 019f80f2-f82c-7cb3-86f5-3f1eb0b9107d.",
+    "jewellinkIamOwner": "Sterling, pilot operator, via Codex task 019f80f2-f82c-7cb3-86f5-3f1eb0b9107d.",
+    "databaseRecoveryOwner": "Sterling, pilot operator, via Codex task 019f80f2-f82c-7cb3-86f5-3f1eb0b9107d.",
+    "observationWindow": "Approved staffed pilot observation window: 2026-07-21T16:00:00Z through 2026-07-21T17:00:00Z, extending until 30 quiet minutes after the last retry, warning, or manual correction.",
+    "rollbackThresholds": "Immediate stop or rollback for any cross-store/cross-company data exposure, excess role authority, Consultant access, allowlisted non-admin elevation, private API access without auth, duplicate or wrong JewelLink hire link, JewelCert wrong store/company/user/role sync, secret mismatch/rotation, migration drift, sustained 5xx errors, repeated JewelLink scheduler failure, unintended provider delivery, or evidence leaking secrets/PII."
   },
   "monitoring": {
     "channel": "GCP alert policies 'JewelHire pilot Cloud Run 5xx responses' and 'JewelLink pilot Cloud Run 5xx responses' have attached enabled email notification channels 10170517523806111204 and 6069355864943001083."

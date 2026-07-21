@@ -24,15 +24,11 @@ exist. Require `qa:pilot-smoke-plan` to pass before any authenticated SSO, hire,
 JewelCert, team-invite, or resume privacy smoke runs in production.
 
 For the hire and resume privacy target IDs, run `npm run qa:pilot-smoke-targets`
-before filling the smoke plan. The latest production run
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-36-00-000Z/` confirms the
-controlled applicant credential, pilot store, published public store page, and
-open public job, but it still needs a controlled pilot application with a
-private resume attachment before those smoke rows can proceed.
-Use `npm run qa:pilot-application-submission` in dry-run mode to generate the
-setup request, and execute it only after the local ignored approval file records
-the controlled public application write, controlled mailbox use, live email
-acknowledgement, and stable idempotency submission ID.
+before filling the smoke plan. The latest passing production run
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T15-52-45-780Z/` selects controlled
+application `app-32dbfd01-3092-4190-9c15-cf43aa72ff46` for both hire handoff and
+resume privacy after the approved application setup in
+`docs/qa-runs/pilot-application-submission-2026-07-21T15-52-39-694Z/`.
 
 For the current pilot evidence matrix, copy
 `docs/production-pilot-smoke-evidence.template.json` to an ignored local path
@@ -93,14 +89,18 @@ also writes `pilot-smoke-evidence-request.md` and
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-smoke-evidence-2026-07-21T15-26-10-865Z/` generated the
-latest request packet for this gate after the denial-scope update. It records
-17 required smoke evidence rows, where Consultant and paused-company can be
-satisfied by scope-decision metadata, and writes
-`docs/qa-runs/pilot-smoke-evidence-2026-07-21T15-26-10-865Z/pilot-smoke-evidence-request.md`.
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T15-53-48-588Z/` passes the preflight
+plan, and `docs/qa-runs/public-fail-closed-smoke-2026-07-21T15-54-36-822Z/`
+records the latest public/fail-closed attempt. That attempt proves the
+controlled resume rejects public access with `401`, but it fails the Diamond
+Exchange same-store checks because the available native smoke cookie is scoped
+to the dedicated smoke store, not `store-jl-58deb73ef9454405c4fe`.
 
 The gate remains a live-pilot NO-GO item until all 17 rows pass with concrete
-artifacts.
+artifacts. The next required input is a real authenticated Diamond Exchange
+pilot session, preferably from the JewelLink SSO Director or Manager path, so
+the public/fail-closed runner and the authenticated SSO/hire/JewelCert evidence
+can be captured without widening a native smoke account into the pilot store.
 
 After this evidence audit passes and the go/no-go dossier is moved to GO, run
 `qa:pilot-live-readiness` with an ignored manifest copied from

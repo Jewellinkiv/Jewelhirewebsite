@@ -16,7 +16,7 @@ Dry-run or request packet:
 
 ```bash
 npm run qa:pilot-application-submission -- \
-  --target-report=docs/qa-runs/pilot-smoke-targets-2026-07-21T09-43-22-860Z/pilot-smoke-targets-report.json
+  --target-report=<pilot-smoke-targets-report.json>
 ```
 
 Approved execution:
@@ -32,8 +32,14 @@ The report is written under
 `docs/qa-runs/pilot-application-submission-*` unless `--artifacts=<dir>` is
 supplied.
 
-The latest dry-run request packet is
-`docs/qa-runs/pilot-application-submission-2026-07-21T08-11-57-776Z/pilot-application-submission-request.md`.
+The latest approved execution packet is
+`docs/qa-runs/pilot-application-submission-2026-07-21T15-52-39-694Z/pilot-application-submission-report.md`.
+It created controlled application
+`app-32dbfd01-3092-4190-9c15-cf43aa72ff46` for store
+`store-jl-58deb73ef9454405c4fe` through the normal public application endpoint.
+The local operator used the Cloud Run service URL because the workstation's
+custom-domain request to `app.jewelhire.com` was intercepted by local DNS
+filtering; the production route and service revision were unchanged.
 
 ## Approval File
 

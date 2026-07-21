@@ -57,33 +57,19 @@ approval file described in
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T15-26-10-858Z/` is the latest
-request packet after the Consultant source-policy and paused-company deferral
-scope update. It writes
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T15-26-10-858Z/pilot-smoke-plan-request.md`
-with the new `personas.consultantDenialEvidence.*` and
-`personas.pausedCompanyDenialEvidence.*` fields.
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T15-53-48-588Z/` passes. It records
+the approved live-email acknowledgement, JewelLink pilot rollout-flag movement,
+controlled production smoke scope, rollback approval, Director/Manager/Student
+and platform-admin aliases, Consultant source-policy acceptance, paused-company
+pilot deferral, allowlisted non-admin source-test plus clean-allowlist
+acceptance, controlled hire/JewelCert/public-fail-closed smoke scope, stop
+conditions, and prerequisite PASS artifacts.
 
-The current source-test artifact
-`docs/qa-runs/allowlisted-nonadmin-denial-source-2026-07-21T06-02-00-000Z/allowlisted-nonadmin-denial-source-report.md`
-passes, and the clean allowlist artifact
-`docs/qa-runs/admin-allowlist-2026-07-21T07-56-07-377Z/admin-allowlist-report.md`
-passes. The smoke plan still requires an explicit acceptance record before the
-source-test plus clean-allowlist strategy can count as GO evidence.
-
-The gate remains a live-pilot NO-GO item until this audit passes, then the
-resulting report can be referenced by the pilot smoke evidence packet.
-
-The latest target-finder run
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T09-43-22-860Z/` confirms the
-controlled applicant credential, pilot store, published public store page, and
-open public job are available, but no controlled pilot application exists yet.
-Create or approve that controlled application with a private resume attachment
-before copying hire/resume IDs into the smoke plan.
-
-The approved setup path is `qa:pilot-application-submission`; execute mode can
-send live application notification emails and must retain the same idempotency
-submission ID on retry.
+The plan uses controlled application
+`app-32dbfd01-3092-4190-9c15-cf43aa72ff46` for both hire handoff and resume
+privacy. The audit is a preflight approval gate only; it does not prove the
+authenticated SSO, hire, JewelCert, team-invite, or resume privacy evidence
+rows have passed.
 
 ## Secret Handling
 

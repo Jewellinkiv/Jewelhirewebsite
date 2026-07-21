@@ -1,0 +1,134 @@
+{
+  "createdAt": "2026-07-21T15:52:47.879Z",
+  "valuesPrinted": false,
+  "pilot": {
+    "companyId": "comp_1",
+    "requestedStoreId": "",
+    "pilotStoreCount": 1,
+    "pilotStoreIds": [
+      "store-jl-58deb73ef9454405c4fe"
+    ]
+  },
+  "jewelHire": {
+    "project": "jewelhire-prod-20260626",
+    "region": "us-central1",
+    "service": "jewelhire",
+    "latestReadyRevision": "jewelhire-00111-dup",
+    "databaseSecretMounted": true,
+    "databaseCredentialAvailable": true,
+    "databaseCredentialSource": "cloud-run-secret",
+    "smokeSecret": "jewelhire-smoke-test-credentials",
+    "controlledRole": "applicant",
+    "controlledCredential": {
+      "role": "applicant",
+      "emailAlias": "m***@email.com",
+      "hasPassword": true
+    }
+  },
+  "candidates": {
+    "controlledApplicationCount": 1,
+    "selectedHireApplication": {
+      "applicationId": "app-32dbfd01-3092-4190-9c15-cf43aa72ff46",
+      "storeId": "store-jl-58deb73ef9454405c4fe",
+      "stage": "applied",
+      "source": "public_store_page",
+      "submittedAt": "2026-07-21 15:52:40.591+00",
+      "updatedAt": "2026-07-21 15:52:40.591+00",
+      "jobLocationRecorded": true,
+      "hasHireSync": false,
+      "hireSyncStatus": "",
+      "hasResumeAttachment": true,
+      "resumeMimeType": "application/pdf",
+      "resumeFileSizeBytes": 416,
+      "resumeCreatedAt": "2026-07-21 15:52:40.591+00"
+    },
+    "selectedResumeApplication": {
+      "applicationId": "app-32dbfd01-3092-4190-9c15-cf43aa72ff46",
+      "storeId": "store-jl-58deb73ef9454405c4fe",
+      "stage": "applied",
+      "source": "public_store_page",
+      "submittedAt": "2026-07-21 15:52:40.591+00",
+      "updatedAt": "2026-07-21 15:52:40.591+00",
+      "jobLocationRecorded": true,
+      "hasHireSync": false,
+      "hireSyncStatus": "",
+      "hasResumeAttachment": true,
+      "resumeMimeType": "application/pdf",
+      "resumeFileSizeBytes": 416,
+      "resumeCreatedAt": "2026-07-21 15:52:40.591+00"
+    },
+    "sameApplicationForHireAndResume": true,
+    "publicSubmissionTargetCount": 1,
+    "selectedPublicSubmissionTarget": {
+      "storeId": "store-jl-58deb73ef9454405c4fe",
+      "publicStoreSlug": "diamond-exchange-58deb73e",
+      "endpointPath": "/api/public/stores/diamond-exchange-58deb73e/applications",
+      "jobId": "job-d389b48d-3bd4-463f-9151-4ff7ed947e8f",
+      "publicPageStatus": "published",
+      "jobStatus": "open",
+      "jobOpenedAt": "2026-07-15 22:43:48.358+00"
+    }
+  },
+  "smokePlanUpdates": {
+    "scopes": {
+      "hireHandoff": {
+        "applicationAlias": "app-32dbfd01-3092-4190-9c15-cf43aa72ff46"
+      },
+      "publicFailClosed": {
+        "storeId": "store-jl-58deb73ef9454405c4fe",
+        "expectedStoreId": "store-jl-58deb73ef9454405c4fe",
+        "resumeApplicationId": "app-32dbfd01-3092-4190-9c15-cf43aa72ff46"
+      }
+    },
+    "setup": {
+      "publicApplication": {
+        "endpointPath": "/api/public/stores/diamond-exchange-58deb73e/applications",
+        "jobId": "job-d389b48d-3bd4-463f-9151-4ff7ed947e8f"
+      }
+    }
+  },
+  "pass": true,
+  "checks": [
+    {
+      "name": "JewelHire database credential is mounted or supplied",
+      "pass": true,
+      "required": "Cloud Run DATABASE_URL/POSTGRES_URL secret, fallback JewelHire DB secret, or JEWELHIRE_DATABASE_URL",
+      "source": "cloud-run-secret"
+    },
+    {
+      "name": "controlled smoke credential is present",
+      "pass": true,
+      "required": "applicant credential in jewelhire-smoke-test-credentials"
+    },
+    {
+      "name": "controlled smoke credential has a password for native applicant flows",
+      "pass": true,
+      "required": "Native controlled applicant smoke password"
+    },
+    {
+      "name": "pilot company has at least one JewelHire store",
+      "pass": true,
+      "required": "JewelHire store linked to pilot JewelLink company"
+    },
+    {
+      "name": "controlled applicant has a pilot application",
+      "pass": true,
+      "required": "Existing controlled applicant application in pilot company/store"
+    },
+    {
+      "name": "public application submission target is available",
+      "pass": true,
+      "required": "Published public store page and open public job for the pilot JewelHire store"
+    },
+    {
+      "name": "controlled hire application target is available",
+      "pass": true,
+      "required": "Pilot application for the controlled applicant with no existing hire sync and non-terminal stage"
+    },
+    {
+      "name": "controlled resume privacy application target is available",
+      "pass": true,
+      "required": "Pilot application for the controlled applicant with a private resume attachment"
+    }
+  ]
+}

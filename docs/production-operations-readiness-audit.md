@@ -66,10 +66,10 @@ JewelCert mis-sync, secret drift, migration drift, 5xx errors, scheduler
 failure, or provider delivery failure.
 
 For the current 2026-07-21 pilot state,
-`docs/production-operations-evidence.approval-template-2026-07-21.json` already
-contains the verified encrypted logical backup evidence and leaves only the
-named rollback owners, observation window, and rollback thresholds blank. Copy
-it to an ignored local approval path before filling approver-specific values.
+`docs/production-operations-evidence.approval-template-2026-07-21.json` contains
+the verified encrypted logical backup evidence, monitoring channel evidence,
+named rollback owners, approved observation window, and rollback thresholds.
+Keep approver-specific values non-secret.
 
 ```bash
 npm run qa:operations-readiness -- \
@@ -116,16 +116,14 @@ when required fields are missing. This does not change the GO criteria; it only
 reduces the chance of missing or pasting unsafe evidence fields while closing
 the backup and rollback gates.
 
-`docs/qa-runs/operations-readiness-2026-07-21T08-11-31-690Z/` confirms both
-Cloud Run rollback targets, external `pg.psdb.cloud` database hosts, enabled
-alert policies, readable and enabled attached notification channels, log
-metrics, the JewelLink JewelHire health scheduler, encrypted logical backup
-evidence for both production databases, and explicitly recorded monitoring
-channel IDs under the hardened placeholder-rejecting evidence gate. It still
-fails the GO gate only because the named rollback owners, approved observation
-window, and rollback thresholds are still unapproved. The same run generated
-`docs/qa-runs/operations-readiness-2026-07-21T08-11-31-690Z/operations-readiness-evidence-request.md`
-with the exact fields to fill before rerunning the audit.
+`docs/qa-runs/operations-readiness-2026-07-21T15-51-32-002Z/` passes. It
+confirms both Cloud Run rollback targets, JewelHire ready revision
+`jewelhire-00111-dup`, JewelLink ready revision `jewellink-dev-01156-vbn`,
+external `pg.psdb.cloud` database hosts, enabled alert policies, readable and
+enabled attached notification channels, log metrics, the JewelLink JewelHire
+health scheduler, encrypted logical backup evidence for both production
+databases, named rollback owners, the approved observation window, rollback
+thresholds, and `valuesPrinted: false`.
 
 ## Secret Handling
 

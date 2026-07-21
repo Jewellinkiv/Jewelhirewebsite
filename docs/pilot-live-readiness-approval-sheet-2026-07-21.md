@@ -8,10 +8,10 @@ authorize any production mutation.
 Execution goal packet:
 `docs/pilot-live-readiness-goal-2026-07-21.md`
 
-Use the goal packet as the sequenced tracker for the remaining operations,
-persona, application, smoke, and final manifest work. The validators still
-require the concrete PASS artifacts and non-secret approval references listed
-below before any gate changes to GO.
+Use the goal packet as the sequenced tracker for the remaining authenticated
+persona smoke, hire/JewelCert smoke, public/fail-closed smoke, and final
+manifest work. The validators still require the concrete PASS artifacts and
+non-secret approval references listed below before any gate changes to GO.
 
 ## Current closed evidence
 
@@ -35,7 +35,7 @@ below before any gate changes to GO.
   `docs/qa-runs/admin-allowlist-2026-07-21T09-00-14-975Z/`: 9 active
   JewelLink admin-role users, 0 missing, 0 extra, and 0 active non-admins.
 - JewelHire smoke credential prerequisites pass in
-  `docs/qa-runs/smoke-credential-auth-2026-07-21T09-00-14-956Z/`, including
+  `docs/qa-runs/smoke-credential-auth-2026-07-21T15-54-18-220Z/`, including
   store-owner native smoke, applicant native smoke, and JewelLink SSO
   admin-marker cleanup.
 - JewelHire production config, auth, role readiness, and Postmark safety pass
@@ -49,15 +49,14 @@ below before any gate changes to GO.
 ## Operations approval fields
 
 Latest audit:
-`docs/qa-runs/operations-readiness-2026-07-21T09-43-22-840Z/operations-readiness-report.md`
+`docs/qa-runs/operations-readiness-2026-07-21T15-51-32-002Z/operations-readiness-report.md`
 
 Fillable template:
 `docs/production-operations-evidence.approval-template-2026-07-21.json`
 
-To close operations readiness, record these six non-secret fields in the
-operations evidence file and rerun `qa:operations-readiness`. The current
-template already includes the closed encrypted-backup and monitoring-channel
-evidence, so the six rollback fields below are the remaining operation items:
+Operations readiness now passes. The current evidence file records the closed
+encrypted-backup and monitoring-channel evidence plus these non-secret rollback
+approval fields:
 
 | Field | Required approval |
 | --- | --- |
@@ -68,9 +67,11 @@ evidence, so the six rollback fields below are the remaining operation items:
 | `rollback.observationWindow` | Exact approved UTC start/end observation window |
 | `rollback.rollbackThresholds` | Approved immediate stop/rollback threshold summary |
 
-The proposed owner slots, 60-minute staffed window, and rollback thresholds are
-in `docs/pilot-rollback-window-proposal-2026-07-20.md`. They remain proposed
-only until a named approver accepts or revises them.
+The approved staffed observation window is `2026-07-21T16:00:00Z` through
+`2026-07-21T17:00:00Z`, extending until 30 quiet minutes after the last retry,
+warning, or manual correction. The latest operations audit records JewelHire
+ready revision `jewelhire-00111-dup`, JewelLink ready revision
+`jewellink-dev-01156-vbn`, and `valuesPrinted: false`.
 
 ## JewelLink migration drift evidence
 
@@ -128,8 +129,8 @@ The remaining authenticated smoke evidence packet is
 Fillable smoke plan preflight template:
 `docs/production-pilot-smoke-plan.template.json`
 
-Latest smoke plan request:
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T15-26-10-858Z/pilot-smoke-plan-request.md`
+Latest smoke plan report:
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T15-53-48-588Z/pilot-smoke-plan-report.md`
 
 Fillable smoke evidence template:
 `docs/production-pilot-smoke-evidence.template.json`
@@ -143,11 +144,9 @@ Latest final live-readiness request:
 Final live-readiness manifest template:
 `docs/production-pilot-live-readiness.template.json`
 
-Before running mutating live smokes, copy the smoke plan template to an ignored
-local path, fill the non-secret approval/persona/scope fields, and require
-`qa:pilot-smoke-plan` to pass. The plan preflight must confirm the controlled
-roster, rollback window approval, prerequisite PASS artifacts, and exact scope
-for:
+The smoke plan preflight now passes from a local ignored plan. It confirms the
+controlled roster, rollback window approval, prerequisite PASS artifacts, and
+exact scope for:
 
 - Director, Manager, Student, platform-admin, and allowlisted non-admin denial
   SSO evidence.
@@ -158,23 +157,19 @@ for:
 - Team-invite fail-closed and resume privacy evidence.
 
 Controlled smoke target finder:
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T09-43-22-860Z/pilot-smoke-targets-report.md`
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T15-52-45-780Z/pilot-smoke-targets-report.md`
 
-That read-only run confirms the controlled applicant smoke credential and
-linked pilot JewelHire store are ready. It also records the public application
-endpoint path `/api/public/stores/diamond-exchange-58deb73e/applications` and
-job ID `job-d389b48d-3bd4-463f-9151-4ff7ed947e8f` for the controlled
-application setup. The controlled applicant still has no pilot application yet.
-Before the smoke plan can pass, create or approve one controlled pilot-store
-application for that applicant with a private resume attachment, then rerun
-`qa:pilot-smoke-targets` and copy only the non-secret application IDs into the
-ignored smoke plan.
+That read-only run confirms the controlled applicant smoke credential, linked
+pilot JewelHire store, published public store page, open public job, and
+selected controlled application. The hire handoff and resume privacy target is
+`app-32dbfd01-3092-4190-9c15-cf43aa72ff46` in store
+`store-jl-58deb73ef9454405c4fe`.
 
 Guarded setup helper:
 `docs/production-pilot-controlled-application-submission.md`
 
-Latest guarded dry-run request:
-`docs/qa-runs/pilot-application-submission-2026-07-21T09-00-38-061Z/pilot-application-submission-request.md`
+Latest guarded execution report:
+`docs/qa-runs/pilot-application-submission-2026-07-21T15-52-39-694Z/pilot-application-submission-report.md`
 
 Consolidated approval bundle:
 `docs/qa-runs/pilot-approval-bundle-2026-07-21T09-44-46-590Z/pilot-approval-bundle.md`
@@ -196,12 +191,9 @@ writes local ignored drafts for operations readiness, controlled application
 approval, and the pilot smoke plan; the value-free report can be committed as
 evidence.
 
-Use `npm run qa:pilot-application-submission` first in dry-run mode. Execute
-mode must use a local ignored approval file that records the approver, approval
-channel, timestamp, `controlledPublicApplicationSubmissionApproved: true`,
-`liveEmailSendsAcknowledged: true`, `controlledApplicantMailboxApproved: true`,
-and a stable idempotency `submissionId`. That helper must not be executed until
-the controlled public application write is explicitly approved.
+The approved controlled application write has been executed once with a local
+ignored approval file, live-email acknowledgement, controlled mailbox approval,
+and stable idempotency `submissionId`.
 
 The team-invite and resume privacy rows now have a dedicated JewelHire-side
 producer:
@@ -219,23 +211,17 @@ fails closed when the session, store id, or resume application id is missing, an
 it skips invite/ownership-transfer mutation probes unless the store users API
 first confirms `teamInvitesEnabled: false`.
 
-The latest smoke-plan request includes the explicit live-email and JewelLink
-pilot rollout flag/config/repo/deploy approval fields already granted for this
-pilot. It still fails closed until the remaining request packet items are
-supplied: hire confirmation, JewelCert production mutation, authenticated
-public/fail-closed probe approval, rollback window approval, PASS operations
-and roster artifacts, Consultant source-policy acceptance metadata,
-paused-company deferral metadata, allowlisted non-admin source-test acceptance
-metadata, approved SSO persona matrix, controlled hire application alias, and
-resume application ID.
+The latest public/fail-closed attempt is
+`docs/qa-runs/public-fail-closed-smoke-2026-07-21T15-54-36-822Z/public-fail-closed-smoke-report.md`.
+It proves public resume access rejects with `401`, but the run fails because
+the available native smoke cookie authenticates to the dedicated smoke store,
+not the Diamond Exchange pilot store. Finish this row with a real authenticated
+Diamond Exchange pilot session, preferably from the JewelLink SSO Director or
+Manager path.
 
-The allowlisted non-admin denial row now has two auditable options in the smoke
-plan. Use a controlled production denial persona, or set
-`personas.allowlistedNonAdminDenialEvidence.strategy` to
-`source-test-plus-clean-allowlist` and provide PASS source-test and admin
-allowlist artifacts plus non-secret acceptance metadata. The second path avoids
-creating a temporary production non-admin solely for an allowlist-denial check,
-but it still requires explicit acceptance before `qa:pilot-smoke-plan` can pass.
+The allowlisted non-admin denial row is accepted in the passing smoke plan with
+the source-test plus clean-allowlist strategy. This avoids creating a temporary
+production non-admin solely for an allowlist-denial check.
 
 Current source-test path:
 `docs/qa-runs/allowlisted-nonadmin-denial-source-2026-07-21T06-02-00-000Z/allowlisted-nonadmin-denial-source-report.md`
@@ -243,7 +229,7 @@ Current source-test path:
 Current clean allowlist path:
 `docs/qa-runs/admin-allowlist-2026-07-21T09-00-14-975Z/admin-allowlist-report.md`
 
-Required acceptance fields if using the source-test plus clean-allowlist path:
+Accepted source-test plus clean-allowlist fields:
 
 | Field | Required approval |
 | --- | --- |
