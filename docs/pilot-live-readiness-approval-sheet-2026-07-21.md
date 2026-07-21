@@ -106,7 +106,7 @@ Fillable smoke plan preflight template:
 `docs/production-pilot-smoke-plan.template.json`
 
 Latest smoke plan request:
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T05-12-11-000Z/pilot-smoke-plan-request.md`
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T06-02-30-000Z/pilot-smoke-plan-request.md`
 
 Fillable smoke evidence template:
 `docs/production-pilot-smoke-evidence.template.json`
@@ -173,13 +173,13 @@ first confirms `teamInvitesEnabled: false`.
 
 The latest smoke-plan preflight records the explicit live-email approval and
 JewelLink pilot rollout flag/config/repo/deploy movement approval already
-granted for this pilot. It still fails closed until the remaining request
-packet items are supplied: controlled production user/persona creation, hire
-confirmation, JewelCert production mutation, authenticated public/fail-closed
-probe approval, rollback window approval, PASS operations and roster artifacts,
-Consultant-denial / allowlisted-non-admin / paused-company aliases, approved
-SSO persona matrix, controlled hire application alias, and resume application
-ID.
+granted for this pilot. It now passes 44/59 checks and still fails closed until
+the remaining request packet items are supplied: controlled production
+user/persona creation, hire confirmation, JewelCert production mutation,
+authenticated public/fail-closed probe approval, rollback window approval, PASS
+operations and roster artifacts, Consultant-denial and paused-company aliases,
+allowlisted non-admin source-test acceptance metadata, approved SSO persona
+matrix, controlled hire application alias, and resume application ID.
 
 The allowlisted non-admin denial row now has two auditable options in the smoke
 plan. Use a controlled production denial persona, or set
@@ -188,6 +188,20 @@ plan. Use a controlled production denial persona, or set
 allowlist artifacts plus non-secret acceptance metadata. The second path avoids
 creating a temporary production non-admin solely for an allowlist-denial check,
 but it still requires explicit acceptance before `qa:pilot-smoke-plan` can pass.
+
+Current source-test path:
+`docs/qa-runs/allowlisted-nonadmin-denial-source-2026-07-21T06-02-00-000Z/allowlisted-nonadmin-denial-source-report.md`
+
+Current clean allowlist path:
+`docs/qa-runs/admin-allowlist-2026-07-21T05-44-30-000Z/admin-allowlist-report.md`
+
+Required acceptance fields if using the source-test plus clean-allowlist path:
+
+| Field | Required approval |
+| --- | --- |
+| `personas.allowlistedNonAdminDenialEvidence.acceptedBy` | Named approver accepting source-test plus clean-allowlist evidence instead of a temporary production non-admin denial persona |
+| `personas.allowlistedNonAdminDenialEvidence.acceptanceChannel` | Approval channel, ticket, or decision record |
+| `personas.allowlistedNonAdminDenialEvidence.acceptedAt` | ISO-like UTC acceptance timestamp |
 
 After every individual request packet is closed and the go/no-go dossier is
 moved to GO, copy `docs/production-pilot-live-readiness.template.json` to an
@@ -210,6 +224,7 @@ place:
 ```bash
 npm run qa:operations-readiness -- --operations-evidence-file=docs/production-operations-evidence.approval-template-2026-07-21.json
 npm run qa:pilot-roster
+npm run qa:allowlisted-nonadmin-denial-source
 npm run qa:pilot-smoke-targets
 npm run qa:pilot-application-submission -- --target-report=<pilot-smoke-targets-report.json>
 npm run qa:pilot-smoke-plan -- --smoke-plan-file=.qa_tmp/production-pilot-smoke-plan.json

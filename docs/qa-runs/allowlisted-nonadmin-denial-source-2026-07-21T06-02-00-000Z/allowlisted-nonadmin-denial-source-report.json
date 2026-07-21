@@ -1,0 +1,262 @@
+{
+  "createdAt": "2026-07-21T05:59:27.591Z",
+  "result": "PASS",
+  "pass": true,
+  "valuesPrinted": false,
+  "mode": "source-only",
+  "productionMutation": false,
+  "liveEmail": false,
+  "sourceFiles": [
+    "lib/server/jewellink-sso.ts",
+    "lib/server/jewellink-sso-contract.ts"
+  ],
+  "checks": [
+    {
+      "name": "Platform-admin status is derived from both upstream admin role and JewelHire allowlist",
+      "pass": true
+    },
+    {
+      "name": "Allowlisted non-admin identities are blocked before provisioning",
+      "pass": true
+    },
+    {
+      "name": "Platform admins are provisioned without projecting an upstream company as tenant membership",
+      "pass": true
+    },
+    {
+      "name": "Only exact ADMIN and SUPER_ADMIN upstream roles are platform-admin roles",
+      "pass": true
+    },
+    {
+      "name": "Consultant and unknown role variants are denied by the exact role contract",
+      "pass": true
+    },
+    {
+      "name": "Allowlisted DIRECTOR remains a company role and cannot become platform admin",
+      "pass": true,
+      "role": "DIRECTOR",
+      "allowlisted": true,
+      "expectedFinalAllowed": false,
+      "actualFinalAllowed": false
+    },
+    {
+      "name": "Allowlisted MANAGER remains a company role and cannot become platform admin",
+      "pass": true,
+      "role": "MANAGER",
+      "allowlisted": true,
+      "expectedFinalAllowed": false,
+      "actualFinalAllowed": false
+    },
+    {
+      "name": "Allowlisted STUDENT remains an applicant role and cannot become platform admin",
+      "pass": true,
+      "role": "STUDENT",
+      "allowlisted": true,
+      "expectedFinalAllowed": false,
+      "actualFinalAllowed": false
+    },
+    {
+      "name": "Allowlisted CONSULTANT is denied entirely",
+      "pass": true,
+      "role": "CONSULTANT",
+      "allowlisted": true,
+      "expectedFinalAllowed": false,
+      "actualFinalAllowed": false
+    },
+    {
+      "name": "Allowlisted ADMIN can become platform admin after MFA-backed JewelLink SSO",
+      "pass": true,
+      "role": "ADMIN",
+      "allowlisted": true,
+      "expectedFinalAllowed": true,
+      "actualFinalAllowed": true
+    },
+    {
+      "name": "Allowlisted SUPER_ADMIN can become platform admin after MFA-backed JewelLink SSO",
+      "pass": true,
+      "role": "SUPER_ADMIN",
+      "allowlisted": true,
+      "expectedFinalAllowed": true,
+      "actualFinalAllowed": true
+    },
+    {
+      "name": "Non-allowlisted ADMIN cannot become platform admin",
+      "pass": true,
+      "role": "ADMIN",
+      "allowlisted": false,
+      "expectedFinalAllowed": false,
+      "actualFinalAllowed": false
+    }
+  ],
+  "cases": [
+    {
+      "id": "allowlisted-director-denied",
+      "description": "Allowlisted DIRECTOR remains a company role and cannot become platform admin",
+      "input": {
+        "role": "DIRECTOR",
+        "allowlisted": true,
+        "company": {
+          "id": "fixture-company-alpha",
+          "name": "Fixture Company Alpha"
+        }
+      },
+      "expectedFinalAllowed": false,
+      "result": {
+        "role": "DIRECTOR",
+        "allowlisted": true,
+        "companyPresent": true,
+        "platformAdminRole": false,
+        "isPlatformAdmin": false,
+        "contractAllows": true,
+        "allowlistGuardBlocks": true,
+        "finalAllowed": false
+      },
+      "pass": true
+    },
+    {
+      "id": "allowlisted-manager-denied",
+      "description": "Allowlisted MANAGER remains a company role and cannot become platform admin",
+      "input": {
+        "role": "MANAGER",
+        "allowlisted": true,
+        "company": {
+          "id": "fixture-company-alpha",
+          "name": "Fixture Company Alpha"
+        }
+      },
+      "expectedFinalAllowed": false,
+      "result": {
+        "role": "MANAGER",
+        "allowlisted": true,
+        "companyPresent": true,
+        "platformAdminRole": false,
+        "isPlatformAdmin": false,
+        "contractAllows": true,
+        "allowlistGuardBlocks": true,
+        "finalAllowed": false
+      },
+      "pass": true
+    },
+    {
+      "id": "allowlisted-student-denied",
+      "description": "Allowlisted STUDENT remains an applicant role and cannot become platform admin",
+      "input": {
+        "role": "STUDENT",
+        "allowlisted": true,
+        "company": {
+          "id": "fixture-company-alpha",
+          "name": "Fixture Company Alpha"
+        }
+      },
+      "expectedFinalAllowed": false,
+      "result": {
+        "role": "STUDENT",
+        "allowlisted": true,
+        "companyPresent": true,
+        "platformAdminRole": false,
+        "isPlatformAdmin": false,
+        "contractAllows": true,
+        "allowlistGuardBlocks": true,
+        "finalAllowed": false
+      },
+      "pass": true
+    },
+    {
+      "id": "allowlisted-consultant-denied",
+      "description": "Allowlisted CONSULTANT is denied entirely",
+      "input": {
+        "role": "CONSULTANT",
+        "allowlisted": true,
+        "company": {
+          "id": "fixture-company-alpha",
+          "name": "Fixture Company Alpha"
+        }
+      },
+      "expectedFinalAllowed": false,
+      "result": {
+        "role": "CONSULTANT",
+        "allowlisted": true,
+        "companyPresent": true,
+        "platformAdminRole": false,
+        "isPlatformAdmin": false,
+        "contractAllows": false,
+        "allowlistGuardBlocks": true,
+        "finalAllowed": false
+      },
+      "pass": true
+    },
+    {
+      "id": "allowlisted-admin-allowed",
+      "description": "Allowlisted ADMIN can become platform admin after MFA-backed JewelLink SSO",
+      "input": {
+        "role": "ADMIN",
+        "allowlisted": true,
+        "company": {
+          "id": "fixture-company-alpha",
+          "name": "Fixture Company Alpha"
+        }
+      },
+      "expectedFinalAllowed": true,
+      "result": {
+        "role": "ADMIN",
+        "allowlisted": true,
+        "companyPresent": true,
+        "platformAdminRole": true,
+        "isPlatformAdmin": true,
+        "contractAllows": true,
+        "allowlistGuardBlocks": false,
+        "finalAllowed": true
+      },
+      "pass": true
+    },
+    {
+      "id": "allowlisted-super-admin-allowed",
+      "description": "Allowlisted SUPER_ADMIN can become platform admin after MFA-backed JewelLink SSO",
+      "input": {
+        "role": "SUPER_ADMIN",
+        "allowlisted": true,
+        "company": {
+          "id": "fixture-company-alpha",
+          "name": "Fixture Company Alpha"
+        }
+      },
+      "expectedFinalAllowed": true,
+      "result": {
+        "role": "SUPER_ADMIN",
+        "allowlisted": true,
+        "companyPresent": true,
+        "platformAdminRole": true,
+        "isPlatformAdmin": true,
+        "contractAllows": true,
+        "allowlistGuardBlocks": false,
+        "finalAllowed": true
+      },
+      "pass": true
+    },
+    {
+      "id": "nonallowlisted-admin-denied",
+      "description": "Non-allowlisted ADMIN cannot become platform admin",
+      "input": {
+        "role": "ADMIN",
+        "allowlisted": false,
+        "company": {
+          "id": "fixture-company-alpha",
+          "name": "Fixture Company Alpha"
+        }
+      },
+      "expectedFinalAllowed": false,
+      "result": {
+        "role": "ADMIN",
+        "allowlisted": false,
+        "companyPresent": true,
+        "platformAdminRole": true,
+        "isPlatformAdmin": false,
+        "contractAllows": false,
+        "allowlistGuardBlocks": false,
+        "finalAllowed": false
+      },
+      "pass": true
+    }
+  ],
+  "smokePlanUse": "Use this report as personas.allowlistedNonAdminDenialEvidence.sourceTestReport only with a current PASS admin-allowlist report and explicit source-test-plus-clean-allowlist acceptance metadata."
+}

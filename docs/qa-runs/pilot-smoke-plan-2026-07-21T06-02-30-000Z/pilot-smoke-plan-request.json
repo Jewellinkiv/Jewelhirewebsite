@@ -1,0 +1,163 @@
+{
+  "createdAt": "2026-07-21T05:59:49.355Z",
+  "valuesPrinted": false,
+  "status": "needed",
+  "instructions": "Fill this non-secret pilot smoke plan only after approvals and prerequisite PASS artifacts exist, then rerun qa:pilot-smoke-plan with --smoke-plan-file=<path>.",
+  "verificationCommand": "npm run qa:pilot-smoke-plan -- --smoke-plan-file=<path>",
+  "missingFields": [
+    {
+      "check": "Controlled production user/persona creation is explicitly approved",
+      "path": "approvals.productionUserCreationApproved",
+      "required": "true"
+    },
+    {
+      "check": "Controlled hire confirmation/revocation smoke is explicitly approved",
+      "path": "approvals.hireConfirmationApproved",
+      "required": "true"
+    },
+    {
+      "check": "Controlled JewelCert invite/completion/result smoke is explicitly approved",
+      "path": "approvals.jewelCertProductionMutationApproved",
+      "required": "true"
+    },
+    {
+      "check": "Authenticated public/fail-closed probes are explicitly approved",
+      "path": "approvals.publicFailClosedProbeApproved",
+      "required": "true"
+    },
+    {
+      "check": "Rollback owner/window/threshold evidence is explicitly approved",
+      "path": "approvals.rollbackWindowApproved",
+      "required": "true"
+    },
+    {
+      "check": "Operations readiness report is a concrete PASS artifact",
+      "path": "prerequisites.operationsReadinessReport",
+      "required": "Existing PASS docs/qa-runs operations-readiness report with rollback owner/window evidence closed"
+    },
+    {
+      "check": "Pilot roster report is a concrete PASS artifact",
+      "path": "prerequisites.pilotRosterReport",
+      "required": "Existing PASS docs/qa-runs pilot-roster report with all SSO personas ready"
+    },
+    {
+      "check": "Consultant-denial SSO persona alias is recorded",
+      "path": "personas.consultantDenialAlias",
+      "required": "Non-secret value"
+    },
+    {
+      "check": "Paused-company denial persona alias is recorded",
+      "path": "personas.pausedCompanyDenialAlias",
+      "required": "Non-secret value"
+    },
+    {
+      "check": "Allowlisted non-admin source-test acceptance approver is recorded",
+      "path": "personas.allowlistedNonAdminDenialEvidence.acceptedBy",
+      "required": "Non-secret value"
+    },
+    {
+      "check": "Allowlisted non-admin source-test acceptance channel is recorded",
+      "path": "personas.allowlistedNonAdminDenialEvidence.acceptanceChannel",
+      "required": "Non-secret value"
+    },
+    {
+      "check": "Allowlisted non-admin source-test acceptance timestamp is ISO-like UTC",
+      "path": "personas.allowlistedNonAdminDenialEvidence.acceptedAt",
+      "required": "ISO-like UTC timestamp"
+    },
+    {
+      "check": "Authenticated SSO persona matrix is approved",
+      "path": "scopes.authenticatedSso.approvedPersonaMatrix",
+      "required": "true"
+    },
+    {
+      "check": "Hire handoff controlled application alias is recorded",
+      "path": "scopes.hireHandoff.applicationAlias",
+      "required": "Non-secret value"
+    },
+    {
+      "check": "Public/fail-closed resume application ID is recorded",
+      "path": "scopes.publicFailClosed.resumeApplicationId",
+      "required": "Non-secret value"
+    }
+  ],
+  "plan": {
+    "approvals": {
+      "approver": "",
+      "approvalChannel": "",
+      "approvedAt": "",
+      "scopeStatement": "",
+      "liveEmailSendsAcknowledged": false,
+      "jewelLinkPilotFlagMovementApproved": false,
+      "productionUserCreationApproved": false,
+      "hireConfirmationApproved": false,
+      "jewelCertProductionMutationApproved": false,
+      "publicFailClosedProbeApproved": false,
+      "rollbackWindowApproved": false
+    },
+    "prerequisites": {
+      "operationsReadinessReport": "",
+      "pilotRosterReport": "",
+      "integrationSmokePreflightReport": "",
+      "smokeCredentialAuthReport": ""
+    },
+    "personas": {
+      "directorAlias": "",
+      "managerAlias": "",
+      "studentAlias": "",
+      "consultantDenialAlias": "",
+      "platformAdminAlias": "",
+      "allowlistedNonAdminDenialAlias": "",
+      "allowlistedNonAdminDenialEvidence": {
+        "strategy": "",
+        "sourceTestReport": "",
+        "cleanAllowlistReport": "",
+        "acceptedBy": "",
+        "acceptanceChannel": "",
+        "acceptedAt": ""
+      },
+      "pausedCompanyDenialAlias": ""
+    },
+    "scopes": {
+      "authenticatedSso": {
+        "enabled": true,
+        "operatorAlias": "",
+        "approvedPersonaMatrix": false,
+        "nonPilotDataAvoidance": false
+      },
+      "hireHandoff": {
+        "enabled": true,
+        "applicationAlias": "",
+        "controlledMailboxAlias": "",
+        "targetCompanyId": "comp_1",
+        "previewBeforeConfirm": false,
+        "repeatConfirmIdempotencyCheck": false,
+        "revokeOrCancelCheck": false
+      },
+      "jewelCert": {
+        "enabled": true,
+        "inviteSourceAlias": "",
+        "controlledMailboxAlias": "",
+        "resultSyncTarget": "comp_1",
+        "retryFailureMode": "",
+        "liveEmailExpected": false
+      },
+      "publicFailClosed": {
+        "enabled": true,
+        "storeId": "",
+        "expectedStoreId": "",
+        "resumeApplicationId": "",
+        "cookieFileLocalIgnored": false,
+        "teamInvitesDisabledPrecheckRequired": false
+      }
+    },
+    "stopConditions": [
+      "Cross-store or cross-company data exposure",
+      "Unexpected role elevation or Consultant access",
+      "Duplicate hire provisioning or wrong JewelLink user link",
+      "JewelCert result sync to the wrong store/company/user",
+      "Email/provider delivery to an unintended recipient",
+      "Any evidence artifact prints a secret, token, cookie, password, database URL, or customer data"
+    ]
+  }
+}

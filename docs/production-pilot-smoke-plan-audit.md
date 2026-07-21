@@ -48,22 +48,25 @@ approval file described in
 
 ## Latest Production Result
 
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T04-11-01-000Z/` records the
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T06-02-30-000Z/` records the
 operator-approved live-email and JewelLink pilot-flag movement scope in an
 ignored local smoke plan while leaving unapproved production mutations closed.
-It records 53 checks, 40 passing checks, 13 missing or invalid checks, and
+It records 59 checks, 44 passing checks, 15 missing or invalid checks, and
 writes
-`docs/qa-runs/pilot-smoke-plan-2026-07-21T04-11-01-000Z/pilot-smoke-plan-request.md`.
+`docs/qa-runs/pilot-smoke-plan-2026-07-21T06-02-30-000Z/pilot-smoke-plan-request.md`.
 
-The current audit has since been tightened so a non-production allowlisted
-non-admin denial strategy must record source-test and clean-allowlist PASS
-artifacts plus an explicit acceptance record before the smoke plan can pass.
+The current source-test artifact
+`docs/qa-runs/allowlisted-nonadmin-denial-source-2026-07-21T06-02-00-000Z/allowlisted-nonadmin-denial-source-report.md`
+passes, and the clean allowlist artifact
+`docs/qa-runs/admin-allowlist-2026-07-21T05-44-30-000Z/admin-allowlist-report.md`
+passes. The smoke plan still requires an explicit acceptance record before the
+source-test plus clean-allowlist strategy can count as GO evidence.
 
 The gate remains a live-pilot NO-GO item until this audit passes, then the
 resulting report can be referenced by the pilot smoke evidence packet.
 
 The latest target-finder run
-`docs/qa-runs/pilot-smoke-targets-2026-07-21T04-36-00-000Z/` confirms the
+`docs/qa-runs/pilot-smoke-targets-2026-07-21T05-51-00-000Z/` confirms the
 controlled applicant credential, pilot store, published public store page, and
 open public job are available, but no controlled pilot application exists yet.
 Create or approve that controlled application with a private resume attachment
@@ -92,5 +95,6 @@ Fixture coverage runs without production access:
 
 ```bash
 node --test scripts/production-pilot-controlled-application-submission.test.mjs
+node --test scripts/production-allowlisted-nonadmin-denial-source-audit.test.mjs
 node --test scripts/production-pilot-smoke-plan-audit.test.mjs
 ```
