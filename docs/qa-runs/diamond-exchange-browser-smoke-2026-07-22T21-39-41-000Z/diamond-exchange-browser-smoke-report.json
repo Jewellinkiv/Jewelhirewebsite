@@ -1,0 +1,84 @@
+{
+  "createdAt": "2026-07-22T21:39:41Z",
+  "result": "pass",
+  "pass": true,
+  "valuesPrinted": false,
+  "base": "https://app.jewelhire.com",
+  "launchSource": "https://ai.jewellink.com/crm/homepage",
+  "pilotStoreId": "store-jl-58deb73ef9454405c4fe",
+  "controlledApplicationId": "app-32dbfd01-3092-4190-9c15-cf43aa72ff46",
+  "browserSession": {
+    "browser": "Chrome",
+    "source": "JewelLink Open JewelHire launch",
+    "cookiesCaptured": false,
+    "screenshotsCaptured": false
+  },
+  "checks": [
+    {
+      "name": "Director JewelLink session exposed Open JewelHire launch",
+      "pass": true
+    },
+    {
+      "name": "JewelHire landed on Diamond Exchange with all-location scope",
+      "pass": true
+    },
+    {
+      "name": "Store-owner surfaces rendered for the session",
+      "pass": true
+    },
+    {
+      "name": "Controlled application detail opened without downloading resume contents",
+      "pass": true
+    },
+    {
+      "name": "Hire preview rendered expected controlled target",
+      "pass": true
+    },
+    {
+      "name": "Hire confirmation rendered Added to JewelLink success state",
+      "pass": true
+    },
+    {
+      "name": "Post-confirm read-only audit observed hired stage with synced JewelLink hire handoff",
+      "pass": true
+    },
+    {
+      "name": "Resume endpoint rejected unauthenticated public access",
+      "pass": true,
+      "status": 401,
+      "errorCode": "unauthenticated"
+    },
+    {
+      "name": "Settings rendered team onboarding paused UI",
+      "pass": true
+    }
+  ],
+  "closedEvidenceRows": [
+    "authenticatedSso.director",
+    "hireHandoff.previewHire",
+    "hireHandoff.confirmHire"
+  ],
+  "notClosedRows": [
+    "authenticatedSso.manager",
+    "authenticatedSso.student",
+    "authenticatedSso.platformAdmin",
+    "hireHandoff.repeatConfirm",
+    "hireHandoff.revokedCancelledAccess",
+    "jewelCert.inviteFromJewelLink",
+    "jewelCert.completeResult",
+    "jewelCert.syncToJewelLink",
+    "jewelCert.retryPath",
+    "publicFailClosed.teamInvites",
+    "publicFailClosed.resumePrivacy"
+  ],
+  "sideEffects": {
+    "controlledHireConfirmed": true,
+    "resumeDownloaded": false,
+    "teamInviteCreated": false,
+    "ownershipTransferred": false,
+    "jewellinkCodePushed": false,
+    "deployStarted": false,
+    "trafficMoved": false,
+    "databaseMigrationRun": false
+  }
+}
