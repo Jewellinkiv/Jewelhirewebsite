@@ -9,6 +9,8 @@ const migration = fs.readFileSync(new URL("../db/migrations/0015_jewellink_jewel
 const proxy = fs.readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
 const healthRoute = fs.readFileSync(new URL("../app/api/stores/[storeId]/integrations/jewellink/health/route.ts", import.meta.url), "utf8");
 const healthPanel = fs.readFileSync(new URL("../components/JewelLinkIntegrationHealth.tsx", import.meta.url), "utf8");
+const claimPostgresTest = fs.readFileSync(new URL("../scripts/jewelcert-claim-postgres.test.mjs", import.meta.url), "utf8");
+const deployWorkflow = fs.readFileSync(new URL("../.github/workflows/deploy.yml", import.meta.url), "utf8");
 let failures = 0;
 
 function check(name, pass) {
@@ -28,6 +30,8 @@ check("bearer-authenticated integration routes bypass cookie middleware", proxy.
 check("integration health and retries are store-owner operations", healthRoute.includes('"integrations.jewellink.health"') && healthRoute.includes('"integrations.jewellink.retry"'));
 check("retry IDs are verified against the requested store", healthRoute.includes("issueStoreId !== storeId") && healthRoute.includes("getPostgresJewelCertResultSyncStoreId"));
 check("JewelCert retries record pending before delivery", integration.includes("result_sync_status = 'pending'") && integration.includes("result_sync_status = 'failed'"));
+check("JewelCert result sync has PostgreSQL behavior coverage", claimPostgresTest.includes("syncPostgresJewelCertResultToJewelLink") && claimPostgresTest.includes("gemmatch-sync-failed") && claimPostgresTest.includes("gemmatch-sync-retry") && claimPostgresTest.includes("not_linked"));
+check("deploy runs JewelCert PostgreSQL behavior coverage", deployWorkflow.includes("npm run test:jewelcert-claim-postgres"));
 check("owner settings expose integration issues and retry controls", healthPanel.includes("pending or failed") && healthPanel.includes("Retry") && healthPanel.includes("configuration.configured"));
 
 process.exitCode = failures ? 1 : 0;

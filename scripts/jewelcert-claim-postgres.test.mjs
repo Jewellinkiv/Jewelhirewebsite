@@ -59,6 +59,20 @@ async function withTimeout(promise, milliseconds, message) {
   }
 }
 
+async function withMockedFetch(handler, callback) {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url, init });
+    return handler(url, init, calls);
+  };
+  try {
+    return await callback(calls);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 async function migrateDatabase() {
   const client = new Client({ connectionString: testUrl.toString(), ssl: false });
   await client.connect();
@@ -117,6 +131,8 @@ async function seedInvite({
   applicationSource = "public_store_page",
   externalRequestId = null,
   externalUserId = null,
+  externalCompanyId = null,
+  externalLocationId = null,
 }) {
   await pool.query(
     `insert into applicant_profiles (
@@ -133,12 +149,71 @@ async function seedInvite({
   await pool.query(
     `insert into jewelcert_invites (
        id, application_id, store_id, sent_to_email, status, expires_at, sent_at,
-       external_request_id, external_user_id, claim_token_version
-     ) values ($1, $2, 'claim-store', $3, $4, $5, now(), $6, $7, 2)`,
-    [id, applicationId, email, status, expiresAt, externalRequestId, externalUserId],
+       external_request_id, external_user_id, external_company_id, external_location_id,
+       claim_token_version
+     ) values ($1, $2, 'claim-store', $3, $4, $5, now(), $6, $7, $8, $9, 2)`,
+    [
+      id,
+      applicationId,
+      email,
+      status,
+      expiresAt,
+      externalRequestId,
+      externalUserId,
+      externalCompanyId,
+      externalLocationId,
+    ],
   );
   inviteRecipients.set(id, email.trim().toLowerCase());
   return { profileId, applicationId };
+}
+
+async function seedCompletedGemMatchResult({
+  id,
+  email,
+  external = true,
+  resultSyncStatus = null,
+  resultSyncError = null,
+}) {
+  const jewelCertInviteId = `jewelcert-${id}`;
+  const externalUserId = external ? `jl-${id}-user` : null;
+  const seeded = await seedInvite({
+    id: jewelCertInviteId,
+    email,
+    applicationSource: external ? "jewellink_employee" : "public_store_page",
+    externalRequestId: external ? `${id}-request` : null,
+    externalUserId,
+    externalCompanyId: external ? "jl-claim-company" : null,
+    externalLocationId: external ? "jl-claim-location" : null,
+  });
+  const resultMix = { V: 7, C: 2, F: 1, D: 0 };
+  await pool.query(
+    `insert into gemmatch_invites (
+       id, application_id, store_id, sent_by_user_id, status,
+       result_profile_code, result_mix, fit_score, fit_rating, completed_at,
+       result_sync_status, result_sync_error
+     ) values (
+       $1, $2, 'claim-store', null, 'completed',
+       'V', $3::jsonb, 92, 'Strong', now(),
+       $4, $5
+     )`,
+    [id, seeded.applicationId, JSON.stringify(resultMix), resultSyncStatus, resultSyncError],
+  );
+  return {
+    gemMatchInviteId: id,
+    jewelCertInviteId,
+    applicationId: seeded.applicationId,
+    externalUserId,
+    resultMix,
+  };
+}
+
+async function gemMatchSyncState(inviteId) {
+  const result = await pool.query(
+    "select result_sync_status, result_sync_error from gemmatch_invites where id = $1",
+    [inviteId],
+  );
+  return result.rows[0];
 }
 
 async function countForEmail(email) {
@@ -192,6 +267,7 @@ async function main() {
   process.env.JEWELHIRE_REQUIRE_AUTH = "1";
   process.env.AUTH_SECRET = "jewelcert-claim-test-auth-secret-at-least-32-bytes";
   process.env.JEWELLINK_INTEGRATION_SHARED_SECRET = "jewelcert-integration-test-secret";
+  process.env.JEWELLINK_URL = "https://jewellink.example.test";
   process.env.EMAIL_NOTIFICATIONS_ENABLED = "false";
   delete process.env.JEWELHIRE_ADMIN_EMAILS;
   delete process.env.AUTH_ADMIN_EMAILS;
@@ -203,6 +279,7 @@ async function main() {
   const postgresPhase1 = await import("../lib/server/postgres-phase1.ts");
   const inviteClaim = await import("../lib/server/invite-claim.ts");
   const integrationRoute = await import("../app/api/integrations/jewellink/jewelcert/invites/route.ts");
+  const jewelLinkIntegration = await import("../lib/server/jewellink-integration.ts");
   const jewelLinkSso = await import("../lib/server/jewellink-sso.ts");
   const ssoContract = await import("../lib/server/jewellink-sso-contract.ts");
   const previewRoute = await import("../app/api/auth/jewelcert-claim/preview/route.ts");
@@ -729,6 +806,113 @@ async function main() {
     { users: 0, credentials: 0, consents: 0 },
   );
   console.log("PASS trusted JewelLink application origin alone prevents native account creation");
+
+  const notLinkedResult = await seedCompletedGemMatchResult({
+    id: "gemmatch-sync-not-linked",
+    email: "sync-not-linked@example.test",
+    external: false,
+  });
+  let notLinkedFetchCalls = 0;
+  await withMockedFetch(async () => {
+    notLinkedFetchCalls += 1;
+    throw new Error("not-linked result should not be delivered");
+  }, async () => {
+    assert.deepEqual(
+      await jewelLinkIntegration.syncPostgresJewelCertResultToJewelLink(notLinkedResult.gemMatchInviteId),
+      { status: "not_linked" },
+    );
+  });
+  assert.equal(notLinkedFetchCalls, 0);
+  assert.deepEqual(await gemMatchSyncState(notLinkedResult.gemMatchInviteId), {
+    result_sync_status: null,
+    result_sync_error: null,
+  });
+
+  const failedResult = await seedCompletedGemMatchResult({
+    id: "gemmatch-sync-failed",
+    email: "sync-failed@example.test",
+  });
+  await withMockedFetch(async (url, init) => {
+    assert.equal(String(url), "https://jewellink.example.test/api/integrations/jewelhire/jewelcert/results");
+    assert.equal(init.method, "POST");
+    assert.equal(new Headers(init.headers).get("authorization"), "Bearer jewelcert-integration-test-secret");
+    const pendingState = await gemMatchSyncState(failedResult.gemMatchInviteId);
+    assert.deepEqual(pendingState, {
+      result_sync_status: "pending",
+      result_sync_error: null,
+    });
+    return new Response(JSON.stringify({ error: "temporary failure" }), { status: 503 });
+  }, async (calls) => {
+    assert.deepEqual(
+      await jewelLinkIntegration.syncPostgresJewelCertResultToJewelLink(failedResult.gemMatchInviteId),
+      { status: "failed" },
+    );
+    assert.equal(calls.length, 1);
+  });
+  assert.deepEqual(await gemMatchSyncState(failedResult.gemMatchInviteId), {
+    result_sync_status: "failed",
+    result_sync_error: "jewellink_result_delivery_failed",
+  });
+
+  const retryResult = await seedCompletedGemMatchResult({
+    id: "gemmatch-sync-retry",
+    email: "sync-retry@example.test",
+    resultSyncStatus: "failed",
+    resultSyncError: "prior_failure",
+  });
+  await withMockedFetch(async (url, init) => {
+    assert.equal(String(url), "https://jewellink.example.test/api/integrations/jewelhire/jewelcert/results");
+    assert.equal(new Headers(init.headers).get("content-type"), "application/json");
+    const pendingState = await gemMatchSyncState(retryResult.gemMatchInviteId);
+    assert.deepEqual(pendingState, {
+      result_sync_status: "pending",
+      result_sync_error: null,
+    });
+    const payload = JSON.parse(String(init.body));
+    assert.deepEqual(payload, {
+      idempotencyKey: retryResult.gemMatchInviteId,
+      userId: retryResult.externalUserId,
+      companyId: "jl-claim-company",
+      locationId: "jl-claim-location",
+      primaryProfile: "V",
+      mix: retryResult.resultMix,
+      fitScore: 92,
+      fitRating: "Strong",
+      completedAt: payload.completedAt,
+    });
+    assert.match(payload.completedAt, /^\d{4}-\d{2}-\d{2}/);
+    return new Response(null, { status: 204 });
+  }, async (calls) => {
+    assert.deepEqual(
+      await jewelLinkIntegration.syncPostgresJewelCertResultToJewelLink(retryResult.gemMatchInviteId),
+      { status: "synced" },
+    );
+    assert.equal(calls.length, 1);
+  });
+  assert.deepEqual(await gemMatchSyncState(retryResult.gemMatchInviteId), {
+    result_sync_status: "synced",
+    result_sync_error: null,
+  });
+  assert.equal(
+    await jewelLinkIntegration.getPostgresJewelCertResultSyncStoreId(retryResult.gemMatchInviteId),
+    "claim-store",
+  );
+  const integrationIssues = await jewelLinkIntegration.listPostgresJewelLinkIntegrationIssues("claim-store");
+  assert.ok(integrationIssues.some((issue) =>
+    issue.kind === "jewelcert_result"
+    && issue.id === failedResult.gemMatchInviteId
+    && issue.status === "failed"
+    && issue.errorMessage === "jewellink_result_delivery_failed"
+  ));
+  assert.equal(
+    integrationIssues.some((issue) => issue.id === retryResult.gemMatchInviteId),
+    false,
+  );
+  assert.equal(
+    integrationIssues.some((issue) => issue.id === notLinkedResult.gemMatchInviteId),
+    false,
+  );
+  console.log("PASS JewelCert result sync records pending before delivery, persists failures, retries to synced, and lists only unresolved linked results");
 
   const lockRaceRequestId = "claim-lock-race-request";
   const lockRaceExternalUserId = "jl-claim-lock-race-user";

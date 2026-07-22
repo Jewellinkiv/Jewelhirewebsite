@@ -142,8 +142,35 @@ function artifactPath(value) {
   return String(value || "").trim();
 }
 
+function resolvedArtifactPath(value) {
+  const artifact = artifactPath(value);
+  if (
+    !artifact
+    || path.isAbsolute(artifact)
+    || /[\0\s|`]/.test(artifact)
+  ) {
+    return "";
+  }
+  const parts = artifact.split(/[\\/]+/);
+  if (
+    parts.length < 4
+    || parts[0] !== "docs"
+    || parts[1] !== "qa-runs"
+    || parts.some((part) => !part || part === "." || part === "..")
+  ) {
+    return "";
+  }
+  const qaRunsRoot = path.resolve(process.cwd(), "docs/qa-runs");
+  const fullPath = path.resolve(process.cwd(), ...parts);
+  const relative = path.relative(qaRunsRoot, fullPath);
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    return "";
+  }
+  return fullPath;
+}
+
 function artifactIsQaRun(value) {
-  return /^docs\/qa-runs\/[^/\s]+\/[^|\s`]+/.test(artifactPath(value));
+  return Boolean(resolvedArtifactPath(value));
 }
 
 function artifactIsSafe(value) {
@@ -152,14 +179,14 @@ function artifactIsSafe(value) {
 }
 
 function artifactExists(value) {
-  const artifact = artifactPath(value);
-  return Boolean(artifact) && fs.existsSync(path.resolve(process.cwd(), artifact));
+  const fullPath = resolvedArtifactPath(value);
+  return Boolean(fullPath) && fs.existsSync(fullPath);
 }
 
 function artifactPasses(value) {
   const artifact = artifactPath(value);
-  if (!artifactExists(artifact) || !artifactIsQaRun(artifact) || !artifactIsSafe(artifact)) return false;
-  const fullPath = path.resolve(process.cwd(), artifact);
+  const fullPath = resolvedArtifactPath(artifact);
+  if (!fullPath || !artifactIsSafe(artifact) || !fs.existsSync(fullPath)) return false;
   const text = fs.readFileSync(fullPath, "utf8");
   if (/\.json$/i.test(fullPath)) {
     try {
@@ -272,7 +299,8 @@ function validateRequirement(evidence, requirement) {
   const result = String(entry.result || "").trim().toLowerCase();
   const observedAt = String(entry.observedAt || entry.observed_at || "").trim();
   const safeArtifact = artifactIsSafe(artifact);
-  const valid = result === "pass" && isoLike(observedAt) && artifactIsQaRun(artifact) && safeArtifact && artifactExists(artifact);
+  const artifactPassed = artifactPasses(artifact);
+  const valid = result === "pass" && isoLike(observedAt) && safeArtifact && artifactPassed;
   return {
     section: requirement.section,
     key: requirement.key,
@@ -285,6 +313,7 @@ function validateRequirement(evidence, requirement) {
     artifactPathValid: artifactIsQaRun(artifact),
     artifactPathSafe: safeArtifact,
     artifactExists: artifactExists(artifact),
+    artifactPasses: artifactPassed,
     artifact: artifactIsQaRun(artifact) && safeArtifact ? artifact : "",
     valuesPrinted: false,
   };

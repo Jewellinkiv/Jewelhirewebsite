@@ -44,13 +44,13 @@ async function notifyCompletion(context?: {
       recipientRole: "candidate",
       toEmail: context.candidateEmail,
       recipientName: context.candidateName,
-    }),
+    }).catch(() => undefined),
     notifyAssessmentCompleted({
       ...common,
       recipientRole: "manager",
       toEmail: context.managerEmail,
       recipientName: context.managerName,
-    }),
+    }).catch(() => undefined),
   ]);
   return [
     { recipientRole: "candidate", ...candidate },

@@ -61,6 +61,13 @@ export const POST = withApiErrorHandling(async function POST(
     applicationId: row.invite.applicationId,
     storeId: row.invite.storeId,
     itemCount,
+  }).catch(() => {
+    return {
+      status: "failed" as const,
+      provider: "postmark" as const,
+      delivery: "ambiguous" as const,
+      reason: "notification_exception",
+    };
   });
   if (notification.status !== "sent" || notification.delivery !== "accepted") {
     return NextResponse.json(

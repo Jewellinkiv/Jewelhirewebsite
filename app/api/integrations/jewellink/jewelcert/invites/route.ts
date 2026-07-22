@@ -162,7 +162,7 @@ export async function POST(request: Request) {
       applicationId,
       storeId: linked.store_id,
       itemCount: 1,
-    });
+    }).catch(() => undefined);
     return NextResponse.json({
       inviteId: invite.rows[0].id,
       applicationId,

@@ -61,6 +61,6 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
     applicationId: invite.applicationId,
     storeId: invite.storeId,
     itemCount: (input.componentIds?.length || 0) + (input.courseSlugs?.length || 0),
-  });
+  }).catch(() => undefined);
   return NextResponse.json({ invite, notification }, { status: 201 });
 });

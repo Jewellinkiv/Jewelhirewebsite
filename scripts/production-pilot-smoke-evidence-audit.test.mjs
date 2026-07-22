@@ -22,7 +22,7 @@ function completeEvidence(cwd) {
     for (const key of keys) {
       const artifact = `docs/qa-runs/pilot-smoke-fixture/${section}-${key}.md`;
       fs.mkdirSync(path.join(cwd, path.dirname(artifact)), { recursive: true });
-      fs.writeFileSync(path.join(cwd, artifact), `# ${section} ${key}\n\nPASS\n`);
+      fs.writeFileSync(path.join(cwd, artifact), `# ${section} ${key}\n\nResult: PASS\n`);
       evidence[section][key] = {
         result: "pass",
         observedAt: "2026-07-21T01:00:00Z",
@@ -146,4 +146,44 @@ test("pilot smoke evidence does not echo unsafe artifact paths", () => {
   assert.notEqual(result.status, 0);
   assert.match(json, /"artifactPathSafe": false/);
   assert.doesNotMatch(`${json}\n${markdown}`, /qa@example\.com/);
+});
+
+test("pilot smoke evidence fails when a recorded artifact is not a pass report", () => {
+  const { result, json, markdown } = runAudit({
+    evidence: (cwd) => {
+      const evidence = completeEvidence(cwd);
+      const artifact = evidence.authenticatedSso.director.artifact;
+      fs.writeFileSync(path.join(cwd, artifact), "# Director SSO\n\nResult: FAIL\n");
+      return evidence;
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(markdown, /FAIL Director SSO/);
+  assert.match(json, /"artifactExists": true/);
+  assert.match(json, /"artifactPasses": false/);
+});
+
+test("pilot smoke evidence rejects qa-run-looking traversal artifacts", () => {
+  const { result, json, markdown } = runAudit({
+    evidence: (cwd) => {
+      fs.mkdirSync(path.join(cwd, "docs/qa-runs/fake"), { recursive: true });
+      fs.writeFileSync(path.join(cwd, "package.json"), JSON.stringify({ result: "pass" }));
+      return {
+        authenticatedSso: {
+          director: {
+            result: "pass",
+            observedAt: "2026-07-21T01:00:00Z",
+            artifact: "docs/qa-runs/fake/../../../package.json",
+          },
+        },
+      };
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(markdown, /FAIL Director SSO/);
+  assert.match(json, /"artifactPathValid": false/);
+  assert.match(json, /"artifactExists": false/);
+  assert.match(json, /"artifactPasses": false/);
 });

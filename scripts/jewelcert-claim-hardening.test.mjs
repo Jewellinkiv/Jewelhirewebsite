@@ -25,6 +25,8 @@ const applicantInvitesRoute = read("app/api/applicant/invites/route.ts");
 const applicantInviteDetailRoute = read("app/api/applicant/invites/[id]/route.ts");
 const applicantHomeRoute = read("app/api/applicant/home/route.ts");
 const gemMatchResponseRoute = read("app/api/gemmatch/responses/route.ts");
+const storeInviteRoute = read("app/api/stores/[storeId]/jewelcert-invites/route.ts");
+const storeInviteResendRoute = read("app/api/stores/[storeId]/jewelcert-invites/[inviteId]/resend/route.ts");
 
 test("JewelCert claim persists the complete native account in one transaction", () => {
   const completion = service.slice(service.indexOf("export async function completeJewelCertInviteClaim"));
@@ -204,6 +206,43 @@ test("external invite and assessment access is bound to the exact upstream SSO s
   assert.match(applicantInviteDetailRoute, /listPostgresApplicantInvites\(email, null, session\)/);
   assert.match(applicantHomeRoute, /getPostgresApplicantHome\(email, session\)/);
   assert.match(gemMatchResponseRoute, /requireRecipientOrStoreAccess\(\{ \.\.\.scope,/);
+});
+
+test("JewelCert notification failures cannot overturn completed writes or skip result sync", () => {
+  const integrationCommit = integrationRoute.indexOf('await client.query("commit")');
+  const integrationNotify = integrationRoute.lastIndexOf("notifyJewelCertInviteCreated");
+  assert.ok(integrationCommit > -1);
+  assert.ok(integrationNotify > integrationCommit);
+  assert.match(
+    integrationRoute,
+    /notifyJewelCertInviteCreated\(\{[\s\S]+?\}\)\.catch\(\(\) => undefined\)/,
+  );
+
+  const storeCreate = storeInviteRoute.indexOf("createPostgresJewelCertInvite");
+  const storeNotify = storeInviteRoute.lastIndexOf("notifyJewelCertInviteCreated");
+  assert.ok(storeCreate > -1);
+  assert.ok(storeNotify > storeCreate);
+  assert.match(
+    storeInviteRoute,
+    /notifyJewelCertInviteCreated\(\{[\s\S]+?\}\)\.catch\(\(\) => undefined\)/,
+  );
+
+  assert.match(storeInviteResendRoute, /reason: "notification_exception"/);
+  assert.match(storeInviteResendRoute, /status: "failed" as const/);
+  assert.match(storeInviteResendRoute, /status: 503/);
+
+  const notificationsIndex = gemMatchResponseRoute.indexOf("const notifications");
+  const syncIndex = gemMatchResponseRoute.lastIndexOf("syncPostgresJewelCertResultToJewelLink");
+  assert.ok(notificationsIndex > -1);
+  assert.ok(syncIndex > notificationsIndex);
+  assert.match(
+    gemMatchResponseRoute,
+    /notifyAssessmentCompleted\(\{[\s\S]+?recipientRole: "candidate"[\s\S]+?\}\)\.catch\(\(\) => undefined\)/,
+  );
+  assert.match(
+    gemMatchResponseRoute,
+    /notifyAssessmentCompleted\(\{[\s\S]+?recipientRole: "manager"[\s\S]+?\}\)\.catch\(\(\) => undefined\)/,
+  );
 });
 
 test("deploy validation runs every JewelCert claim regression and rollout rejects legacy outstanding links", () => {
