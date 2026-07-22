@@ -266,10 +266,17 @@ Source fixes made during this slice:
   result idempotency stable.
 - Repeat result delivery no longer downgrades a previously synced local marker
   to failed when the remote result already exists.
+- The JewelLink-initiated JewelCert invite route now releases its committed
+  database client before running notification side effects. This fixes the
+  source cause of the deployed HTTP 500-after-commit failure, where notification
+  preference lookup could starve on a one-client Postgres pool. The
+  `jewelCert.inviteFromJewelLink` row still needs a post-deploy live PASS before
+  being marked complete.
 
 Verification:
 
 ```bash
+npm run test:jewelcert-claim-hardening
 npm run test:production-pilot-jewelcert-smoke
 npm run qa:jewellink-jewelcert
 npm run lint
