@@ -10,18 +10,27 @@ const script = path.join(root, "scripts/jewellink-approval-packet-audit.mjs");
 const packet = path.join(root, "docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md");
 const patch = path.join(root, "docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch");
 
-function runAudit(packetPath = packet, patchPath = patch) {
-  return spawnSync(process.execPath, [script, `--packet=${packetPath}`, `--patch=${patchPath}`], {
+function runAudit(packetPath = packet, patchPath = patch, artifacts = fs.mkdtempSync(path.join(os.tmpdir(), "jewellink-packet-artifacts-"))) {
+  return spawnSync(process.execPath, [script, `--packet=${packetPath}`, `--patch=${patchPath}`, `--artifacts=${artifacts}`], {
     cwd: root,
     encoding: "utf8",
   });
 }
 
 test("current JewelLink approval packet passes", () => {
-  const result = runAudit();
+  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), "jewellink-packet-artifacts-"));
+  const result = runAudit(packet, patch, artifacts);
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stdout, /PASS patch touches only expected candidate\/profile-audit files/);
   assert.match(result.stdout, /PASS patch added lines do not run migrations or move traffic/);
+  assert.match(result.stdout, /Report: /);
+  const report = fs.readFileSync(path.join(artifacts, "jewellink-approval-packet-report.md"), "utf8");
+  const reportJson = JSON.parse(fs.readFileSync(path.join(artifacts, "jewellink-approval-packet-report.json"), "utf8"));
+  assert.match(report, /Result: PASS/);
+  assert.equal(reportJson.valuesPrinted, false);
+  assert.equal(reportJson.productionMutationPerformed, false);
+  assert.equal(reportJson.packetPath, "docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md");
+  assert.doesNotMatch(report, new RegExp(root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
 test("missing PR handoff boundary fails", () => {

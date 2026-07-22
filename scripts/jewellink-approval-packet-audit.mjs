@@ -19,6 +19,8 @@ const patchPath = path.resolve(
   process.cwd(),
   args.get("patch") || "docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch",
 );
+const TS = new Date().toISOString().replace(/[:.]/g, "-");
+const OUT = path.resolve(process.cwd(), args.get("artifacts") || `docs/qa-runs/jewellink-approval-packet-${TS}`);
 
 const requiredPacketMarkers = [
   "superseded by JewelLink PR `#246`",
@@ -74,6 +76,10 @@ function record(name, pass, details = {}) {
   console.log(`${pass ? "PASS" : "FAIL"} ${name}`);
 }
 
+function relativePath(file) {
+  return path.relative(process.cwd(), file);
+}
+
 function read(file) {
   if (!fs.existsSync(file)) return "";
   return fs.readFileSync(file, "utf8");
@@ -94,6 +100,38 @@ function touchedFiles(patch) {
     .sort();
 }
 
+function reportMarkdown(report) {
+  return [
+    "# JewelLink Approval Packet Audit",
+    "",
+    `Created: ${report.createdAt}`,
+    `Result: ${report.pass ? "PASS" : "FAIL"}`,
+    "Values printed: false",
+    "Production mutation performed: no",
+    "JewelLink push, merge, deploy, migration, or traffic movement performed: no",
+    "",
+    "This report verifies the non-secret JewelLink approval packet and local patch boundary only.",
+    "",
+    "## Source Artifacts",
+    "",
+    `- Approval packet: \`${report.packetPath}\``,
+    `- Patch artifact: \`${report.patchPath}\``,
+    "",
+    "## Checks",
+    "",
+    ...report.checks.map((check) => `- ${check.pass ? "PASS" : "FAIL"} ${check.name}`),
+    "",
+    "No database URLs, bearer tokens, cookies, passwords, secret values, full email addresses, customer data, or raw production data are written to this report.",
+  ].join("\n");
+}
+
+function writeArtifacts(report) {
+  fs.mkdirSync(OUT, { recursive: true });
+  fs.writeFileSync(path.join(OUT, "jewellink-approval-packet-report.json"), `${JSON.stringify(report, null, 2)}\n`);
+  fs.writeFileSync(path.join(OUT, "jewellink-approval-packet-report.md"), `${reportMarkdown(report)}\n`);
+  console.log(`Report: ${path.relative(process.cwd(), path.join(OUT, "jewellink-approval-packet-report.md"))}`);
+}
+
 function main() {
   const packet = read(packetPath);
   const patch = read(patchPath);
@@ -103,8 +141,8 @@ function main() {
     forbiddenAddedLinePatterns.some((pattern) => pattern.test(line)),
   );
 
-  record("JewelLink approval packet exists", Boolean(packet), { packetPath });
-  record("JewelLink patch artifact exists", Boolean(patch), { patchPath });
+  record("JewelLink approval packet exists", Boolean(packet), { packetPath: relativePath(packetPath) });
+  record("JewelLink patch artifact exists", Boolean(patch), { patchPath: relativePath(patchPath) });
   record("approval packet preserves PR handoff boundary", requiredPacketMarkers.every((marker) => packet.includes(marker)), {
     missingMarkers: requiredPacketMarkers.filter((marker) => !packet.includes(marker)),
   });
@@ -120,6 +158,16 @@ function main() {
   });
 
   const failures = checks.filter((check) => !check.pass);
+  writeArtifacts({
+    createdAt: new Date().toISOString(),
+    pass: failures.length === 0,
+    valuesPrinted: false,
+    productionMutationPerformed: false,
+    jewelLinkMutationPerformed: false,
+    packetPath: relativePath(packetPath),
+    patchPath: relativePath(patchPath),
+    checks,
+  });
   process.exit(failures.length ? 1 : 0);
 }
 
