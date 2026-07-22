@@ -880,7 +880,7 @@ async function main() {
       fitRating: "Strong",
       completedAt: payload.completedAt,
     });
-    assert.match(payload.completedAt, /^\d{4}-\d{2}-\d{2}/);
+    assert.match(payload.completedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
     return new Response(null, { status: 204 });
   }, async (calls) => {
     assert.deepEqual(

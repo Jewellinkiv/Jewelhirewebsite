@@ -1,0 +1,98 @@
+{
+  "createdAt": "2026-07-22T22:35:41.300Z",
+  "mode": "live",
+  "pass": true,
+  "valuesPrinted": false,
+  "parentReport": "pilot-jewelcert-smoke-report.md",
+  "scope": {
+    "companyId": "comp_1",
+    "locationId": "loc_1",
+    "recipientUserId": "cmqekv8h700017ey8jwsme7kg",
+    "requestedByUserId": "cmnjh2zrj0000p6y8axdo1608",
+    "idempotencyKey": "jewelhire-pilot-jewelcert-2026-07-22-v1"
+  },
+  "invite": {
+    "inviteId": "jewelcert-jl-2e4db0677c5033704f1b1786",
+    "applicationId": "application-jl-61691dc4a592cf2f24d51d84",
+    "status": "completed",
+    "committedDespiteHttpFailure": true
+  },
+  "completion": {
+    "gemMatchInviteId": "gemmatch-1d5c91e6-93d2-4b34-9de0-3e2fd53a681c",
+    "status": "completed",
+    "resultPrimary": "F",
+    "fitRating": "Strong fit",
+    "pickedCount": 10,
+    "wasAlreadyCompleted": true
+  },
+  "verification": {
+    "gemmatch": {
+      "gemMatchInviteId": "gemmatch-1d5c91e6-93d2-4b34-9de0-3e2fd53a681c",
+      "applicationId": "application-jl-61691dc4a592cf2f24d51d84",
+      "storeId": "store-jl-58deb73ef9454405c4fe",
+      "status": "completed",
+      "resultProfileCode": "F",
+      "resultMixKeys": [
+        "C",
+        "D",
+        "F",
+        "V"
+      ],
+      "fitScoreRecorded": true,
+      "fitRating": "Strong fit",
+      "completedAtRecorded": true,
+      "resultSyncStatus": "synced",
+      "resultSyncErrorRecorded": false,
+      "applicationSource": "jewellink_employee",
+      "applicationStage": "hired",
+      "statusReason": "Completed JewelLink employee JewelCert"
+    },
+    "jewelLinkResult": {
+      "found": true,
+      "inviteId": "gemmatch-1d5c91e6-93d2-4b34-9de0-3e2fd53a681c",
+      "userId": "cmqekv8h700017ey8jwsme7kg",
+      "companyId": "comp_1",
+      "locationId": "loc_1",
+      "primaryProfile": "F",
+      "mixKeys": [
+        "C",
+        "D",
+        "F",
+        "V"
+      ],
+      "fitScoreRecorded": true,
+      "fitRating": "Strong fit",
+      "completedAt": "2026-07-22 22:27:35.905+00"
+    }
+  },
+  "checks": [
+    {
+      "name": "JewelHire invite row is scoped to the pilot company/location/user",
+      "pass": true
+    },
+    {
+      "name": "JewelLink employee application remains in hired stage",
+      "pass": true
+    },
+    {
+      "name": "JewelCert response completed with persisted GemMatch result",
+      "pass": true
+    },
+    {
+      "name": "JewelCert completion preserves JewelLink employee hired semantics",
+      "pass": true
+    },
+    {
+      "name": "JewelHire marked the JewelCert result sync as synced",
+      "pass": true
+    },
+    {
+      "name": "JewelLink stored the scoped aggregated JewelCert result",
+      "pass": true
+    }
+  ],
+  "notCovered": [
+    "JewelHire invite endpoint HTTP success is not covered by this component artifact.",
+    "JewelCert simulated failure→retry is not covered by this component artifact."
+  ]
+}

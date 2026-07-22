@@ -200,3 +200,80 @@ consumed for hire-handoff testing. A read-only post-confirm
 `qa:pilot-smoke-targets` run observed it in `hired` stage with JewelLink hire
 sync status `synced`, and the target audit fails only because there is no
 remaining un-hired controlled hire target.
+
+## 2026-07-22 JewelCert Smoke Update
+
+Added `qa:pilot-jewelcert-smoke` for the controlled Diamond Exchange
+JewelCert lane. The runner does not require a browser cookie: it uses the
+server-to-server JewelLink invite endpoint, completes the controlled
+JewelHire GemMatch/JewelCert result through server code, syncs the aggregate
+result to JewelLink, and writes non-secret reports only.
+
+Live controlled run:
+
+```bash
+npm run qa:pilot-jewelcert-smoke -- \
+  --artifacts=docs/qa-runs/pilot-jewelcert-smoke-2026-07-22T23-00-00-000Z \
+  --jewelhire-project=jewelhire-prod-20260626 \
+  --jewelhire-region=us-central1 \
+  --jewelhire-service=jewelhire \
+  --jewellink-project=academy-460316 \
+  --jewellink-company-id=comp_1 \
+  --jewellink-location-id=loc_1 \
+  --recipient-user-id=cmqekv8h700017ey8jwsme7kg \
+  --requested-by-user-id=cmnjh2zrj0000p6y8axdo1608 \
+  --idempotency-key=jewelhire-pilot-jewelcert-2026-07-22-v1
+```
+
+Primary report:
+`docs/qa-runs/pilot-jewelcert-smoke-2026-07-22T23-00-00-000Z/pilot-jewelcert-smoke-report.md`
+
+Result: `FAIL` only because the deployed invite endpoint returns HTTP 500
+after committing the invite row. The run recovered the committed controlled
+invite by idempotency key and verified the row is scoped to Diamond Exchange.
+Do not mark `jewelCert.inviteFromJewelLink` complete until the deployed
+endpoint returns a successful response.
+
+Component PASS artifact:
+`docs/qa-runs/pilot-jewelcert-smoke-2026-07-22T23-00-00-000Z/pilot-jewelcert-completion-sync-report.md`
+
+This component artifact honestly covers only:
+
+- `jewelCert.completeResult`
+- `jewelCert.syncToJewelLink`
+
+The ignored smoke-evidence draft was updated for those two rows and rerun:
+
+```bash
+npm run qa:pilot-smoke-evidence -- \
+  --smoke-evidence-file=.qa_tmp/production-pilot-smoke-evidence-2026-07-22.json
+```
+
+Current smoke-evidence result remains `FAIL`, now with 8/17 rows passing.
+The remaining 9 smoke rows are: Manager, Student, and platform-admin SSO;
+repeat-confirm idempotency; revoked/cancelled hire access; JewelCert invite
+HTTP success; JewelCert retry path; team-invite API fail-closed probes; and
+resume privacy same-store authenticated headers-only access.
+
+Smoke-evidence audit artifact:
+`docs/qa-runs/pilot-smoke-evidence-2026-07-22T22-36-43-147Z/pilot-smoke-evidence-report.md`
+
+Source fixes made during this slice:
+
+- JewelCert result sync now sends `completedAt` as an ISO UTC datetime accepted
+  by JewelLink.
+- Repeat completion preserves the original `completed_at`, keeping JewelLink
+  result idempotency stable.
+- Repeat result delivery no longer downgrades a previously synced local marker
+  to failed when the remote result already exists.
+
+Verification:
+
+```bash
+npm run test:production-pilot-jewelcert-smoke
+npm run qa:jewellink-jewelcert
+npm run lint
+```
+
+`npm run test:jewelcert-claim-postgres` could not run in this workspace because
+no local PostgreSQL server is listening on `localhost:5432`.

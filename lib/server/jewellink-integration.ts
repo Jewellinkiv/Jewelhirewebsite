@@ -304,7 +304,11 @@ export async function syncPostgresJewelCertResultToJewelLink(inviteId: string) {
   }>(
     `
       select gi.id, gi.result_profile_code, gi.result_mix, gi.fit_score, gi.fit_rating,
-             gi.completed_at::text, external.external_user_id,
+             case
+               when gi.completed_at is null then null
+               else to_char(gi.completed_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+             end as completed_at,
+             external.external_user_id,
              external.external_company_id, external.external_location_id
       from gemmatch_invites gi
       left join lateral (
@@ -324,6 +328,11 @@ export async function syncPostgresJewelCertResultToJewelLink(inviteId: string) {
   if (!row?.external_user_id || !row.external_company_id || !row.external_location_id || !row.result_profile_code || !row.result_mix) {
     return { status: "not_linked" as const };
   }
+  const priorSync = await pool.query<{ result_sync_status: string | null }>(
+    "select result_sync_status from gemmatch_invites where id = $1",
+    [inviteId],
+  );
+  const wasAlreadySynced = priorSync.rows[0]?.result_sync_status === "synced";
   try {
     await pool.query(
       "update gemmatch_invites set result_sync_status = 'pending', result_sync_error = null where id = $1 and result_sync_status is distinct from 'synced'",
@@ -354,6 +363,9 @@ export async function syncPostgresJewelCertResultToJewelLink(inviteId: string) {
     );
     return { status: "synced" as const };
   } catch (error) {
+    if (wasAlreadySynced) {
+      return { status: "synced" as const };
+    }
     await pool.query(
       "update gemmatch_invites set result_sync_status = 'failed', result_sync_error = $1 where id = $2",
       [safeResultError(error), inviteId],
