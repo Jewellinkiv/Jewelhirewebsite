@@ -1,0 +1,832 @@
+{
+  "createdAt": "2026-07-22T21:27:38.166Z",
+  "pass": true,
+  "failures": 0,
+  "fixtureMode": false,
+  "valuesPrinted": false,
+  "hostname": "Williams-MacBook-Pro.local",
+  "products": {
+    "jewelhire": {
+      "label": "JewelHire",
+      "project": "jewelhire-prod-20260626",
+      "region": "us-central1",
+      "service": "jewelhire",
+      "expectedBaseUrl": "https://app.jewelhire.com",
+      "fixtureServiceFile": "jewelhire-service.json"
+    },
+    "jewellink": {
+      "label": "JewelLink",
+      "project": "academy-460316",
+      "region": "us-central1",
+      "service": "jewellink-dev",
+      "expectedBaseUrl": "https://ai.jewellink.com",
+      "fixtureServiceFile": "jewellink-service.json"
+    }
+  },
+  "mountedEnv": {
+    "jewelhire": [
+      {
+        "name": "AUTH_MODE",
+        "type": "literal"
+      },
+      {
+        "name": "AUTH_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "CLOUDINARY_URL",
+        "type": "secret"
+      },
+      {
+        "name": "DATABASE_URL",
+        "type": "secret"
+      },
+      {
+        "name": "EMAIL_NOTIFICATIONS_ENABLED",
+        "type": "literal"
+      },
+      {
+        "name": "FIREBASE_PROJECT_ID",
+        "type": "literal"
+      },
+      {
+        "name": "GOOGLE_CLIENT_ID",
+        "type": "secret"
+      },
+      {
+        "name": "GOOGLE_CLIENT_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "JEWELHIRE_ADMIN_EMAILS",
+        "type": "secret"
+      },
+      {
+        "name": "JEWELHIRE_ENABLE_SESSION_OVERRIDE",
+        "type": "literal"
+      },
+      {
+        "name": "JEWELHIRE_JEWELLINK_DIRECTOR_ROLE",
+        "type": "literal"
+      },
+      {
+        "name": "JEWELHIRE_JEWELLINK_MANAGER_ALL_LOCATIONS",
+        "type": "literal"
+      },
+      {
+        "name": "JEWELHIRE_REQUIRE_AUTH",
+        "type": "literal"
+      },
+      {
+        "name": "JEWELHIRE_STORAGE",
+        "type": "literal"
+      },
+      {
+        "name": "JEWELHIRE_TEAM_INVITES_ENABLED",
+        "type": "literal"
+      },
+      {
+        "name": "JEWELHIRE_TRUSTED_PROXY_HOPS",
+        "type": "literal"
+      },
+      {
+        "name": "JEWELLINK_INTEGRATION_SHARED_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "JEWELLINK_SSO_SHARED_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "JEWELLINK_URL",
+        "type": "literal"
+      },
+      {
+        "name": "NEXT_PUBLIC_APP_URL",
+        "type": "literal"
+      },
+      {
+        "name": "NEXT_PUBLIC_FIREBASE_API_KEY",
+        "type": "literal"
+      },
+      {
+        "name": "NEXT_PUBLIC_FIREBASE_APP_ID",
+        "type": "literal"
+      },
+      {
+        "name": "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+        "type": "literal"
+      },
+      {
+        "name": "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+        "type": "literal"
+      },
+      {
+        "name": "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+        "type": "literal"
+      },
+      {
+        "name": "OUTLOOK_CLIENT_ID",
+        "type": "secret"
+      },
+      {
+        "name": "OUTLOOK_CLIENT_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "OUTLOOK_TENANT_ID",
+        "type": "secret"
+      },
+      {
+        "name": "POSTMARK_DRY_RUN",
+        "type": "literal"
+      },
+      {
+        "name": "POSTMARK_FROM_EMAIL",
+        "type": "literal"
+      },
+      {
+        "name": "POSTMARK_MESSAGE_STREAM",
+        "type": "literal"
+      },
+      {
+        "name": "POSTMARK_SERVER_TOKEN",
+        "type": "secret"
+      },
+      {
+        "name": "QA_RESET_TOKEN",
+        "type": "secret"
+      },
+      {
+        "name": "STRIPE_SECRET_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "STRIPE_STORE_OWNER_ANNUAL_PRICE_ID",
+        "type": "literal"
+      },
+      {
+        "name": "STRIPE_STORE_OWNER_MONTHLY_PRICE_ID",
+        "type": "literal"
+      },
+      {
+        "name": "STRIPE_STORE_OWNER_PAYMENT_LINK",
+        "type": "literal"
+      },
+      {
+        "name": "STRIPE_WEBHOOK_SECRET",
+        "type": "secret"
+      }
+    ],
+    "jewellink": [
+      {
+        "name": "AZURE_CLIENT_ID",
+        "type": "secret"
+      },
+      {
+        "name": "AZURE_CLIENT_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "AZURE_TENANT_ID",
+        "type": "secret"
+      },
+      {
+        "name": "BUBBLE_API_TOKEN",
+        "type": "secret"
+      },
+      {
+        "name": "BUBBLE_API_URL",
+        "type": "secret"
+      },
+      {
+        "name": "CARDPOINTE_PRODUCTION_TERMINAL_API_BASE_URL",
+        "type": "secret"
+      },
+      {
+        "name": "CARDPOINTE_PRODUCTION_TERMINAL_AUTH_PATH",
+        "type": "secret"
+      },
+      {
+        "name": "CARDPOINTE_PRODUCTION_TERMINAL_CONNECT_PATH",
+        "type": "secret"
+      },
+      {
+        "name": "CARDPOINTE_SANDBOX_TERMINAL_API_BASE_URL",
+        "type": "secret"
+      },
+      {
+        "name": "CARDPOINTE_SANDBOX_TERMINAL_AUTH_PATH",
+        "type": "secret"
+      },
+      {
+        "name": "CARDPOINTE_SANDBOX_TERMINAL_CONNECT_PATH",
+        "type": "secret"
+      },
+      {
+        "name": "CLOUDINARY_API_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "CLOUDINARY_API_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "CLOUDINARY_CLOUD_NAME",
+        "type": "secret"
+      },
+      {
+        "name": "CLOUDINARY_URL",
+        "type": "secret"
+      },
+      {
+        "name": "CRON_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "CSRF_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "DATABASE_URL",
+        "type": "secret"
+      },
+      {
+        "name": "EDT_AUTO_LINK_SHARED_SECRET",
+        "type": "literal"
+      },
+      {
+        "name": "EDT_MEDIA_API_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "ELEVENLABS_API_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "FORM_LINK_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "GA_MEASUREMENT_ID",
+        "type": "literal"
+      },
+      {
+        "name": "GEMINI_API_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "GOOGLE_CLIENT_ID",
+        "type": "secret"
+      },
+      {
+        "name": "GOOGLE_CLIENT_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "HEYGEN_API_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "JEWELHIRE_HIRE_EMAIL_ALLOWLIST",
+        "type": "unknown"
+      },
+      {
+        "name": "JEWELHIRE_HIRE_EMAIL_MODE",
+        "type": "literal"
+      },
+      {
+        "name": "JEWELHIRE_INTEGRATION_ENABLED",
+        "type": "literal"
+      },
+      {
+        "name": "JEWELHIRE_INTEGRATION_SHARED_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "JEWELHIRE_PILOT_COMPANY_IDS",
+        "type": "literal"
+      },
+      {
+        "name": "JEWELHIRE_ROLLOUT_MODE",
+        "type": "literal"
+      },
+      {
+        "name": "JEWELHIRE_SSO_SHARED_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "JEWELHIRE_URL",
+        "type": "literal"
+      },
+      {
+        "name": "META_APP_ID",
+        "type": "secret"
+      },
+      {
+        "name": "META_APP_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "META_CONFIG_ID",
+        "type": "secret"
+      },
+      {
+        "name": "META_OAUTH_REDIRECT_URI",
+        "type": "secret"
+      },
+      {
+        "name": "META_WEBHOOK_VERIFY_TOKEN",
+        "type": "secret"
+      },
+      {
+        "name": "MIDDLEWARE_DB_HOST",
+        "type": "secret"
+      },
+      {
+        "name": "MIDDLEWARE_DB_NAME",
+        "type": "secret"
+      },
+      {
+        "name": "MIDDLEWARE_DB_PASSWORD",
+        "type": "secret"
+      },
+      {
+        "name": "MIDDLEWARE_DB_USER",
+        "type": "secret"
+      },
+      {
+        "name": "MONDAY_API_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "MONDAY_BOARD_ID",
+        "type": "secret"
+      },
+      {
+        "name": "MONDAY_GROUP_ID",
+        "type": "secret"
+      },
+      {
+        "name": "NEXT_PUBLIC_STRIPE_CONNECT_PUBLISHABLE_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "NEXTAUTH_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "NEXTAUTH_URL",
+        "type": "secret"
+      },
+      {
+        "name": "OAUTH_REDIRECT_BASE",
+        "type": "secret"
+      },
+      {
+        "name": "OPENAI_API_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "OPENAI_IMAGE_MODEL",
+        "type": "secret"
+      },
+      {
+        "name": "OPERATIONAL_NOTIFICATION_ENVIRONMENT",
+        "type": "literal"
+      },
+      {
+        "name": "OPERATIONAL_NOTIFICATIONS_ENABLED",
+        "type": "literal"
+      },
+      {
+        "name": "PODIUM_CLIENT_ID",
+        "type": "secret"
+      },
+      {
+        "name": "PODIUM_CLIENT_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "PODIUM_REDIRECT_URI",
+        "type": "secret"
+      },
+      {
+        "name": "POSTMARK_FROM_EMAIL",
+        "type": "secret"
+      },
+      {
+        "name": "POSTMARK_SERVER_TOKEN",
+        "type": "secret"
+      },
+      {
+        "name": "SCORM_CLOUD_API_BASE",
+        "type": "secret"
+      },
+      {
+        "name": "SCORM_CLOUD_APP_ID",
+        "type": "secret"
+      },
+      {
+        "name": "SCORM_CLOUD_SECRET_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "STRIPE_CONNECT_SECRET_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "STRIPE_CONNECT_WEBHOOK_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "STRIPE_SECRET_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "STRIPE_WEBHOOK_SECRET",
+        "type": "secret"
+      },
+      {
+        "name": "TOKEN_ENCRYPTION_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "TWILIO_ACCOUNT_SID",
+        "type": "secret"
+      },
+      {
+        "name": "TWILIO_AUTH_TOKEN",
+        "type": "secret"
+      },
+      {
+        "name": "TWILIO_LEGACY_SMS_WEBHOOK_URL",
+        "type": "literal"
+      },
+      {
+        "name": "TWILIO_LEGACY_STATUS_WEBHOOK_URL",
+        "type": "literal"
+      },
+      {
+        "name": "TWILIO_PUBLIC_WEBHOOK_BASE_URL",
+        "type": "literal"
+      },
+      {
+        "name": "TWILIO_VERIFY_SERVICE_SID",
+        "type": "secret"
+      },
+      {
+        "name": "TWO_FACTOR_SIGNING_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "WEB_PUSH_VAPID_PRIVATE_KEY",
+        "type": "secret"
+      },
+      {
+        "name": "WEB_PUSH_VAPID_PUBLIC_KEY",
+        "type": "secret"
+      }
+    ]
+  },
+  "traffic": {
+    "jewelhire": {
+      "latestReadyRevision": "jewelhire-00111-dup",
+      "liveTraffic": [
+        {
+          "revisionName": "jewelhire-00111-dup",
+          "tag": "candidate-29518763228",
+          "percent": 100,
+          "latestRevision": false
+        }
+      ]
+    },
+    "jewellink": {
+      "latestReadyRevision": "jewellink-dev-01179-f7d",
+      "liveTraffic": [
+        {
+          "revisionName": "jewellink-dev-01179-f7d",
+          "tag": null,
+          "percent": 100,
+          "latestRevision": true
+        }
+      ]
+    }
+  },
+  "checks": [
+    {
+      "name": "gcloud CLI is available",
+      "pass": true
+    },
+    {
+      "name": "JewelHire Cloud Run service config readable",
+      "pass": true,
+      "project": "jewelhire-prod-20260626",
+      "region": "us-central1",
+      "service": "jewelhire"
+    },
+    {
+      "name": "JewelHire Cloud Run reports a ready revision",
+      "pass": true
+    },
+    {
+      "name": "JewelHire Cloud Run traffic target is explicit",
+      "pass": true
+    },
+    {
+      "name": "JewelLink Cloud Run service config readable",
+      "pass": true,
+      "project": "academy-460316",
+      "region": "us-central1",
+      "service": "jewellink-dev"
+    },
+    {
+      "name": "JewelLink Cloud Run reports a ready revision",
+      "pass": true
+    },
+    {
+      "name": "JewelLink Cloud Run traffic target is explicit",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env DATABASE_URL mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env AUTH_SECRET mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env JEWELLINK_URL mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env JEWELLINK_SSO_SHARED_SECRET mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env JEWELLINK_INTEGRATION_SHARED_SECRET mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env JEWELHIRE_TEAM_INVITES_ENABLED mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env JEWELHIRE_TRUSTED_PROXY_HOPS mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env JEWELHIRE_REQUIRE_AUTH mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env AUTH_MODE mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env JEWELHIRE_STORAGE mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env JEWELHIRE_ENABLE_SESSION_OVERRIDE mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env EMAIL_NOTIFICATIONS_ENABLED mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env POSTMARK_DRY_RUN mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env POSTMARK_SERVER_TOKEN mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env POSTMARK_FROM_EMAIL mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env POSTMARK_MESSAGE_STREAM mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env STRIPE_SECRET_KEY mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env STRIPE_WEBHOOK_SECRET mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env STRIPE_STORE_OWNER_MONTHLY_PRICE_ID mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env STRIPE_STORE_OWNER_ANNUAL_PRICE_ID mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelHire env DATABASE_URL is secret-backed",
+      "pass": true,
+      "envName": "DATABASE_URL",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire env AUTH_SECRET is secret-backed",
+      "pass": true,
+      "envName": "AUTH_SECRET",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire env JEWELLINK_SSO_SHARED_SECRET is secret-backed",
+      "pass": true,
+      "envName": "JEWELLINK_SSO_SHARED_SECRET",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire env JEWELLINK_INTEGRATION_SHARED_SECRET is secret-backed",
+      "pass": true,
+      "envName": "JEWELLINK_INTEGRATION_SHARED_SECRET",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire env POSTMARK_SERVER_TOKEN is secret-backed",
+      "pass": true,
+      "envName": "POSTMARK_SERVER_TOKEN",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire env STRIPE_SECRET_KEY is secret-backed",
+      "pass": true,
+      "envName": "STRIPE_SECRET_KEY",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire env STRIPE_WEBHOOK_SECRET is secret-backed",
+      "pass": true,
+      "envName": "STRIPE_WEBHOOK_SECRET",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire platform admin allowlist env mounted",
+      "pass": true,
+      "envName": "JEWELHIRE_ADMIN_EMAILS",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire platform admin allowlist is secret-backed",
+      "pass": true,
+      "envName": "JEWELHIRE_ADMIN_EMAILS",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelHire points to production JewelLink",
+      "pass": true
+    },
+    {
+      "name": "JewelHire production auth is required",
+      "pass": true
+    },
+    {
+      "name": "JewelHire auth mode is Google",
+      "pass": true
+    },
+    {
+      "name": "JewelHire storage is Postgres",
+      "pass": true
+    },
+    {
+      "name": "JewelHire test session override is disabled",
+      "pass": true
+    },
+    {
+      "name": "JewelHire team invites are disabled for pilot",
+      "pass": true
+    },
+    {
+      "name": "JewelHire trusted proxy hops is explicit and bounded",
+      "pass": true
+    },
+    {
+      "name": "JewelHire email posture is explicit",
+      "pass": true
+    },
+    {
+      "name": "JewelHire live email has Postmark dry-run disabled",
+      "pass": true
+    },
+    {
+      "name": "JewelHire live email has secret-backed Postmark token",
+      "pass": true,
+      "envName": "POSTMARK_SERVER_TOKEN",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink env JEWELHIRE_URL mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelLink env JEWELHIRE_SSO_SHARED_SECRET mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelLink env JEWELHIRE_INTEGRATION_SHARED_SECRET mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelLink env JEWELHIRE_INTEGRATION_ENABLED mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelLink env JEWELHIRE_ROLLOUT_MODE mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelLink env JEWELHIRE_HIRE_EMAIL_MODE mounted",
+      "pass": true
+    },
+    {
+      "name": "JewelLink env JEWELHIRE_SSO_SHARED_SECRET is secret-backed",
+      "pass": true,
+      "envName": "JEWELHIRE_SSO_SHARED_SECRET",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink env JEWELHIRE_INTEGRATION_SHARED_SECRET is secret-backed",
+      "pass": true,
+      "envName": "JEWELHIRE_INTEGRATION_SHARED_SECRET",
+      "valuesPrinted": false
+    },
+    {
+      "name": "JewelLink points to production JewelHire",
+      "pass": true
+    },
+    {
+      "name": "JewelLink integration is enabled for pilot",
+      "pass": true
+    },
+    {
+      "name": "JewelLink rollout mode matches pilot plan",
+      "pass": true,
+      "expected": "pilot"
+    },
+    {
+      "name": "JewelLink pilot company IDs are configured",
+      "pass": true
+    },
+    {
+      "name": "JewelLink hire email mode is explicit",
+      "pass": true,
+      "mode": "disabled"
+    },
+    {
+      "name": "SSO secrets are secret-backed on both services",
+      "pass": true,
+      "leftEnv": "JEWELLINK_SSO_SHARED_SECRET",
+      "rightEnv": "JEWELHIRE_SSO_SHARED_SECRET",
+      "valuesPrinted": false
+    },
+    {
+      "name": "SSO secret values match across services",
+      "pass": true,
+      "leftEnv": "JEWELLINK_SSO_SHARED_SECRET",
+      "rightEnv": "JEWELHIRE_SSO_SHARED_SECRET",
+      "valuesPrinted": false
+    },
+    {
+      "name": "SSO secret values are high entropy",
+      "pass": true,
+      "leftEnv": "JEWELLINK_SSO_SHARED_SECRET",
+      "rightEnv": "JEWELHIRE_SSO_SHARED_SECRET",
+      "valuesPrinted": false
+    },
+    {
+      "name": "integration handoff secrets are secret-backed on both services",
+      "pass": true,
+      "leftEnv": "JEWELLINK_INTEGRATION_SHARED_SECRET",
+      "rightEnv": "JEWELHIRE_INTEGRATION_SHARED_SECRET",
+      "valuesPrinted": false
+    },
+    {
+      "name": "integration handoff secret values match across services",
+      "pass": true,
+      "leftEnv": "JEWELLINK_INTEGRATION_SHARED_SECRET",
+      "rightEnv": "JEWELHIRE_INTEGRATION_SHARED_SECRET",
+      "valuesPrinted": false
+    },
+    {
+      "name": "integration handoff secret values are high entropy",
+      "pass": true,
+      "leftEnv": "JEWELLINK_INTEGRATION_SHARED_SECRET",
+      "rightEnv": "JEWELHIRE_INTEGRATION_SHARED_SECRET",
+      "valuesPrinted": false
+    }
+  ]
+}

@@ -1,0 +1,171 @@
+{
+  "createdAt": "2026-07-22T22:35:41.300Z",
+  "mode": "live",
+  "pass": false,
+  "valuesPrinted": false,
+  "fatalError": "",
+  "pilot": {
+    "companyId": "comp_1",
+    "locationId": "loc_1",
+    "recipientUserId": "cmqekv8h700017ey8jwsme7kg",
+    "requestedByUserId": "cmnjh2zrj0000p6y8axdo1608",
+    "idempotencyKey": "jewelhire-pilot-jewelcert-2026-07-22-v1"
+  },
+  "jewelHire": {
+    "project": "jewelhire-prod-20260626",
+    "region": "us-central1",
+    "service": "jewelhire",
+    "latestReadyRevision": "jewelhire-00111-dup",
+    "databaseSecretMounted": true,
+    "integrationSecretAvailable": true,
+    "integrationSecretMounted": true,
+    "jewelLinkUrlConfigured": true,
+    "baseUrlHttps": true,
+    "jewelLinkUrlHttps": true
+  },
+  "jewelLink": {
+    "project": "academy-460316",
+    "databaseSecret": "DATABASE_URL",
+    "recipient": {
+      "userId": "cmqekv8h700017ey8jwsme7kg",
+      "role": "STUDENT",
+      "companyId": "comp_1",
+      "primaryLocationId": "loc_1",
+      "locationAccess": true,
+      "pilotLocationExists": true,
+      "isActive": true,
+      "emailAlias": "n***@jewellink.com",
+      "emailDomain": "jewellink.com",
+      "hasFullName": true
+    },
+    "result": {
+      "found": true,
+      "inviteId": "gemmatch-1d5c91e6-93d2-4b34-9de0-3e2fd53a681c",
+      "userId": "cmqekv8h700017ey8jwsme7kg",
+      "companyId": "comp_1",
+      "locationId": "loc_1",
+      "primaryProfile": "F",
+      "mixKeys": [
+        "C",
+        "D",
+        "F",
+        "V"
+      ],
+      "fitScoreRecorded": true,
+      "fitRating": "Strong fit",
+      "completedAt": "2026-07-22 22:27:35.905+00"
+    }
+  },
+  "sourceGuard": {
+    "claimFencePresent": true,
+    "postgresBehaviorCovered": true,
+    "sourceFiles": [
+      "lib/server/invite-claim.ts",
+      "scripts/jewelcert-claim-postgres.test.mjs"
+    ]
+  },
+  "invite": {
+    "statusCode": 500,
+    "inviteId": "jewelcert-jl-2e4db0677c5033704f1b1786",
+    "applicationId": "application-jl-61691dc4a592cf2f24d51d84",
+    "status": "completed",
+    "notificationRecorded": false,
+    "committedDespiteHttpFailure": true
+  },
+  "completion": {
+    "gemMatchInviteId": "gemmatch-1d5c91e6-93d2-4b34-9de0-3e2fd53a681c",
+    "status": "completed",
+    "resultPrimary": "F",
+    "fitRating": "Strong fit",
+    "pickedCount": 10,
+    "wasAlreadyCompleted": true
+  },
+  "verification": {
+    "invite": {
+      "jewelCertInviteId": "jewelcert-jl-2e4db0677c5033704f1b1786",
+      "applicationId": "application-jl-61691dc4a592cf2f24d51d84",
+      "storeId": "store-jl-58deb73ef9454405c4fe",
+      "status": "completed",
+      "externalRequestIdMatches": true,
+      "externalUserIdMatches": true,
+      "externalCompanyIdMatches": true,
+      "externalLocationIdMatches": true,
+      "claimTokenVersion": 2,
+      "sentAtRecorded": true,
+      "applicationSource": "jewellink_employee",
+      "applicationStage": "hired",
+      "statusReason": "JewelLink employee JewelCert",
+      "jewellinkCompanyId": "comp_1",
+      "locationLinked": true,
+      "recipientEmailMatches": true,
+      "ownerUserLinked": false
+    },
+    "gemmatch": {
+      "gemMatchInviteId": "gemmatch-1d5c91e6-93d2-4b34-9de0-3e2fd53a681c",
+      "applicationId": "application-jl-61691dc4a592cf2f24d51d84",
+      "storeId": "store-jl-58deb73ef9454405c4fe",
+      "status": "completed",
+      "resultProfileCode": "F",
+      "resultMixKeys": [
+        "C",
+        "D",
+        "F",
+        "V"
+      ],
+      "fitScoreRecorded": true,
+      "fitRating": "Strong fit",
+      "completedAtRecorded": true,
+      "resultSyncStatus": "synced",
+      "resultSyncErrorRecorded": false,
+      "applicationSource": "jewellink_employee",
+      "applicationStage": "hired",
+      "statusReason": "Completed JewelLink employee JewelCert"
+    }
+  },
+  "checks": [
+    {
+      "name": "JewelHire/JewelLink production configuration is available",
+      "pass": true
+    },
+    {
+      "name": "Controlled JewelLink recipient is an active pilot Student",
+      "pass": true
+    },
+    {
+      "name": "JewelLink pilot location exists under the recipient company",
+      "pass": true
+    },
+    {
+      "name": "JewelCert claim fence is source-tested for JewelLink-managed identities",
+      "pass": true
+    },
+    {
+      "name": "JewelHire accepted the bearer-authenticated JewelCert invite",
+      "pass": false
+    },
+    {
+      "name": "JewelHire invite row is scoped to the pilot company/location/user",
+      "pass": true
+    },
+    {
+      "name": "JewelLink employee application remains in hired stage",
+      "pass": true
+    },
+    {
+      "name": "JewelCert response completed with persisted GemMatch result",
+      "pass": true
+    },
+    {
+      "name": "JewelCert completion preserves JewelLink employee hired semantics",
+      "pass": true
+    },
+    {
+      "name": "JewelHire marked the JewelCert result sync as synced",
+      "pass": true
+    },
+    {
+      "name": "JewelLink stored the scoped aggregated JewelCert result",
+      "pass": true
+    }
+  ]
+}

@@ -41,6 +41,9 @@ export async function POST(request: Request) {
   }
 
   const client = await getPostgresPool().connect();
+  let committedInvite:
+    | { inviteId: string; applicationId: string; storeId: string; status: string; email: string; fullName: string }
+    | null = null;
   try {
     await client.query("begin");
     const scope = await client.query<{ company_id: string; store_id: string; location_id: string; recipient_user_id: string | null; actor_user_id: string | null }>(
@@ -154,25 +157,35 @@ export async function POST(request: Request) {
       [inviteId, applicationId, linked.store_id, linked.actor_user_id, input.email, input.idempotencyKey, input.userId, input.companyId, input.locationId],
     );
     await client.query("commit");
-
-    const notification = await notifyJewelCertInviteCreated({
-      toEmail: input.email,
-      recipientName: input.fullName,
-      inviteId: invite.rows[0].id,
-      applicationId,
-      storeId: linked.store_id,
-      itemCount: 1,
-    }).catch(() => undefined);
-    return NextResponse.json({
+    committedInvite = {
       inviteId: invite.rows[0].id,
       applicationId,
       status: invite.rows[0].status,
-      notification,
-    }, { status: 201, headers: { "Cache-Control": "no-store" } });
+      storeId: linked.store_id,
+      email: input.email,
+      fullName: input.fullName,
+    };
   } catch {
     await client.query("rollback").catch(() => undefined);
     return NextResponse.json({ error: "Unable to create JewelCert invite" }, { status: 500 });
   } finally {
     client.release();
   }
+
+  const notification = committedInvite
+    ? await notifyJewelCertInviteCreated({
+        toEmail: committedInvite.email,
+        recipientName: committedInvite.fullName,
+        inviteId: committedInvite.inviteId,
+        applicationId: committedInvite.applicationId,
+        storeId: committedInvite.storeId,
+        itemCount: 1,
+      }).catch(() => undefined)
+    : undefined;
+  return NextResponse.json({
+    inviteId: committedInvite?.inviteId,
+    applicationId: committedInvite?.applicationId,
+    status: committedInvite?.status,
+    notification,
+  }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }

@@ -1,0 +1,50 @@
+{
+  "createdAt": "2026-07-22T21:19:06.293Z",
+  "pass": true,
+  "valuesPrinted": false,
+  "productionMutationPerformed": false,
+  "jewelLinkMutationPerformed": false,
+  "packetPath": "docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md",
+  "patchPath": "docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch",
+  "checks": [
+    {
+      "name": "JewelLink approval packet exists",
+      "pass": true,
+      "packetPath": "docs/jewellink-combined-pilot-readiness-approval-packet-2026-07-20.md"
+    },
+    {
+      "name": "JewelLink patch artifact exists",
+      "pass": true,
+      "patchPath": "docs/jewellink-combined-pilot-readiness-no-push-2026-07-20.patch"
+    },
+    {
+      "name": "approval packet preserves PR handoff boundary",
+      "pass": true,
+      "missingMarkers": []
+    },
+    {
+      "name": "patch contains candidate-release controls",
+      "pass": true,
+      "missingMarkers": []
+    },
+    {
+      "name": "patch touches only expected candidate/profile-audit files",
+      "pass": true,
+      "expectedTouchedFiles": [
+        "cloudbuild.jewellink.yaml",
+        "scripts/audit-jewelhire-sso.mjs",
+        "tests/profile-mfa-factor-protection.test.ts"
+      ],
+      "patchTouchedFiles": [
+        "cloudbuild.jewellink.yaml",
+        "scripts/audit-jewelhire-sso.mjs",
+        "tests/profile-mfa-factor-protection.test.ts"
+      ]
+    },
+    {
+      "name": "patch added lines do not run migrations or move traffic",
+      "pass": true,
+      "dangerousAddedLines": []
+    }
+  ]
+}

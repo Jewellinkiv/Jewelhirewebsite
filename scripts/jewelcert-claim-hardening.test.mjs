@@ -210,9 +210,12 @@ test("external invite and assessment access is bound to the exact upstream SSO s
 
 test("JewelCert notification failures cannot overturn completed writes or skip result sync", () => {
   const integrationCommit = integrationRoute.indexOf('await client.query("commit")');
+  const integrationRelease = integrationRoute.indexOf("client.release();", integrationCommit);
   const integrationNotify = integrationRoute.lastIndexOf("notifyJewelCertInviteCreated");
   assert.ok(integrationCommit > -1);
+  assert.ok(integrationRelease > integrationCommit);
   assert.ok(integrationNotify > integrationCommit);
+  assert.ok(integrationNotify > integrationRelease);
   assert.match(
     integrationRoute,
     /notifyJewelCertInviteCreated\(\{[\s\S]+?\}\)\.catch\(\(\) => undefined\)/,

@@ -3931,6 +3931,7 @@ export async function completePostgresGemMatchResponse(input: { inviteId: string
     // transition. A repeat POST for an already-completed invite must not
     // re-notify the candidate + manager (mirrors the hire route's guard).
     const wasAlreadyCompleted = invite.status === "completed";
+    const completionTimestamp = wasAlreadyCompleted && invite.completed_at ? invite.completed_at : timestamp;
 
     const updatedInvite = await client.query<GemMatchInviteRow>(
       `
@@ -3946,7 +3947,7 @@ export async function completePostgresGemMatchResponse(input: { inviteId: string
           id, application_id, store_id, sent_by_user_id, status, result_profile_code, fit_rating,
           created_at::text, completed_at::text
       `,
-      [primary, fitRating, JSON.stringify(resultMix), fitScore, timestamp, invite.id],
+      [primary, fitRating, JSON.stringify(resultMix), fitScore, completionTimestamp, invite.id],
     );
 
     // Completing the pick-10 profile is not the same as completing the whole JewelCert
