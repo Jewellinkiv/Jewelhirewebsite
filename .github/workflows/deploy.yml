@@ -283,7 +283,7 @@ jobs:
             --region us-central1 \
             --wait
 
-      - name: Apply additive billing migration through 0025 before traffic
+      - name: Apply additive migrations through Linkd access projection before traffic
         env:
           IMAGE: ${{ steps.candidate.outputs.image }}
         run: |
@@ -302,7 +302,7 @@ jobs:
             --set-secrets "DATABASE_URL=${DATABASE_SECRET}:${DATABASE_SECRET_VERSION}" \
             --set-env-vars "APPLY_DATABASE_MIGRATIONS=1,REQUIRE_EXISTING_MIGRATION_LEDGER=1,REQUIRE_APPLIED_MIGRATION_ID=0024_jewelcert_claim_token_version_fence,POSTGRES_POOL_MAX=1" \
             --command /cnb/lifecycle/launcher \
-            --args npm,run,db:migrate:apply,--,--through=0025_standalone_billing_recovery \
+            --args npm,run,db:migrate:apply,--,--through=0026_linkd_access_projection \
             --max-retries 0 \
             --task-timeout 15m \
             --quiet

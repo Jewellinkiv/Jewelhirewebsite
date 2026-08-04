@@ -14,6 +14,7 @@ const requiredMigrationIds = [
   "0023_jewelcert_claim_token_version",
   "0024_jewelcert_claim_token_version_fence",
   "0025_standalone_billing_recovery",
+  "0026_linkd_access_projection",
 ];
 
 function loadEnvFile(filename) {
@@ -259,6 +260,14 @@ async function main() {
       console.log(`  missing billing invariant: ${failedCheck}`);
     }
 
+    const linkdAccessProjectionReady = await tableExists(
+      client,
+      "linkd_access_projection_receipts",
+    );
+    console.log(
+      `Linkd access projection receipts: ${linkdAccessProjectionReady ? "ready" : "incomplete"}`,
+    );
+
     const migrations = await appliedRows(client, "schema_migrations");
     console.log(`schema_migrations: ${migrations.tableExists ? `${migrations.applied.length} applied` : "missing"}`);
     for (const row of migrations.applied) console.log(`  - ${row.id} (${row.filename})`);
@@ -282,6 +291,7 @@ async function main() {
       || !deliveryStateReady
       || !jewelCertVersionReady
       || !standaloneBillingSchema.ready
+      || !linkdAccessProjectionReady
       || missingRequiredMigrations.length
     ) process.exitCode = 2;
   } finally {
