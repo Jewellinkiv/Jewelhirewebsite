@@ -5648,7 +5648,7 @@ function applicantInviteJob(row: { job_id: string | null; job_title: string | nu
 }
 
 export type ApplicantInviteIdentity = {
-  authSource?: "native" | "jewellink_sso";
+  authSource?: "native" | "jewellink_sso" | "linkd_unified";
   upstreamUserId?: string | null;
 };
 

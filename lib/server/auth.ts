@@ -44,12 +44,21 @@ export type AuthSession = {
   storeRoles: Record<string, StoreMembershipRole>;
   locationScopes: Record<string, StoreLocationScope>;
   activeStoreId: string;
-  authSource: "native" | "jewellink_sso";
+  authSource: "native" | "jewellink_sso" | "linkd_unified";
   // Present only on native sessions. Credential replacement increments the
   // durable users.native_auth_epoch value so older signed cookies fail on the
   // next request even when their cryptographic signature and expiry are valid.
   nativeAuthEpoch?: number;
   upstreamAssurance?: JewelLinkUpstreamAssurance & { userId: string; accessFingerprint: string };
+  // Linkd code exchanges are short-lived and revalidated against the exact
+  // local principal/company/location mapping. This is intentionally separate
+  // from JewelLink's MFA assurance and native credential epoch.
+  linkdAccess?: {
+    companyId: string;
+    locationId: string;
+    authorizationVersion: number;
+    roleKeys: StoreMembershipRole[];
+  };
   exp: number;
   guardrails: {
     phase: "phase_1_single_store";
@@ -134,7 +143,7 @@ export function readSessionToken(token?: string | null): AuthSession | undefined
   // Version 3 records the authentication source and invalidates older cookies
   // that cannot distinguish a native login from MFA-backed JewelLink SSO.
   if (session.version !== 3 || !session.storeRoles || !session.locationScopes) return undefined;
-  if (session.authSource !== "native" && session.authSource !== "jewellink_sso") return undefined;
+  if (session.authSource !== "native" && session.authSource !== "jewellink_sso" && session.authSource !== "linkd_unified") return undefined;
   if (!session.exp || session.exp * 1000 < Date.now()) return undefined;
   if (session.authSource === "jewellink_sso") {
     if (session.nativeAuthEpoch !== undefined) return undefined;
@@ -144,7 +153,7 @@ export function readSessionToken(token?: string | null): AuthSession | undefined
     ) return undefined;
     const assurance = validateJewelLinkAssurance(session.upstreamAssurance);
     if (!assurance.ok || session.exp > assurance.sessionExpiresAt) return undefined;
-  } else {
+  } else if (session.authSource === "native") {
     // Requiring the epoch also invalidates every native cookie minted before
     // migration 0021 without changing JewelLink SSO cookie semantics.
     if (
@@ -152,9 +161,139 @@ export function readSessionToken(token?: string | null): AuthSession | undefined
       || !Number.isSafeInteger(session.nativeAuthEpoch)
       || session.nativeAuthEpoch < 0
     ) return undefined;
-    if (session.upstreamAssurance) return undefined;
+      if (session.upstreamAssurance) return undefined;
+  } else {
+    if (
+      session.nativeAuthEpoch !== undefined
+      || session.upstreamAssurance !== undefined
+      || !session.linkdAccess
+      || !safeLinkdId(session.linkdAccess.companyId)
+      || !safeLinkdId(session.linkdAccess.locationId)
+      || !Number.isSafeInteger(session.linkdAccess.authorizationVersion)
+      || session.linkdAccess.authorizationVersion < 1
+      || !Array.isArray(session.linkdAccess.roleKeys)
+      || session.linkdAccess.roleKeys.length < 1
+      || session.linkdAccess.roleKeys.some((role) => role !== "store_owner" && role !== "manager")
+    ) return undefined;
   }
   return session;
+}
+
+function safeLinkdId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
+}
+
+export type LinkdUnifiedSessionInput = {
+  localUserId: string;
+  companyId: string;
+  locationId: string;
+  roleKeys: StoreMembershipRole[];
+  authorizationVersion: number;
+  expiresAt: number;
+};
+
+/**
+ * Build a Linkd-signed browser session from exact existing JewelHire rows.
+ * It never provisions or matches an account by email/name: Mapper's target ids
+ * and Linkd's reviewed principal id have already selected every local row.
+ */
+export async function findLinkdUnifiedSession(input: LinkdUnifiedSessionInput): Promise<AuthSession | undefined> {
+  if (
+    !safeLinkdId(input.localUserId)
+    || !safeLinkdId(input.companyId)
+    || !safeLinkdId(input.locationId)
+    || input.expiresAt * 1000 <= Date.now()
+    || !Number.isSafeInteger(input.authorizationVersion)
+    || input.authorizationVersion < 1
+    || input.roleKeys.length < 1
+    || input.roleKeys.some((role) => role !== "store_owner" && role !== "manager")
+  ) return undefined;
+  const result = await getPostgresPool().query<{
+    id: string;
+    email: string;
+    name: string;
+    store_id: string;
+    store_role: string | null;
+    company_id: string;
+    company_status: string;
+    location_id: string;
+  }>(
+    `
+      select u.id, u.email, u.name,
+             s.id as store_id, su.role as store_role,
+             c.id as company_id, c.status as company_status,
+             l.id as location_id
+      from users u
+      join store_users su on su.user_id = u.id and su.status = 'active'
+      join stores s on s.id = su.store_id and s.status = 'active'
+      join companies c on c.id = s.company_id and c.status = 'active'
+      join locations l on l.store_id = s.id
+      where u.id = $1
+        and u.status = 'active'
+        and c.id = $2
+        and l.id = $3
+      order by su.created_at asc
+    `,
+    [input.localUserId, input.companyId, input.locationId],
+  );
+  const candidates = result.rows.filter((row) => (
+    row.company_status === "active"
+    && (row.store_role === "admin" || row.store_role === "store_owner" || row.store_role === "manager")
+    && input.roleKeys.includes(row.store_role === "admin" || row.store_role === "store_owner" ? "store_owner" : "manager")
+  ));
+  if (candidates.length !== 1) return undefined;
+  const row = candidates[0];
+  if (!row || isConfiguredAdminEmail(row.email)) return undefined;
+  const projectionVersion = await getPostgresPool().query<{ authorization_version: number }>(
+    `select authorization_version from linkd_access_projection_receipts
+      where user_id = $1 and company_id = $2
+      order by authorization_version desc limit 1`,
+    [row.id, row.company_id],
+  );
+  if ((projectionVersion.rows[0]?.authorization_version ?? 0) > input.authorizationVersion) return undefined;
+  const storeRole: StoreMembershipRole = row.store_role === "admin" || row.store_role === "store_owner"
+    ? "store_owner"
+    : "manager";
+  // A direct Linkd launch is for one Mapper-reviewed physical location. A
+  // current JewelHire route that cannot enforce a limited location continues to
+  // fail closed in access-control.ts rather than treating it as company-wide.
+  const locationScope: StoreLocationScope = { allLocations: false, locationIds: [row.location_id] };
+  return {
+    version: 3,
+    userId: row.id,
+    name: row.name,
+    email: row.email,
+    role: storeRole,
+    storeIds: [row.store_id],
+    storeRoles: { [row.store_id]: storeRole },
+    locationScopes: { [row.store_id]: locationScope },
+    activeStoreId: row.store_id,
+    authSource: "linkd_unified",
+    linkdAccess: {
+      companyId: row.company_id,
+      locationId: row.location_id,
+      authorizationVersion: input.authorizationVersion,
+      roleKeys: [...input.roleKeys].sort(),
+    },
+    exp: input.expiresAt,
+    guardrails: guardrails(),
+  };
+}
+
+export async function revalidateLinkdUnifiedSession(session: AuthSession) {
+  if (session.authSource !== "linkd_unified" || !session.linkdAccess) return undefined;
+  const refreshed = await findLinkdUnifiedSession({
+    localUserId: session.userId,
+    companyId: session.linkdAccess.companyId,
+    locationId: session.linkdAccess.locationId,
+    roleKeys: session.linkdAccess.roleKeys,
+    authorizationVersion: session.linkdAccess.authorizationVersion,
+    expiresAt: session.exp,
+  });
+  // A local row may narrow but never expand the signed Linkd scope during the
+  // short local session. The central code exchange is required for any new one.
+  if (!refreshed || refreshed.storeIds.some((storeId) => !session.storeIds.includes(storeId))) return undefined;
+  return refreshed;
 }
 
 export async function readSessionCookie() {

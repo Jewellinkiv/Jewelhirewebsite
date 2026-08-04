@@ -5,6 +5,7 @@ import {
   authRequired,
   readSessionCookie,
   revalidateJewelLinkSession,
+  revalidateLinkdUnifiedSession,
   revalidateNativeSession,
   UnauthenticatedError,
   type AuthSession,
@@ -15,7 +16,7 @@ export { AccessDeniedError } from "@/lib/server/access-errors";
 
 export type SessionContext = Omit<
   AuthSession,
-  "version" | "exp" | "nativeAuthEpoch" | "upstreamAssurance"
+  "version" | "exp" | "nativeAuthEpoch" | "upstreamAssurance" | "linkdAccess"
 > & { upstreamUserId?: string };
 
 function sessionContext(session: AuthSession): SessionContext {
@@ -24,11 +25,13 @@ function sessionContext(session: AuthSession): SessionContext {
     exp: _exp,
     nativeAuthEpoch: _nativeAuthEpoch,
     upstreamAssurance: _upstreamAssurance,
+    linkdAccess: _linkdAccess,
     ...context
   } = session;
   void _version;
   void _exp;
   void _nativeAuthEpoch;
+  void _linkdAccess;
   return {
     ...context,
     ...(_upstreamAssurance?.userId ? { upstreamUserId: _upstreamAssurance.userId } : {}),
@@ -204,6 +207,11 @@ async function revalidateCurrentCookieSession(): Promise<SessionContext> {
     if (!revalidated) throw new UnauthenticatedError("This sign-in is no longer active. Continue with JewelLink if your account is managed there.");
     return sessionContext(revalidated);
   }
+  if (session?.authSource === "linkd_unified") {
+    const revalidated = await revalidateLinkdUnifiedSession(session);
+    if (!revalidated) throw new UnauthenticatedError("This Linkd access session is no longer active. Continue with Linkd to sign in again.");
+    return sessionContext(revalidated);
+  }
   if (authRequired()) throw new UnauthenticatedError();
   return getCurrentSession();
 }
@@ -226,11 +234,11 @@ export async function requireStoreAccess(
   operation: string,
   providedSession?: SessionContext,
 ) {
-  const { membershipRole, locationScope } = await storeMembershipAccess(storeId, operation, providedSession);
+  const { session, membershipRole, locationScope } = await storeMembershipAccess(storeId, operation, providedSession);
   // Selected-location managers must fail closed until each data query accepts
   // the allowed location IDs. All-location managers are fully usable now;
   // subsequent integration work will make individual operations location-aware.
-  if (membershipRole === "manager" && locationScope && !locationScope.allLocations) {
+  if ((membershipRole === "manager" || session.authSource === "linkd_unified") && locationScope && !locationScope.allLocations) {
     throw new AccessDeniedError(`Location-scoped manager access is not enabled for ${operation}`);
   }
   return storeId;
