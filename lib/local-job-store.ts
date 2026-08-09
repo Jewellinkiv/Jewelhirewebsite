@@ -3,6 +3,7 @@
 
 import { PUBLIC_JOBS } from "@/lib/applicant-lifecycle";
 import { JOB_POSTINGS, JobPosting } from "@/lib/job-postings";
+import type { JobLocationScope } from "@/lib/job-location-targeting";
 
 export type JobStatus = "draft" | "open" | "paused" | "closed";
 
@@ -13,6 +14,8 @@ export interface JobRecord {
   title: string;
   locationId: string | null;
   location: string;
+  locationScope: JobLocationScope;
+  locationIds: string[];
   employmentType: string;
   compensationSummary: string;
   description: string;
@@ -119,6 +122,8 @@ function seedStoreJobs(storeId: string, jobs: JobRecord[]) {
       title: publicJob?.title || posting.title,
       locationId: locationIdFor(location),
       location,
+      locationScope: "selected",
+      locationIds: locationIdFor(location) ? [locationIdFor(location)!] : [],
       employmentType: publicJob?.employmentType || "Full-time",
       compensationSummary: publicJob?.compensationSummary || "",
       description: publicJob?.description || "",
@@ -137,12 +142,12 @@ function seedStoreJobs(storeId: string, jobs: JobRecord[]) {
 }
 
 function clone(job: JobRecord): JobRecord {
-  return { ...job, requirements: [...job.requirements], idealGemMatchMix: [...job.idealGemMatchMix], requiredAssessmentIds: [...job.requiredAssessmentIds], requiredCourseIds: [...job.requiredCourseIds] };
+  return { ...job, locationIds: [...job.locationIds], requirements: [...job.requirements], idealGemMatchMix: [...job.idealGemMatchMix], requiredAssessmentIds: [...job.requiredAssessmentIds], requiredCourseIds: [...job.requiredCourseIds] };
 }
 
 export function listLocalStoreJobs(storeId: string, opts: { locationId?: string | null; status?: JobStatus | null } = {}) {
   return bucket(storeId)
-    .filter((job) => !opts.locationId || job.locationId === opts.locationId)
+    .filter((job) => !opts.locationId || job.locationScope === "all" || job.locationIds.includes(opts.locationId) || job.locationId === opts.locationId)
     .filter((job) => !opts.status || job.status === opts.status)
     .map(clone);
 }
@@ -160,6 +165,8 @@ export interface CreateLocalJobInput {
   title: string;
   locationId?: string | null;
   location?: string;
+  locationScope?: JobLocationScope;
+  locationIds?: string[];
   employmentType?: string;
   compensationSummary?: string;
   description?: string;
@@ -183,6 +190,8 @@ export function createLocalStoreJob(storeId: string, input: CreateLocalJobInput)
     title,
     locationId: input.locationId || null,
     location: (input.location || "").trim() || "Little Rock",
+    locationScope: input.locationScope || "selected",
+    locationIds: input.locationIds?.filter(Boolean) || (input.locationId ? [input.locationId] : []),
     employmentType: (input.employmentType || "").trim() || "Full-time",
     compensationSummary: (input.compensationSummary || "").trim(),
     description: (input.description || "").trim(),
@@ -207,6 +216,8 @@ export function updateLocalStoreJob(storeId: string, slugOrId: string, patch: Pa
   if (typeof patch.title === "string" && patch.title.trim()) job.title = patch.title.trim();
   if (patch.locationId !== undefined) job.locationId = patch.locationId || null;
   if (typeof patch.location === "string" && patch.location.trim()) job.location = patch.location.trim();
+  if (patch.locationScope) job.locationScope = patch.locationScope;
+  if (Array.isArray(patch.locationIds)) job.locationIds = patch.locationIds.filter(Boolean);
   if (typeof patch.employmentType === "string" && patch.employmentType.trim()) job.employmentType = patch.employmentType.trim();
   if (typeof patch.compensationSummary === "string") job.compensationSummary = patch.compensationSummary.trim();
   if (typeof patch.description === "string") job.description = patch.description.trim();

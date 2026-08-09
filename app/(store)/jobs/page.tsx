@@ -19,6 +19,8 @@ interface JobRecord {
   title: string;
   location: string;
   locationId: string | null;
+  locationScope: "all" | "selected";
+  locationIds: string[];
   employmentType: string;
   compensationSummary: string;
   description: string;
@@ -112,8 +114,8 @@ const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Contract", "Seasonal"];
 function CreateJobModal({ storeId, locations, onClose, onCreated }: { storeId: string; locations: StoreLocation[]; onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({
     title: "",
-    locationId: "",
-    location: "",
+    locationScope: "all" as "all" | "selected",
+    locationIds: [] as string[],
     employmentType: "Full-time",
     compensationSummary: "",
     openings: "1",
@@ -125,21 +127,29 @@ function CreateJobModal({ storeId, locations, onClose, onCreated }: { storeId: s
   const [error, setError] = useState("");
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const canSubmit = form.title.trim().length > 0 && !saving;
+  const toggleLocation = (locationId: string) => {
+    setForm((current) => ({
+      ...current,
+      locationIds: current.locationIds.includes(locationId)
+        ? current.locationIds.filter((id) => id !== locationId)
+        : [...current.locationIds, locationId],
+    }));
+  };
+
+  const canSubmit = form.title.trim().length > 0 && (form.locationScope === "all" || form.locationIds.length > 0) && !saving;
 
   const submit = async () => {
     if (!canSubmit) return;
     setSaving(true);
     setError("");
-    const selectedLocation = locations.find((l) => l.id === form.locationId);
     try {
       const response = await fetch(`/api/stores/${storeId}/jobs`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           title: form.title.trim(),
-          locationId: form.locationId || undefined,
-          location: selectedLocation?.name || form.location.trim() || undefined,
+          locationScope: form.locationScope,
+          locationIds: form.locationScope === "all" ? [] : form.locationIds,
           employmentType: form.employmentType,
           compensationSummary: form.compensationSummary.trim(),
           openings: Number(form.openings) || 1,
@@ -176,20 +186,29 @@ function CreateJobModal({ storeId, locations, onClose, onCreated }: { storeId: s
             <label className={label}>Job title *</label>
             <input className={input} value={form.title} onChange={set("title")} placeholder="Sales Associate" autoFocus />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={label}>Location</label>
-              <select className={input} value={form.locationId} onChange={set("locationId")}>
-                <option value="">Select a location</option>
-                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+          <div>
+            <label className={label}>Store availability *</label>
+            <div className="rounded-md border border-line p-3 text-[13px] text-body">
+              <label className="flex min-h-9 cursor-pointer items-center gap-2">
+                <input type="radio" name="job-location-scope" checked={form.locationScope === "all"} onChange={() => setForm((current) => ({ ...current, locationScope: "all" }))} className="h-4 w-4 accent-primary" />
+                All store locations
+              </label>
+              <label className="mt-1 flex min-h-9 cursor-pointer items-center gap-2">
+                <input type="radio" name="job-location-scope" checked={form.locationScope === "selected"} onChange={() => setForm((current) => ({ ...current, locationScope: "selected" }))} className="h-4 w-4 accent-primary" />
+                Selected store locations
+              </label>
+              {form.locationScope === "selected" ? (
+                <div className="mt-2 grid grid-cols-1 gap-1 border-t border-line pt-2 sm:grid-cols-2">
+                  {locations.map((location) => <label key={location.id} className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-1 hover:bg-page"><input type="checkbox" checked={form.locationIds.includes(location.id)} onChange={() => toggleLocation(location.id)} className="h-4 w-4 rounded border-line accent-primary" />{location.name}</label>)}
+                </div>
+              ) : null}
             </div>
-            <div>
-              <label className={label}>Employment type</label>
-              <select className={input} value={form.employmentType} onChange={set("employmentType")}>
-                {EMPLOYMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
+          </div>
+          <div>
+            <label className={label}>Employment type</label>
+            <select className={input} value={form.employmentType} onChange={set("employmentType")}>
+              {EMPLOYMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

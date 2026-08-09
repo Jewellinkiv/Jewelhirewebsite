@@ -40,6 +40,7 @@ import { ManagerUser, UserRole } from "@/lib/users";
 import type { PublicPageAsset, PublicPagePreview, PublicPageReview } from "@/lib/local-public-page-store";
 import type { NotificationRule, StoreIntegration, StoreSettingsRecord } from "@/lib/local-settings-store";
 import type { AdminAuditEntry } from "@/lib/local-admin-store";
+import type { ApplicantLocationPreferenceScope, JobLocationScope } from "@/lib/job-location-targeting";
 import { AdminCompany, AdminCompanyUser, CompanyStatus, INVOICES, PLANS, PlanTier } from "@/lib/admin";
 import type { PoolClient } from "pg";
 import { getPostgresPool } from "@/lib/server/postgres";
@@ -71,6 +72,8 @@ interface PublicJobRow {
   slug?: string | null;
   title: string;
   location: string | null;
+  location_scope?: JobLocationScope | null;
+  location_ids?: JsonArray;
   employment_type: string | null;
   compensation_summary: string | null;
   description: string | null;
@@ -102,6 +105,8 @@ interface ApplicationSummaryRow {
   last_activity_at: string;
   created_at: string;
   updated_at: string;
+  preferred_location_scope: ApplicantLocationPreferenceScope | null;
+  preferred_location_ids: JsonArray;
   applicant_full_name: string;
   applicant_email: string;
   applicant_phone: string | null;
@@ -136,6 +141,8 @@ interface ApplicationDetailRow {
   last_activity_at: string;
   application_created_at: string;
   application_updated_at: string;
+  preferred_location_scope: ApplicantLocationPreferenceScope | null;
+  preferred_location_ids: JsonArray;
   applicant_full_name: string;
   applicant_email: string;
   applicant_phone: string | null;
@@ -492,6 +499,7 @@ export interface CreatePostgresPublicApplicationInput {
   storeSlug: string;
   jobId?: string;
   submissionKeyHash?: string;
+  locationPreference?: { scope?: ApplicantLocationPreferenceScope; locationIds?: string[] };
   attachment?: {
     originalFilename: string;
     mimeType: ApplicationAttachmentRecord["mimeType"];
@@ -643,6 +651,8 @@ export interface CreatePostgresStoreJobInput {
   storeId: string;
   title?: string;
   location?: string;
+  locationScope?: JobLocationScope;
+  locationIds?: string[];
   employmentType?: string;
   compensationSummary?: string;
   description?: string;
@@ -658,6 +668,8 @@ export interface UpdatePostgresStoreJobInput {
   storeId?: string;
   title?: string;
   location?: string;
+  locationScope?: JobLocationScope;
+  locationIds?: string[];
   employmentType?: string;
   compensationSummary?: string;
   description?: string;
@@ -1364,8 +1376,10 @@ function mapPublicJob(row: PublicJobRow): PublicJobRecord & {
     storeId: row.store_id,
     publicPageId: row.public_page_id,
     title: row.title,
-    locationId: jobLocationId(row.location),
+    locationId: asStringArray(row.location_ids || [])[0] || jobLocationId(row.location),
     location: row.location || "",
+    locationScope: row.location_scope === "all" ? "all" : "selected",
+    locationIds: asStringArray(row.location_ids || []),
     employmentType: row.employment_type === "Part-time" ? "Part-time" : "Full-time",
     compensationSummary: row.compensation_summary || "",
     description: row.description || "",
@@ -1789,6 +1803,8 @@ function mapPostgresPublicJobForBuilder(row: PublicJobRow): PublicJob {
     title: row.title,
     type: row.employment_type === "Part-time" ? "Part-time" : "Full-time",
     location: row.location || "",
+    locationScope: row.location_scope === "all" ? "all" : "selected",
+    locationIds: asStringArray(row.location_ids || []),
     salary: row.compensation_summary || "",
     blurb: row.description || "",
   };
@@ -1810,6 +1826,8 @@ function mapApplicationSummary(row: ApplicationSummaryRow): PostgresApplicationS
       stage: row.stage,
       statusReason: optional(row.status_reason),
       currentOwnerUserId: optional(row.current_owner_user_id),
+      preferredLocationScope: row.preferred_location_scope === "selected" ? "selected" : "any",
+      preferredLocationIds: asStringArray(row.preferred_location_ids),
       submittedAt: row.submitted_at,
       lastActivityAt: row.last_activity_at,
       createdAt: row.created_at,
@@ -1876,6 +1894,8 @@ function mapApplication(row: ApplicationDetailRow): ApplicationRecord {
     stage: row.stage,
     statusReason: optional(row.status_reason),
     currentOwnerUserId: optional(row.current_owner_user_id),
+    preferredLocationScope: row.preferred_location_scope === "selected" ? "selected" : "any",
+    preferredLocationIds: asStringArray(row.preferred_location_ids),
     submittedAt: row.submitted_at,
     lastActivityAt: row.last_activity_at,
     createdAt: row.application_created_at,
@@ -2326,6 +2346,8 @@ export async function getPostgresPublicStoreSnapshot(storeSlug: string): Promise
         public_page_id,
         title,
         location,
+        location_scope,
+        location_ids,
         employment_type,
         compensation_summary,
         description,
@@ -2368,6 +2390,8 @@ async function listPostgresStoreJobsWithClient(client: PoolClient, storeId: stri
         pj.slug,
         pj.title,
         pj.location,
+        pj.location_scope,
+        pj.location_ids,
         pj.employment_type,
         pj.compensation_summary,
         pj.description,
@@ -2396,6 +2420,8 @@ async function listPostgresStoreJobsWithClient(client: PoolClient, storeId: stri
         pj.slug,
         pj.title,
         pj.location,
+        pj.location_scope,
+        pj.location_ids,
         pj.employment_type,
         pj.compensation_summary,
         pj.description,
@@ -2424,7 +2450,6 @@ async function listPostgresStoreJobsWithClient(client: PoolClient, storeId: stri
   );
 
   return result.rows
-    .filter((row) => locationFilterMatches(row.location, locationId))
     .map((row) => {
       const job = mapPublicJob(row);
       return {
@@ -2438,7 +2463,8 @@ async function listPostgresStoreJobsWithClient(client: PoolClient, storeId: stri
           applyClicks: job.applyClicks,
         },
       };
-    });
+    })
+    .filter((item) => !locationId || item.job.locationScope === "all" || item.job.locationIds?.includes(locationId) || locationFilterMatches(item.job.location, locationId));
 }
 
 export async function listPostgresStoreJobs(storeId: string, locationId?: string | null) {
@@ -2480,6 +2506,8 @@ export async function createPostgresStoreJob(input: CreatePostgresStoreJobInput)
           slug,
           title,
           location,
+          location_scope,
+          location_ids,
           employment_type,
           compensation_summary,
           description,
@@ -2493,12 +2521,14 @@ export async function createPostgresStoreJob(input: CreatePostgresStoreJobInput)
           updated_at
         )
         values (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb, $12::jsonb, $13::jsonb,
-          $14, $15, $16, $16
+          $1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12::jsonb, $13::jsonb, $14::jsonb, $15::jsonb,
+          $16, $17, $18, $18
         )
         on conflict (store_id, slug) do update set
           title = excluded.title,
           location = excluded.location,
+          location_scope = excluded.location_scope,
+          location_ids = excluded.location_ids,
           employment_type = excluded.employment_type,
           compensation_summary = excluded.compensation_summary,
           description = excluded.description,
@@ -2516,6 +2546,8 @@ export async function createPostgresStoreJob(input: CreatePostgresStoreJobInput)
           slug,
           title,
           location,
+          location_scope,
+          location_ids,
           employment_type,
           compensation_summary,
           description,
@@ -2538,6 +2570,8 @@ export async function createPostgresStoreJob(input: CreatePostgresStoreJobInput)
         slug,
         title,
         input.location?.trim() || null,
+        input.locationScope === "all" ? "all" : "selected",
+        JSON.stringify(input.locationIds || []),
         input.employmentType?.trim() || "Full-time",
         input.compensationSummary?.trim() || "",
         input.description?.trim() || "",
@@ -2583,25 +2617,27 @@ export async function updatePostgresStoreJob(input: UpdatePostgresStoreJobInput)
       set
         title = coalesce($2, title),
         location = coalesce($3, location),
-        employment_type = coalesce($4, employment_type),
-        compensation_summary = coalesce($5, compensation_summary),
-        description = coalesce($6, description),
-        requirements = coalesce($7::jsonb, requirements),
-        ideal_gemmatch_mix = coalesce($8::jsonb, ideal_gemmatch_mix),
-        required_assessment_ids = coalesce($9::jsonb, required_assessment_ids),
-        required_course_ids = coalesce($10::jsonb, required_course_ids),
-        status = $11,
+        location_scope = coalesce($4::text, location_scope),
+        location_ids = coalesce($5::jsonb, location_ids),
+        employment_type = coalesce($6, employment_type),
+        compensation_summary = coalesce($7, compensation_summary),
+        description = coalesce($8, description),
+        requirements = coalesce($9::jsonb, requirements),
+        ideal_gemmatch_mix = coalesce($10::jsonb, ideal_gemmatch_mix),
+        required_assessment_ids = coalesce($11::jsonb, required_assessment_ids),
+        required_course_ids = coalesce($12::jsonb, required_course_ids),
+        status = $13,
         opened_at = case
-          when $11 = 'open' and opened_at is null then $12::timestamptz
-          when $11 = 'open' then opened_at
+          when $13 = 'open' and opened_at is null then $14::timestamptz
+          when $13 = 'open' then opened_at
           else opened_at
         end,
         closed_at = case
-          when $11 = 'closed' then $12::timestamptz
-          when $11 = 'open' then null
+          when $13 = 'closed' then $14::timestamptz
+          when $13 = 'open' then null
           else closed_at
         end,
-        updated_at = $12::timestamptz
+        updated_at = $14::timestamptz
       where id = $1
       returning
         id,
@@ -2610,6 +2646,8 @@ export async function updatePostgresStoreJob(input: UpdatePostgresStoreJobInput)
         slug,
         title,
         location,
+        location_scope,
+        location_ids,
         employment_type,
         compensation_summary,
         description,
@@ -2629,6 +2667,8 @@ export async function updatePostgresStoreJob(input: UpdatePostgresStoreJobInput)
       current.id,
       input.title?.trim() || null,
       input.location?.trim() || null,
+      input.locationScope || null,
+      Array.isArray(input.locationIds) ? JSON.stringify(input.locationIds) : null,
       input.employmentType?.trim() || null,
       input.compensationSummary?.trim() || null,
       input.description?.trim() || null,
@@ -2660,6 +2700,8 @@ async function resolvePostgresJobBySlug(slug: string, storeId?: string) {
         slug,
         title,
         location,
+        location_scope,
+        location_ids,
         employment_type,
         compensation_summary,
         description,
@@ -3067,6 +3109,8 @@ async function listPostgresPublicPageJobsForStore(client: PoolClient, storeId: s
         public_page_id,
         title,
         location,
+        location_scope,
+        location_ids,
         employment_type,
         compensation_summary,
         description,
@@ -5330,6 +5374,8 @@ async function listPostgresApplicationSummariesWithClient(client: PoolClient, in
         a.last_activity_at::text,
         a.created_at::text,
         a.updated_at::text,
+        a.preferred_location_scope,
+        a.preferred_location_ids,
         ap.full_name as applicant_full_name,
         ap.email as applicant_email,
         ap.phone as applicant_phone,
@@ -5546,6 +5592,8 @@ export async function listPostgresApplicantApplications(email?: string | null) {
         a.last_activity_at::text,
         a.created_at::text,
         a.updated_at::text,
+        a.preferred_location_scope,
+        a.preferred_location_ids,
         ap.full_name as applicant_full_name,
         ap.email as applicant_email,
         ap.phone as applicant_phone,
@@ -5707,6 +5755,8 @@ export async function listPostgresApplicantInvites(
         a.last_activity_at::text,
         a.created_at::text as application_created_at,
         a.updated_at::text as application_updated_at,
+        a.preferred_location_scope,
+        a.preferred_location_ids,
         pj.title as job_title,
         pj.location as job_location
       from jewelcert_invites ji
@@ -5885,6 +5935,8 @@ async function getPostgresApplicationDetailWithClient(client: PoolClient, input:
         a.last_activity_at::text,
         a.created_at::text as application_created_at,
         a.updated_at::text as application_updated_at,
+        a.preferred_location_scope,
+        a.preferred_location_ids,
         ap.full_name as applicant_full_name,
         ap.email as applicant_email,
         ap.phone as applicant_phone,
@@ -9719,6 +9771,8 @@ async function getOpenPostgresPublicJob(client: PoolClient, storeSlug: string, j
         s.company_id,
         pj.title,
         pj.location,
+        pj.location_scope,
+        pj.location_ids,
         pj.employment_type,
         pj.compensation_summary,
         pj.description,
@@ -9746,6 +9800,38 @@ async function getOpenPostgresPublicJob(client: PoolClient, storeSlug: string, j
   return result.rows[0];
 }
 
+async function resolvePostgresJobTargetLocationIds(client: PoolClient, job: PublicJobRow) {
+  const locations = await client.query<{ id: string; name: string }>(
+    "select id, name from locations where store_id = $1 order by created_at asc, name asc",
+    [job.store_id],
+  );
+  const allIds = locations.rows.map((location) => location.id);
+  if (job.location_scope === "all") return allIds;
+  const explicitIds = asStringArray(job.location_ids || []).filter((id) => allIds.includes(id));
+  if (explicitIds.length) return explicitIds;
+  const legacyLocation = (job.location || "").trim().toLowerCase();
+  return locations.rows
+    .filter((location) => location.name.trim().toLowerCase() === legacyLocation)
+    .map((location) => location.id);
+}
+
+async function resolvePostgresApplicationLocationPreference(
+  client: PoolClient,
+  job: PublicJobRow,
+  preference?: CreatePostgresPublicApplicationInput["locationPreference"],
+) {
+  const preferredLocationScope: ApplicantLocationPreferenceScope = preference?.scope === "selected" ? "selected" : "any";
+  const requestedLocationIds = [...new Set((preference?.locationIds || []).filter((id): id is string => typeof id === "string").map((id) => id.trim()).filter(Boolean))];
+  const targetLocationIds = await resolvePostgresJobTargetLocationIds(client, job);
+
+  if (preferredLocationScope === "any") return { preferredLocationScope, preferredLocationIds: [] };
+  if (requestedLocationIds.length === 0) return { error: "Choose at least one preferred store location." as const };
+  if (targetLocationIds.length === 0 || requestedLocationIds.some((id) => !targetLocationIds.includes(id))) {
+    return { error: "Choose only store locations available for this role." as const };
+  }
+  return { preferredLocationScope, preferredLocationIds: requestedLocationIds };
+}
+
 export async function incrementPostgresPublicJobView(storeSlug: string, jobId: string) {
   const client = await getPostgresPool().connect();
   try {
@@ -9767,6 +9853,8 @@ export async function incrementPostgresPublicJobView(storeSlug: string, jobId: s
           slug,
           title,
           location,
+          location_scope,
+          location_ids,
           employment_type,
           compensation_summary,
           description,
@@ -9814,6 +9902,11 @@ export async function createPostgresPublicApplication(
     if (!jobRow) {
       await client.query("rollback");
       return { error: "Public job not found" };
+    }
+    const locationPreference = await resolvePostgresApplicationLocationPreference(client, jobRow, input.locationPreference);
+    if ("error" in locationPreference) {
+      await client.query("rollback");
+      return { error: locationPreference.error || "Unable to save store preferences." };
     }
 
     if (input.submissionKeyHash) {
@@ -9864,6 +9957,8 @@ export async function createPostgresPublicApplication(
       applicantProfileId: profileId,
       source: "public_store_page",
       stage: "applied",
+      preferredLocationScope: locationPreference.preferredLocationScope,
+      preferredLocationIds: locationPreference.preferredLocationIds,
       submittedAt: timestamp,
       lastActivityAt: timestamp,
       createdAt: timestamp,
@@ -9902,11 +9997,21 @@ export async function createPostgresPublicApplication(
       `
         insert into applications (
           id, store_id, job_id, applicant_profile_id, source, stage, submitted_at,
-          last_activity_at, created_at, updated_at, public_submission_key_hash
+          last_activity_at, created_at, updated_at, public_submission_key_hash,
+          preferred_location_scope, preferred_location_ids
         )
-        values ($1, $2, $3, $4, 'public_store_page', 'applied', $5, $5, $5, $5, $6)
+        values ($1, $2, $3, $4, 'public_store_page', 'applied', $5, $5, $5, $5, $6, $7, $8::jsonb)
       `,
-      [application.id, application.storeId, application.jobId, application.applicantProfileId, timestamp, input.submissionKeyHash || null],
+      [
+        application.id,
+        application.storeId,
+        application.jobId,
+        application.applicantProfileId,
+        timestamp,
+        input.submissionKeyHash || null,
+        application.preferredLocationScope,
+        JSON.stringify(application.preferredLocationIds),
+      ],
     );
     if (input.attachment) {
       await client.query(
@@ -9937,7 +10042,7 @@ export async function createPostgresPublicApplication(
         )
         values ($1, $2, $3, null, 'applied', null, 'Application submitted from public store page', $4::jsonb, $5)
       `,
-      [stageEventId, application.id, application.storeId, JSON.stringify({ source: "public_store_page" }), timestamp],
+      [stageEventId, application.id, application.storeId, JSON.stringify({ source: "public_store_page", preferredLocationScope: application.preferredLocationScope, preferredLocationIds: application.preferredLocationIds }), timestamp],
     );
     await client.query(
       `
@@ -9951,7 +10056,7 @@ export async function createPostgresPublicApplication(
         application.storeId,
         jobRow.company_id,
         application.id,
-        JSON.stringify({ source: "public_store_page", jobId: application.jobId, applicantProfileId: profile.id }),
+        JSON.stringify({ source: "public_store_page", jobId: application.jobId, applicantProfileId: profile.id, preferredLocationScope: application.preferredLocationScope, preferredLocationIds: application.preferredLocationIds }),
         timestamp,
       ],
     );
