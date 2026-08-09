@@ -934,6 +934,7 @@ export function completeGemMatchResponse(input: { inviteId: string; pickedAdject
 export function createPublicApplication(input: {
   storeSlug: string;
   jobId: string;
+  locationPreference?: { scope?: "any" | "selected"; locationIds?: string[] };
   profile: {
     name: string;
     email: string;
@@ -1011,6 +1012,10 @@ export function createPublicApplication(input: {
     lastActivityAt: timestamp,
     createdAt: timestamp,
     updatedAt: timestamp,
+    preferredLocationScope: input.locationPreference?.scope === "selected" ? "selected" : "any",
+    preferredLocationIds: input.locationPreference?.scope === "selected"
+      ? [...new Set((input.locationPreference.locationIds || []).filter(Boolean))]
+      : [],
   };
 
   store.profiles.unshift(profile);

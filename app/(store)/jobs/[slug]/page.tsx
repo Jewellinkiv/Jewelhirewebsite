@@ -15,6 +15,8 @@ interface JobRecord {
   title: string;
   locationId: string | null;
   location: string;
+  locationScope: "all" | "selected";
+  locationIds: string[];
   employmentType: string;
   compensationSummary: string;
   description: string;
@@ -42,6 +44,13 @@ interface ApplicantRow {
   initials: string;
   stage: string;
   appliedDate: string;
+  preferredLocationScope?: "any" | "selected";
+  preferredLocationIds?: string[];
+}
+
+interface StoreLocation {
+  id: string;
+  name: string;
 }
 
 const STATUS_LABEL: Record<RawStatus, string> = { open: "Active", draft: "Draft", paused: "Paused", closed: "Closed" };
@@ -91,10 +100,19 @@ function stageLabel(stage: string) {
   return stage === "gemmatch" || stage === "GemMatch" ? "JewelCert profile" : stage;
 }
 
-function EditJobModal({ storeId, job, onClose, onSaved }: { storeId: string; job: JobRecord; onClose: () => void; onSaved: () => void }) {
+function locationPreferenceLabel(applicant: ApplicantRow, locations: StoreLocation[]) {
+  if (applicant.preferredLocationScope !== "selected") return "Any participating store";
+  const names = (applicant.preferredLocationIds || [])
+    .map((id) => locations.find((location) => location.id === id)?.name)
+    .filter((name): name is string => Boolean(name));
+  return names.length ? names.join(" · ") : "Selected stores";
+}
+
+function EditJobModal({ storeId, job, locations, onClose, onSaved }: { storeId: string; job: JobRecord; locations: StoreLocation[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
     title: job.title,
-    location: job.location,
+    locationScope: job.locationScope || "selected" as "all" | "selected",
+    locationIds: job.locationIds?.length ? job.locationIds : job.locationId ? [job.locationId] : [],
     employmentType: job.employmentType || "Full-time",
     compensationSummary: job.compensationSummary || "",
     openings: String(job.openings || 1),
@@ -107,7 +125,15 @@ function EditJobModal({ storeId, job, onClose, onSaved }: { storeId: string; job
   const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm((current) => ({ ...current, [key]: event.target.value }));
   };
-  const canSave = form.title.trim().length > 0 && !saving;
+  const toggleLocation = (locationId: string) => {
+    setForm((current) => ({
+      ...current,
+      locationIds: current.locationIds.includes(locationId)
+        ? current.locationIds.filter((id) => id !== locationId)
+        : [...current.locationIds, locationId],
+    }));
+  };
+  const canSave = form.title.trim().length > 0 && (form.locationScope === "all" || form.locationIds.length > 0) && !saving;
   const input = "w-full border border-line rounded-md px-3 py-2 text-[13.5px] text-body outline-none focus:border-primary bg-white";
   const label = "text-[12px] font-medium text-head mb-1 block";
 
@@ -121,7 +147,8 @@ function EditJobModal({ storeId, job, onClose, onSaved }: { storeId: string; job
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           title: form.title.trim(),
-          location: form.location.trim(),
+          locationScope: form.locationScope,
+          locationIds: form.locationScope === "all" ? [] : form.locationIds,
           employmentType: form.employmentType,
           compensationSummary: form.compensationSummary.trim(),
           openings: Number(form.openings) || 1,
@@ -155,17 +182,19 @@ function EditJobModal({ storeId, job, onClose, onSaved }: { storeId: string; job
             <label className={label}>Job title *</label>
             <input className={input} value={form.title} onChange={set("title")} autoFocus />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={label}>Location</label>
-              <input className={input} value={form.location} onChange={set("location")} />
+          <div>
+            <label className={label}>Store availability *</label>
+            <div className="rounded-md border border-line p-3 text-[13px] text-body">
+              <label className="flex min-h-9 cursor-pointer items-center gap-2"><input type="radio" name="job-location-scope" checked={form.locationScope === "all"} onChange={() => setForm((current) => ({ ...current, locationScope: "all" }))} className="h-4 w-4 accent-primary" />All store locations</label>
+              <label className="mt-1 flex min-h-9 cursor-pointer items-center gap-2"><input type="radio" name="job-location-scope" checked={form.locationScope === "selected"} onChange={() => setForm((current) => ({ ...current, locationScope: "selected" }))} className="h-4 w-4 accent-primary" />Selected store locations</label>
+              {form.locationScope === "selected" ? <div className="mt-2 grid grid-cols-1 gap-1 border-t border-line pt-2 sm:grid-cols-2">{locations.map((location) => <label key={location.id} className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-1 hover:bg-page"><input type="checkbox" checked={form.locationIds.includes(location.id)} onChange={() => toggleLocation(location.id)} className="h-4 w-4 rounded border-line accent-primary" />{location.name}</label>)}</div> : null}
             </div>
-            <div>
-              <label className={label}>Employment type</label>
-              <select className={input} value={form.employmentType} onChange={set("employmentType")}>
-                {EMPLOYMENT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-              </select>
-            </div>
+          </div>
+          <div>
+            <label className={label}>Employment type</label>
+            <select className={input} value={form.employmentType} onChange={set("employmentType")}>
+              {EMPLOYMENT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -214,6 +243,7 @@ export default function JobDetail(props: { params: Promise<{ slug: string }> }) 
   // masked the valid response for the authenticated store.
   const STORE_ID = useActiveStoreId("");
   const [job, setJob] = useState<JobRecord | null>(null);
+  const [locations, setLocations] = useState<StoreLocation[]>([]);
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [applicants, setApplicants] = useState<ApplicantRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -239,6 +269,16 @@ export default function JobDetail(props: { params: Promise<{ slug: string }> }) 
   }, [STORE_ID, params.slug]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!STORE_ID) return;
+    let cancelled = false;
+    fetch(`/api/stores/${STORE_ID}/locations`)
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((data: { items: StoreLocation[] }) => { if (!cancelled) setLocations(data.items || []); })
+      .catch(() => { if (!cancelled) setLocations([]); });
+    return () => { cancelled = true; };
+  }, [STORE_ID]);
 
   const changeStatus = async (status: RawStatus) => {
     if (!job) return;
@@ -303,7 +343,7 @@ export default function JobDetail(props: { params: Promise<{ slug: string }> }) 
           <div className="overflow-x-auto"><table className="w-full border-collapse">
             <thead>
               <tr>
-                {["Applicant", "Applied", "Stage"].map((h) => (
+                {["Applicant", "Store preferences", "Applied", "Stage"].map((h) => (
                   <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted px-4 py-2.5 border-b border-line">{h}</th>
                 ))}
               </tr>
@@ -317,6 +357,7 @@ export default function JobDetail(props: { params: Promise<{ slug: string }> }) 
                       <span className="font-medium text-head">{a.name}</span>
                     </span>
                   </td>
+                  <td className="px-4 py-3 border-b border-[#eef1f6] text-[12px] text-body">{locationPreferenceLabel(a, locations)}</td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px] text-body">{formatDate(a.appliedDate)}</td>
                   <td className="px-4 py-3 border-b border-[#eef1f6] text-[13px]"><span className={`inline-flex text-[11.5px] font-medium px-2.5 py-1 rounded-full capitalize ${STAGE_STYLE[a.stage] || "bg-[#eef2f7] text-[#5b6472]"}`}>{stageLabel(a.stage)}</span></td>
                 </tr>
@@ -328,7 +369,7 @@ export default function JobDetail(props: { params: Promise<{ slug: string }> }) 
         )}
       </Panel>
 
-      {showEdit && <EditJobModal storeId={STORE_ID} job={job} onClose={() => setShowEdit(false)} onSaved={load} />}
+      {showEdit && <EditJobModal storeId={STORE_ID} job={job} locations={locations} onClose={() => setShowEdit(false)} onSaved={load} />}
     </div>
   );
 }

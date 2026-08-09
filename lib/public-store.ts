@@ -13,6 +13,8 @@ export interface PublicJob {
   title: string;
   type: "Full-time" | "Part-time";
   location: string;
+  locationScope?: "all" | "selected";
+  locationIds?: string[];
   salary: string;
   blurb: string;
 }

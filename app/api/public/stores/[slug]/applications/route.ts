@@ -182,6 +182,24 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
   if (!jobId || jobId.length > 160 || !/^[a-zA-Z0-9_-]+$/.test(jobId)) {
     return NextResponse.json({ error: { code: "invalid_job", message: "That job listing is not available." } }, { status: 400 });
   }
+  const rawLocationPreference = body.locationPreference;
+  const rawPreferredLocationIds = rawLocationPreference && typeof rawLocationPreference === "object" && !Array.isArray(rawLocationPreference)
+    ? (rawLocationPreference as Record<string, unknown>).locationIds
+    : [];
+  if (Array.isArray(rawPreferredLocationIds) && rawPreferredLocationIds.length > 50) {
+    return requestError("invalid_location_preference", "Choose no more than 50 preferred stores.", 400);
+  }
+  const preferredLocationIds = Array.isArray(rawPreferredLocationIds)
+    ? [...new Set(rawPreferredLocationIds.filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean))]
+    : [];
+  if (preferredLocationIds.some((id) => id.length > 160 || !/^[a-zA-Z0-9_-]+$/.test(id))) {
+    return requestError("invalid_location_preference", "One of the selected stores is not available.", 400);
+  }
+  const locationPreference = {
+    scope: rawLocationPreference && typeof rawLocationPreference === "object" && !Array.isArray(rawLocationPreference)
+      && (rawLocationPreference as Record<string, unknown>).scope === "selected" ? "selected" as const : "any" as const,
+    locationIds: preferredLocationIds,
+  };
   const emailBucket = createHash("sha256").update(applicantEmail).digest("hex").slice(0, 24);
   const emailLimited = await rateLimit(`public-application-email:${params.slug}:${emailBucket}`, 5, 3_600);
   if (!emailLimited.ok) return rateLimitResponse(emailLimited.retryAfterSeconds);
@@ -197,6 +215,7 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
       : undefined,
     profile,
     attachment,
+    locationPreference,
   };
   if (attachment && getStorageRuntime() !== "postgres") {
     return requestError("resume_storage_unavailable", "Résumé upload is temporarily unavailable. You can remove the file and submit the rest of your application.", 503);

@@ -79,6 +79,7 @@ export interface CreatePublicApplicationInput {
   storeSlug: string;
   jobId?: string;
   profile: Record<string, unknown>;
+  locationPreference?: { scope?: "any" | "selected"; locationIds?: string[] };
 }
 
 export interface AddApplicantNoteInput {

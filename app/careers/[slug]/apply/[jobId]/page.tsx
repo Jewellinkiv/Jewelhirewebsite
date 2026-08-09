@@ -113,7 +113,15 @@ export default async function PublicApplyPage(props: { params: Promise<{ slug: s
 
         {/* Application form */}
         <h2 className="mt-8 mb-3 text-[16px] font-semibold text-head">Apply for this role</h2>
-        <PublicApplyForm storeSlug={page.slug} jobId={job.id} jobTitle={job.title} storeName={store.name} />
+        <PublicApplyForm
+          storeSlug={page.slug}
+          jobId={job.id}
+          jobTitle={job.title}
+          storeName={store.name}
+          locations={snapshot.locations}
+          jobLocationScope={job.locationScope}
+          jobLocationIds={job.locationIds}
+        />
       </main>
 
       <footer className="border-t border-line bg-white">

@@ -130,6 +130,8 @@ function publicJobs(storeId: string): PublicJob[] {
     title: job.title,
     type: job.employmentType,
     location: job.location,
+    locationScope: job.locationScope,
+    locationIds: job.locationIds,
     salary: job.compensationSummary,
     blurb: job.description,
   }));

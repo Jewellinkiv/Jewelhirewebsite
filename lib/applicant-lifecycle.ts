@@ -2,6 +2,7 @@
 // This mirrors docs/applicant-lifecycle-model.md and keeps applicants store-scoped.
 
 import { FitTier, Mix, ProfileCode } from "./gemmatch";
+import type { ApplicantLocationPreferenceScope, JobLocationScope } from "./job-location-targeting";
 
 export type PublicPageStatus = "draft" | "published" | "paused";
 export type PublicJobStatus = "draft" | "open" | "paused" | "closed";
@@ -32,6 +33,8 @@ export interface PublicJobRecord {
   publicPageId: string;
   title: string;
   location: string;
+  locationScope?: JobLocationScope;
+  locationIds?: string[];
   employmentType: "Full-time" | "Part-time";
   compensationSummary: string;
   description: string;
@@ -89,6 +92,8 @@ export interface ApplicationRecord {
   applicantProfileId: string;
   source: ApplicationSource;
   stage: ApplicationStage;
+  preferredLocationScope?: ApplicantLocationPreferenceScope;
+  preferredLocationIds?: string[];
   statusReason?: string;
   currentOwnerUserId?: string;
   submittedAt: string;

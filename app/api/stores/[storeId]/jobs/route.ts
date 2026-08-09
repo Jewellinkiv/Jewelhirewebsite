@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireLocationScopedStoreAccess } from "@/lib/server/access-control";
-import { locationInScope, requestedLocationInScope, requireLocationInScope } from "@/lib/server/location-scope";
+import { requestedLocationInScope } from "@/lib/server/location-scope";
 import { createLocalStoreJob, listLocalStoreJobs, JobStatus } from "@/lib/local-job-store";
-import { createPostgresStoreJob, listPostgresStoreJobs } from "@/lib/server/postgres-phase1";
+import { createPostgresStoreJob, listPostgresStoreJobs, listPostgresStoreLocations } from "@/lib/server/postgres-phase1";
 import { getStorageRuntime } from "@/lib/server/storage-runtime";
 import { listApplications } from "@/lib/local-api-store";
 import { withApiErrorHandling } from "@/lib/server/api-errors";
+import { listStoreLocations } from "@/lib/local-team-store";
+import { jobIntersectsLocationScope, normalizeJobLocationTargeting } from "@/lib/job-location-targeting";
 
 const jobStatuses: JobStatus[] = ["draft", "open", "paused", "closed"];
 
@@ -17,13 +19,13 @@ export const GET = withApiErrorHandling(async function GET(request: Request, pro
   const locationId = requestedLocationInScope(url.searchParams.get("locationId"), access.locationIds, "jobs.list");
   if (getStorageRuntime() === "postgres") {
     const items = (await listPostgresStoreJobs(storeId, locationId)).filter((item) =>
-      locationInScope(item.job.locationId || item.job.location, access.locationIds),
+      jobIntersectsLocationScope(item.job, access.locationIds),
     );
     return NextResponse.json({ storeId, count: items.length, items });
   }
 
   const jobs = listLocalStoreJobs(storeId, { locationId }).filter((job) =>
-    locationInScope(job.locationId || job.location, access.locationIds),
+    jobIntersectsLocationScope(job, access.locationIds),
   );
   const applications = listApplications(storeId);
   const items = jobs.map((job) => {
@@ -50,14 +52,24 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
   const access = await requireLocationScopedStoreAccess(params.storeId, "jobs.create");
   const storeId = access.storeId;
   const body = await request.json().catch(() => null);
-  requireLocationInScope(body?.locationId || body?.location, access.locationIds, "jobs.create");
+  const locations = getStorageRuntime() === "postgres"
+    ? await listPostgresStoreLocations(storeId)
+    : listStoreLocations(storeId);
+  const targeting = normalizeJobLocationTargeting(body || {}, locations);
+  if ("error" in targeting) return NextResponse.json({ error: targeting.error }, { status: 400 });
+  if (!jobIntersectsLocationScope({ locationScope: targeting.locationScope, locationIds: targeting.locationIds }, access.locationIds)
+    || (access.locationIds && !targeting.locationIds.every((id) => access.locationIds!.includes(id)))) {
+    return NextResponse.json({ error: "Selected store locations are not in scope for this user." }, { status: 403 });
+  }
   const status = jobStatuses.includes(body?.status) ? (body.status as JobStatus) : undefined;
 
   if (getStorageRuntime() === "postgres") {
     const item = await createPostgresStoreJob({
       storeId,
       title: body?.title,
-      location: body?.location,
+      location: targeting.location,
+      locationScope: targeting.locationScope,
+      locationIds: targeting.locationIds,
       employmentType: body?.employmentType,
       compensationSummary: body?.compensationSummary,
       description: body?.description,
@@ -73,8 +85,10 @@ export const POST = withApiErrorHandling(async function POST(request: Request, p
 
   const result = createLocalStoreJob(storeId, {
     title: body?.title,
-    locationId: typeof body?.locationId === "string" ? body.locationId : undefined,
-    location: typeof body?.location === "string" ? body.location : undefined,
+    locationId: targeting.locationIds[0],
+    location: targeting.location,
+    locationScope: targeting.locationScope,
+    locationIds: targeting.locationIds,
     employmentType: typeof body?.employmentType === "string" ? body.employmentType : undefined,
     compensationSummary: typeof body?.compensationSummary === "string" ? body.compensationSummary : undefined,
     description: typeof body?.description === "string" ? body.description : undefined,
