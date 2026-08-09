@@ -15,6 +15,7 @@ const requiredMigrationIds = [
   "0024_jewelcert_claim_token_version_fence",
   "0025_standalone_billing_recovery",
   "0026_linkd_access_projection",
+  "0027_job_location_targeting",
 ];
 
 function loadEnvFile(filename) {
