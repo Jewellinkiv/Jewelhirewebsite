@@ -6,6 +6,7 @@ import { Panel } from "@/components/ui";
 import { ErrorState, SkeletonCard } from "@/components/states";
 import { AssociateInvite } from "@/lib/associate-portal";
 import { applicantInvitesForDisplay } from "@/lib/applicant-invite-display";
+import { GEMMATCH_PERSONALITY_ASSESSMENT_LABEL } from "@/lib/jewelcert";
 import { IconClipboardList, IconCheck, IconDiamond, IconChevronRight } from "@/components/icons";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -31,7 +32,7 @@ type PortalInvite = AssociateInvite & {
 };
 
 function inviteDisplayKind(kind: AssociateInvite["kind"]) {
-  return kind === "GemMatch" ? "JewelCert" : kind;
+  return kind === "GemMatch" ? GEMMATCH_PERSONALITY_ASSESSMENT_LABEL : kind;
 }
 
 // Standalone pick-10 -> the taker; a JewelCert bundle -> its landing page that

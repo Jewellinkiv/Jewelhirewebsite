@@ -6,6 +6,7 @@ import { Panel } from "@/components/ui";
 import { PageLoading, ErrorState } from "@/components/states";
 import { useCurrentSessionUser } from "@/lib/client-session";
 import { STAGE_META, ApplicationStage } from "@/lib/my-applications";
+import { GEMMATCH_PERSONALITY_ASSESSMENT_LABEL } from "@/lib/jewelcert";
 import { IconBriefcase, IconCalendar, IconClipboardList, IconChevronRight, IconCheck } from "@/components/icons";
 
 const TONE: Record<string, string> = {
@@ -38,7 +39,7 @@ interface ApiApplicationItem {
 function nextStep(stage: ApplicationStage) {
   if (stage === "applied") return "Application received — the store is reviewing it";
   if (stage === "jewelcert") return "Finish your JewelCert knowledge check";
-  if (stage === "gemmatch") return "Complete your JewelCert assessment (~3 min)";
+  if (stage === "gemmatch") return `Complete your ${GEMMATCH_PERSONALITY_ASSESSMENT_LABEL} (~3 min)`;
   if (stage === "interview") return "Interview scheduled — confirm your time";
   if (stage === "offer") return "Offer extended — review the details";
   return undefined;

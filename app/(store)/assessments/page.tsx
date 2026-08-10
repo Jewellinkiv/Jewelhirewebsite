@@ -7,6 +7,7 @@ import { Panel } from "@/components/ui";
 import { LEGACY_ASSESSMENTS } from "@/lib/legacy";
 import { AssessmentResult, COMPLETED_RESULTS } from "@/lib/assessment-results";
 import { CustomAssessment, CUSTOM_ASSESSMENTS } from "@/lib/custom-assessments";
+import { GEMMATCH_PERSONALITY_ASSESSMENT_LABEL } from "@/lib/jewelcert";
 import { IconPlus, IconClipboardList, IconDiamond } from "@/components/icons";
 import { useActiveStoreId } from "@/lib/client-session";
 
@@ -22,7 +23,7 @@ interface DefaultAssessment {
 }
 
 const DEFAULT_LIBRARY_FALLBACK: DefaultAssessment[] = [
-  { id: "gemmatch", title: "JewelCert", type: "Trait profile", durationMinutes: 3, questionCount: 48, owner: "Admin", status: "Published" },
+  { id: "gemmatch", title: GEMMATCH_PERSONALITY_ASSESSMENT_LABEL, type: "Trait profile", durationMinutes: 3, questionCount: 48, owner: "Admin", status: "Published" },
   ...LEGACY_ASSESSMENTS.map((a) => ({
     id: a.title,
     title: a.title,

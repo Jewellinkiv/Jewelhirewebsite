@@ -8,6 +8,8 @@
 //   applied → jewelcert → gemmatch → interview → offer → hired
 //   (terminal: rejected, withdrawn)
 
+import { GEMMATCH_PERSONALITY_ASSESSMENT_LABEL } from "./jewelcert";
+
 export type ApplicationStage =
   | "applied"
   | "jewelcert"
@@ -39,7 +41,7 @@ export const STAGE_META: Record<
 > = {
   applied: { label: "Applied", tone: "pending" },
   jewelcert: { label: "JewelCert", tone: "active" },
-  gemmatch: { label: "JewelCert", tone: "active" },
+  gemmatch: { label: "GemMatch", tone: "active" },
   interview: { label: "Interview", tone: "active" },
   offer: { label: "Offer", tone: "good" },
   hired: { label: "Hired", tone: "good" },
@@ -66,7 +68,7 @@ export const SEED_APPLICATIONS: StoreApplication[] = [
     role: "Luxury Jewelry Sales Associate",
     stage: "gemmatch",
     submittedAt: "Jun 12, 2026",
-    nextStep: "Complete your JewelCert assessment (~3 min)",
+    nextStep: `Complete your ${GEMMATCH_PERSONALITY_ASSESSMENT_LABEL} (~3 min)`,
     nextStepHref: "/portal/invites",
   },
   {
