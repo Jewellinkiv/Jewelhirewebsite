@@ -57,6 +57,18 @@ test("store-owner offers are exact organization prices and require both Stripe p
   });
 });
 
+test("store-owner subscription signup is discoverable before checkout", () => {
+  const applicantSignup = read("app/(auth)/signup/page.tsx");
+  const storeSignup = read("app/(auth)/signup/store/page.tsx");
+
+  assert.match(applicantSignup, /href="\/signup\/store"/);
+  assert.match(applicantSignup, /\$149\/month or \$1,299\/year/);
+  assert.match(storeSignup, /\$149\/month/);
+  assert.match(storeSignup, /\$1,299\/year/);
+  assert.match(storeSignup, /billingInterval/);
+  assert.match(storeSignup, /Continue to payment/);
+});
+
 test("Checkout Session creation binds one server-side session to the opaque request and selected price", async () => {
   const originalFetch = globalThis.fetch;
   let captured;

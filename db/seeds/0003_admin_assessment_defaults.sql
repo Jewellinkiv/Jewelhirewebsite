@@ -1,10 +1,10 @@
--- Default assessment library, matching lib/local-admin-store (JewelCert core +
--- the 3 migrated legacy tests). Idempotent. created_at ordered so JewelCert
+-- Default assessment library, matching lib/local-admin-store (GemMatch core +
+-- the 3 migrated legacy tests). Idempotent. created_at ordered so GemMatch
 -- leads and the legacy tests follow (list is ordered created_at desc).
 
 insert into admin_assessment_defaults (id, name, kind, scope, status, questions, note, origin, created_at, updated_at)
 values
-  ('gemmatch', 'JewelCert', 'Trait profile', 'All plans', 'Published', 48,
+  ('gemmatch', 'GemMatch Personality Assessment', 'Trait profile', 'All plans', 'Published', 48,
    'The core pick-10 profile. Default for every company.', 'builtin',
    '2026-06-04T12:00:00.000Z', '2026-06-04T12:00:00.000Z'),
   ('legacy-12-essentials', '12 Essentials: Understanding your potential', 'Trait profile', 'All plans', 'Published', 36,

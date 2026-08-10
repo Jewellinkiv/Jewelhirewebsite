@@ -5,7 +5,7 @@ import { getStorageRuntime } from "@/lib/server/storage-runtime";
 import { getApplicantStore } from "@/lib/server/stores/applicant-store";
 import { getCourseStore } from "@/lib/server/stores/course-store";
 import { listPostgresApplicantInvites } from "@/lib/server/postgres-phase1";
-import { CERT_COMPONENTS } from "@/lib/jewelcert";
+import { CERT_COMPONENTS, GEMMATCH_PERSONALITY_ASSESSMENT_LABEL } from "@/lib/jewelcert";
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +77,7 @@ export const GET = withApiErrorHandling(async function GET(
 
   const items: BundleItem[] = parts.map((part) => {
     if (part === "gemmatch") {
-      return { key: part, type: "profile", label: "JewelCert personality profile", href: `/jewelcert/${invite.id}`, done: bundleDone };
+      return { key: part, type: "profile", label: GEMMATCH_PERSONALITY_ASSESSMENT_LABEL, href: `/jewelcert/${invite.id}`, done: bundleDone };
     }
     if (part.startsWith("course:")) {
       const id = part.replace(/^course:/, "");

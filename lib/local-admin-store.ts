@@ -1,4 +1,5 @@
 import { AUDIT_LOG, AdminCompany, AdminCompanyUser, COMPANIES, CompanyStatus, INVOICES, PLANS, PlanTier, adminMetrics } from "./admin";
+import { GEMMATCH_PERSONALITY_ASSESSMENT_LABEL } from "./jewelcert";
 import { LEGACY_ASSESSMENTS } from "@/lib/legacy";
 
 // origin distinguishes where a default came from so the admin UI can group them:
@@ -60,7 +61,7 @@ const LEGACY_DEFAULTS: AdminAssessmentDefault[] = LEGACY_ASSESSMENTS.map((a) => 
 const ADMIN_ASSESSMENTS: AdminAssessmentDefault[] = [
   {
     id: "gemmatch",
-    name: "JewelCert",
+    name: GEMMATCH_PERSONALITY_ASSESSMENT_LABEL,
     kind: "Trait profile",
     scope: "All plans",
     status: "Published",

@@ -5,9 +5,10 @@ import Link from "next/link";
 import { Panel } from "@/components/ui";
 import { IconClipboardList, IconDiamond, IconPlus, IconCheck, IconX } from "@/components/icons";
 import type { AdminAssessmentDefault } from "@/lib/local-admin-store";
+import { GEMMATCH_PERSONALITY_ASSESSMENT_LABEL } from "@/lib/jewelcert";
 
 const LIBRARY: AdminAssessmentDefault[] = [
-  { id: "gemmatch", name: "JewelCert", kind: "Trait profile", scope: "All plans", status: "Published", questions: 48, note: "The core pick-10 profile. Default for every company.", origin: "builtin" },
+  { id: "gemmatch", name: GEMMATCH_PERSONALITY_ASSESSMENT_LABEL, kind: "Trait profile", scope: "All plans", status: "Published", questions: 48, note: "The core pick-10 profile. Default for every company.", origin: "builtin" },
   { id: "12-essentials-understanding-your", name: "12 Essentials: Understanding your potential", kind: "Trait profile", scope: "All plans", status: "Published", questions: 36, note: "Migrated from the legacy Bubble system.", origin: "legacy" },
   { id: "sales-personality-profiling-test", name: "Sales Personality Profiling Test", kind: "Trait profile", scope: "All plans", status: "Published", questions: 24, note: "Migrated from the legacy Bubble system.", origin: "legacy" },
   { id: "jewelry-basic-knowledge", name: "Jewelry Basic Knowledge Assessment", kind: "Knowledge check", scope: "All plans", status: "Published", questions: 22, note: "Migrated from the legacy Bubble system.", origin: "legacy" },

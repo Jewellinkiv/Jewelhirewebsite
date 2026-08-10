@@ -90,6 +90,11 @@ export default function SignupPage() {
               </button>
               <div className="text-center text-[12.5px] text-muted">Already have an account? <Link href="/login" className="text-primary no-underline hover:underline">Sign in</Link></div>
             </form>
+            <div className="mt-6 border-t border-line pt-5 text-center">
+              <p className="m-0 text-[13px] font-semibold text-head">Looking to hire for your own store?</p>
+              <p className="mt-1 mb-2 text-[12.5px] text-muted">Choose a JewelHire store-owner subscription at $149/month or $1,299/year.</p>
+              <Link href="/signup/store" className="text-[13px] font-semibold text-primary no-underline hover:underline">Start your store on JewelHire</Link>
+            </div>
           </>
         )}
       </section>

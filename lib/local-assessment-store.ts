@@ -1,5 +1,6 @@
 import { ASSESSMENT_RESULTS, AssessmentResult, COMPLETED_RESULTS } from "./assessment-results";
 import { CustomAssessment, AssessmentKind, AssessmentQuestion, CUSTOM_ASSESSMENTS } from "./custom-assessments";
+import { GEMMATCH_PERSONALITY_ASSESSMENT_LABEL } from "./jewelcert";
 import { LEGACY_ASSESSMENTS } from "./legacy";
 
 interface AssessmentState {
@@ -42,7 +43,7 @@ export function listAssessmentCatalog() {
     items: [
       {
         id: "gemmatch",
-        title: "JewelCert",
+        title: GEMMATCH_PERSONALITY_ASSESSMENT_LABEL,
         type: "Trait profile",
         durationMinutes: 3,
         questionCount: 48,

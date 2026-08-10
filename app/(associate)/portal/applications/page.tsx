@@ -6,6 +6,7 @@ import { Panel } from "@/components/ui";
 import { EmptyState, ErrorState, SkeletonCard } from "@/components/states";
 import { IconBriefcase } from "@/components/icons";
 import { STAGE_META, STAGE_FLOW, ApplicationStage } from "@/lib/my-applications";
+import { GEMMATCH_PERSONALITY_ASSESSMENT_LABEL } from "@/lib/jewelcert";
 
 const TONE: Record<string, string> = {
   active: "bg-[#e8f1ff] text-primary",
@@ -50,7 +51,7 @@ function formatDate(value: string) {
 function nextStep(stage: ApplicationStage) {
   if (stage === "applied") return "Application received — the store is reviewing it";
   if (stage === "jewelcert") return "Finish your JewelCert knowledge check";
-  if (stage === "gemmatch") return "Complete your JewelCert assessment (~3 min)";
+  if (stage === "gemmatch") return `Complete your ${GEMMATCH_PERSONALITY_ASSESSMENT_LABEL} (~3 min)`;
   if (stage === "interview") return "Interview scheduled — confirm your time";
   if (stage === "offer") return "Offer extended — review the details";
   return undefined;

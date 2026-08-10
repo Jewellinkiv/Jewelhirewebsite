@@ -12,8 +12,13 @@ export interface CertComponent {
   meta: string; // duration / question count
 }
 
+// GemMatch is the candidate-facing name of the JewelCert personality component.
+// JewelCert is the invitation bundle that can include GemMatch plus optional
+// tests and courses.
+export const GEMMATCH_PERSONALITY_ASSESSMENT_LABEL = "GemMatch Personality Assessment";
+
 export const CERT_COMPONENTS: CertComponent[] = [
-  { id: "gemmatch", label: "JewelCert", desc: "Behavioral / sales-floor fit profile", kind: "gemmatch", meta: "~3 min" },
+  { id: "gemmatch", label: GEMMATCH_PERSONALITY_ASSESSMENT_LABEL, desc: "Behavioral / sales-floor fit profile", kind: "gemmatch", meta: "~3 min" },
   { id: "12-essentials", label: "12 Essentials", desc: "Sales potential profile", kind: "test", meta: "36 questions · 60 min" },
   { id: "sales-personality", label: "Sales Personality", desc: "Sales traits profile", kind: "test", meta: "24 questions · 30 min" },
   { id: "jewelry-knowledge", label: "Jewelry Knowledge", desc: "Knowledge check (metals, gems, diamonds…)", kind: "knowledge", meta: "22 questions · 60 min" },

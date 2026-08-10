@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ADJECTIVE_ITEMS } from "@/lib/gemmatch-adjectives";
+import { GEMMATCH_PERSONALITY_ASSESSMENT_LABEL } from "@/lib/jewelcert";
 import { IconCheck, IconChevronLeft, IconChevronRight, IconClock, IconLock, IconPlayerPlay } from "@/components/icons";
 
 const PICK_TARGET = 10;
@@ -122,7 +123,7 @@ export default function JewelCertTestPage() {
         <div className="text-center max-w-[380px]">
           <span className="w-14 h-14 rounded-full bg-[#e1f5ee] text-[#0f6e56] inline-flex items-center justify-center mb-4"><IconCheck size={26} /></span>
           <h1 className="m-0 text-[19px] font-semibold text-head">You&apos;re all set</h1>
-          <p className="mt-2 text-[13.5px] text-muted">Your JewelCert responses were sent to {store}. Your results are shared only with them — thanks for taking the time.</p>
+          <p className="mt-2 text-[13.5px] text-muted">Your GemMatch responses were sent to {store}. Your results are shared only with them — thanks for taking the time.</p>
           <Link href="/portal/invites" className="btn-grad inline-flex items-center gap-1.5 mt-5 px-5 py-2.5 text-[13.5px] no-underline">Back to invites <IconChevronRight size={15} /></Link>
         </div>
       </div>
@@ -133,8 +134,8 @@ export default function JewelCertTestPage() {
   if (step === "intro") {
     return (
       <div className="flex-1 flex flex-col py-6">
-        <div className="mb-1 text-[12px] font-medium text-primary uppercase tracking-wide">Personality · {role}</div>
-        <h1 className="m-0 text-[22px] sm:text-[26px] font-semibold text-head leading-tight">Your JewelCert personality check</h1>
+        <div className="mb-1 text-[12px] font-medium text-primary uppercase tracking-wide">GemMatch · Personality · {role}</div>
+        <h1 className="m-0 text-[22px] sm:text-[26px] font-semibold text-head leading-tight">Your {GEMMATCH_PERSONALITY_ASSESSMENT_LABEL}</h1>
         <p className="mt-2.5 text-[14px] text-body">Pick the words that feel most like you. There are no right or wrong answers — this just helps {store} understand how you like to work.</p>
 
         <div className="mt-5 rounded-xl border border-line bg-white divide-y divide-[#eef1f6]">
