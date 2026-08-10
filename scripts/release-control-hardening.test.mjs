@@ -142,7 +142,7 @@ test("Cloud Run jobs preserve the buildpack runtime environment", () => {
   assert.doesNotMatch(workflow, /--command npm/);
   assert.match(
     workflow,
-    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:migrate:apply,--,--through=0027_job_location_targeting/,
+    /--command \/cnb\/lifecycle\/launcher \\\n\s+--args npm,run,db:migrate:apply,--,--through=0028_gemmatch_personality_assessment_name/,
   );
   assert.match(
     workflow,
@@ -170,7 +170,7 @@ test("JewelCert v2 cutover is operator-confirmed, database-enforced, and written
   assert.doesNotMatch(workflow, /legacy_jewelcert_invites_cleared:/);
   assert.match(workflow, /--args npm,run,db:readiness/);
   const stripeReadiness = workflow.indexOf("Verify live Stripe offers webhook and legacy drain before database changes");
-  const additiveApply = workflow.indexOf("--through=0027_job_location_targeting");
+  const additiveApply = workflow.indexOf("--through=0028_gemmatch_personality_assessment_name");
   const finalReadiness = workflow.indexOf("Verify exact production database invariants before traffic");
   const promotion = workflow.indexOf("Move production traffic to candidate");
   const rollbackCompatibleSmoke = workflow.indexOf("Verify public production routes");

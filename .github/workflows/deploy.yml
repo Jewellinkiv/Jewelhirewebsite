@@ -302,7 +302,7 @@ jobs:
             --set-secrets "DATABASE_URL=${DATABASE_SECRET}:${DATABASE_SECRET_VERSION}" \
             --set-env-vars "APPLY_DATABASE_MIGRATIONS=1,REQUIRE_EXISTING_MIGRATION_LEDGER=1,REQUIRE_APPLIED_MIGRATION_ID=0024_jewelcert_claim_token_version_fence,POSTGRES_POOL_MAX=1" \
             --command /cnb/lifecycle/launcher \
-            --args npm,run,db:migrate:apply,--,--through=0027_job_location_targeting \
+            --args npm,run,db:migrate:apply,--,--through=0028_gemmatch_personality_assessment_name \
             --max-retries 0 \
             --task-timeout 15m \
             --quiet

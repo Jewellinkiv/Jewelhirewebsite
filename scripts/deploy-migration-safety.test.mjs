@@ -219,7 +219,7 @@ test("exact standalone billing catalog invariants fail closed on any missing lif
 test("production workflow applies and verifies additive billing schema and providers before traffic", () => {
   const workflow = fs.readFileSync(".github/workflows/deploy.yml", "utf8");
   const stripeReadiness = workflow.indexOf("Verify live Stripe offers webhook and legacy drain before database changes");
-  const migration = workflow.indexOf("--through=0027_job_location_targeting");
+  const migration = workflow.indexOf("--through=0028_gemmatch_personality_assessment_name");
   const databaseReadiness = workflow.indexOf("Verify exact production database invariants before traffic");
   const candidateSmoke = workflow.indexOf("Smoke no-traffic candidate");
   const promotion = workflow.indexOf("Move production traffic to candidate");
