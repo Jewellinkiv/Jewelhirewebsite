@@ -53,7 +53,7 @@ async function readBoundedJson(request: Request): Promise<Record<string, unknown
 function nextForRole(role?: string) {
   if (role === "associate") return "/portal";
   if (role === "admin") return "/admin";
-  return "/";
+  return "/dashboard";
 }
 
 export async function POST(request: Request) {

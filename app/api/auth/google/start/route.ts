@@ -14,7 +14,7 @@ export function GET(request: Request) {
 
   const url = new URL(request.url);
   const state = randomState();
-  const next = url.searchParams.get("next") || "/";
+  const next = url.searchParams.get("next") || "/dashboard";
   const redirectUri = `${appBaseUrl(request)}/api/auth/google/callback`;
   const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   authUrl.searchParams.set("client_id", clientId);

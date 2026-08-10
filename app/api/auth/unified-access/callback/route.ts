@@ -20,7 +20,7 @@ function denied(request: Request, clearSession = false) {
 export async function GET(request: Request) {
   const session = await exchangeLinkdUnifiedCode(request);
   if (!session) return denied(request);
-  const destination = session.role === "associate" ? "/portal" : "/";
+  const destination = session.role === "associate" ? "/portal" : session.role === "admin" ? "/admin" : "/dashboard";
   const response = NextResponse.redirect(new URL(destination, appBaseUrl(request)), { headers: { "Cache-Control": "no-store" } });
   setSessionCookie(response, session);
   return response;

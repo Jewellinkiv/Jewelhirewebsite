@@ -26,7 +26,7 @@ export const STORE_NAV: NavGroup[] = [
   {
     group: "Hiring",
     items: [
-      { label: "Dashboard", href: "/", icon: <IconLayoutDashboard size={18} /> },
+      { label: "Dashboard", href: "/dashboard", icon: <IconLayoutDashboard size={18} /> },
       { label: "Pipeline", href: "/pipeline", icon: <IconProgress size={18} /> },
       { label: "Applicants", href: "/applicants", icon: <IconUsers size={18} /> },
       { label: "Jobs", href: "/jobs", icon: <IconBriefcase size={18} /> },
@@ -57,7 +57,7 @@ export const STORE_NAV: NavGroup[] = [
 export function Sidebar({ canManageSettings }: { canManageSettings: boolean }) {
   const path = usePathname();
   const isActive = (href: string) =>
-    href === "/" ? path === "/" : path === href || path.startsWith(href + "/");
+    href === "/dashboard" ? path === "/dashboard" : path === href || path.startsWith(href + "/");
 
   return (
     <aside className="w-[226px] bg-panel border-r border-line sticky top-0 h-screen hidden lg:flex flex-col">

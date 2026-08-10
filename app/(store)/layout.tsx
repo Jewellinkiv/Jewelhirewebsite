@@ -9,7 +9,7 @@ import { getStoreShellIdentity } from "@/lib/server/store-shell-identity";
 // into store routes and the store "Dashboard" button would bounce them to /admin.
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const session = await getSessionContext().catch(() => null);
-  if (!session) redirect("/login?next=/");
+  if (!session) redirect("/login?next=/dashboard");
   if (session.role === "admin") redirect("/admin");
   if (session.role === "associate") redirect("/portal");
   const identity = await getStoreShellIdentity({

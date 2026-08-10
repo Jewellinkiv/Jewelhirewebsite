@@ -84,7 +84,7 @@ function ClaimForm() {
         setSubmitting(false);
         return;
       }
-      window.location.href = body?.next || "/";
+      window.location.href = body?.next || "/dashboard";
     } catch {
       setError("We couldn't reach the server. Please try again.");
       setSubmitting(false);

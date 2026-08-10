@@ -60,7 +60,7 @@ function ResetForm() {
       }
       const role = body?.role;
       // Auto-logged-in — go to the right home.
-      window.location.href = role === "admin" ? "/admin" : role === "associate" ? "/portal" : "/";
+      window.location.href = role === "admin" ? "/admin" : role === "associate" ? "/portal" : "/dashboard";
     } catch {
       setError("We couldn't reach the server. Please try again.");
       setSubmitting(false);

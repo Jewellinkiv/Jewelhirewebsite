@@ -51,7 +51,7 @@ function destinationForSession(next: string, session: AuthSession) {
   if (safe !== "/") return safe;
   if (session.role === "admin") return "/admin";
   if (session.role === "associate") return "/portal";
-  return "/";
+  return "/dashboard";
 }
 
 export async function GET(request: Request) {
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const stateCookie = cookieValue(request, OAUTH_STATE_COOKIE);
-  const nextCookie = cookieValue(request, OAUTH_NEXT_COOKIE) || "/";
+  const nextCookie = cookieValue(request, OAUTH_NEXT_COOKIE) || "/dashboard";
   if (!code || !state || !stateCookie || state !== stateCookie) return redirectToLogin(request, "state");
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) return redirectToLogin(request, "config");
 

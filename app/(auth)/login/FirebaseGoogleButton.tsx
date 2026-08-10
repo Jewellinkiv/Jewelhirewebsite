@@ -37,7 +37,7 @@ export function FirebaseGoogleButton({ next, config }: Props) {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body?.error?.message || "Sign in failed.");
-      window.location.assign(body.next || "/");
+      window.location.assign(body.next || "/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign in failed.");
       setBusy(false);

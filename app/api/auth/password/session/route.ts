@@ -18,7 +18,7 @@ function destinationForSession(next: string, session: AuthSession) {
   if (safe !== "/") return safe;
   if (session.role === "admin") return "/admin";
   if (session.role === "associate") return "/portal";
-  return "/";
+  return "/dashboard";
 }
 
 function appBaseUrl(request: Request) {
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
   // check deliberately happens before reading the attacker-controlled body.
   const throttle = await rateLimit(`login:${clientIp(request)}`, 20, 900);
   if (!throttle.ok) {
-    return redirectToLogin(request, "/", "too_many");
+    return redirectToLogin(request, "/dashboard", "too_many");
   }
 
   const body = await readBody(request);
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
     : "";
   const next = typeof body.next === "string" && body.next.length <= MAX_LOGIN_NEXT_LENGTH
     ? body.next
-    : "/";
+    : "/dashboard";
 
   const result = await loginWithPassword({ email, password });
   if (!result.ok) {

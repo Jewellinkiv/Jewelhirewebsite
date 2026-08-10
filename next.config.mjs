@@ -22,6 +22,13 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: "/", destination: "/marketing/index.html" },
+      ],
+    };
+  },
   // Applicants & candidates are one record — retire the old /candidates routes.
   // Legacy associate routes are superseded by the unified portal (/portal/*).
   async redirects() {

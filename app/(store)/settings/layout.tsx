@@ -6,6 +6,6 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   if (!session) redirect("/login?next=/settings");
   if (session.role === "admin") redirect("/admin");
   if (session.role === "associate") redirect("/portal");
-  if (session.storeRoles[session.activeStoreId] !== "store_owner") redirect("/");
+  if (session.storeRoles[session.activeStoreId] !== "store_owner") redirect("/dashboard");
   return children;
 }

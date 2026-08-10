@@ -135,7 +135,7 @@ function exactApplicantBundlePath(destination: string) {
 function roleHome(role: string) {
   if (role === "admin") return "/admin";
   if (role === "associate") return "/portal";
-  return "/";
+  return "/dashboard";
 }
 
 function inPathNamespace(destination: string, root: string) {
@@ -157,11 +157,11 @@ export function jewelLinkSessionDestination(returnTo: unknown, role: string) {
   }
   if (role === "admin") return inPathNamespace(destination, "/admin") ? destination : "/admin";
   if (role === "store_owner" || role === "manager") {
-    return inPathNamespace(destination, "/portal") || inPathNamespace(destination, "/admin")
-      ? "/"
+    return destination === "/" || inPathNamespace(destination, "/portal") || inPathNamespace(destination, "/admin")
+      ? "/dashboard"
       : destination;
   }
-  return "/";
+  return "/dashboard";
 }
 
 export function jewelLinkIdentityProvisionAction(input: {

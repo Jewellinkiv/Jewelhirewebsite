@@ -11,7 +11,7 @@ import { IconMenu, IconX, IconDiamond, IconSettings } from "@/components/icons";
 export function MobileNav({ canManageSettings }: { canManageSettings: boolean }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
-  const isActive = (href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(href + "/"));
+  const isActive = (href: string) => (href === "/dashboard" ? path === "/dashboard" : path === href || path.startsWith(href + "/"));
 
   return (
     <div className="lg:hidden">

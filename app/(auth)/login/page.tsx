@@ -6,7 +6,7 @@ import { FirebaseGoogleButton } from "./FirebaseGoogleButton";
 
 export default async function LoginPage(props: { searchParams?: Promise<{ next?: string; error?: string }> }) {
   const searchParams = await props.searchParams;
-  const next = searchParams?.next || "/";
+  const next = searchParams?.next || "/dashboard";
   const googleHref = `/api/auth/google/start?next=${encodeURIComponent(next)}`;
   const configured = googleAuthConfigured();
   const firebaseConfigured = firebaseAuthConfigured();

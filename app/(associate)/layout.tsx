@@ -6,7 +6,7 @@ export default async function AssociateLayout({ children }: { children: React.Re
   const session = await getSessionContext().catch(() => null);
   if (!session) redirect("/login?next=/portal");
   if (session.role === "admin") redirect("/admin");
-  if (session.role === "store_owner" || session.role === "manager") redirect("/");
+  if (session.role === "store_owner" || session.role === "manager") redirect("/dashboard");
   const initials = session.name
     .split(/\s+/)
     .filter(Boolean)

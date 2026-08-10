@@ -8,7 +8,7 @@ export default function NotFound() {
       icon={<IconSearch size={20} />}
       title="Page not found"
       message="We couldn't find that store page."
-      action={<Link href="/" className="btn-grad px-4 py-2 text-[13px] no-underline">Back to dashboard</Link>}
+      action={<Link href="/dashboard" className="btn-grad px-4 py-2 text-[13px] no-underline">Back to dashboard</Link>}
     />
   );
 }

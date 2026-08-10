@@ -12,7 +12,7 @@ function destinationForSession(next: unknown, session: AuthSession) {
   if (safe !== "/") return safe;
   if (session.role === "admin") return "/admin";
   if (session.role === "associate") return "/portal";
-  return "/";
+  return "/dashboard";
 }
 
 export const POST = withApiErrorHandling(async function POST(request: Request) {

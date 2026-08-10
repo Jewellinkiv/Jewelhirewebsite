@@ -7,6 +7,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // applicants) previously saw the empty admin shell before the APIs 403'd.
   const session = await getSessionContext().catch(() => null);
   if (!session) redirect("/login?next=/admin");
-  if (session.role !== "admin") redirect(session.role === "associate" ? "/portal" : "/");
+  if (session.role !== "admin") redirect(session.role === "associate" ? "/portal" : "/dashboard");
   return <AdminShell>{children}</AdminShell>;
 }
