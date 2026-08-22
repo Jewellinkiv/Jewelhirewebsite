@@ -1,0 +1,61 @@
+@media (max-width: 800px) {
+  .suite-partner-strip {
+    grid-template-columns: 1fr;
+    padding-bottom: 37px;
+    padding-top: 37px;
+  }
+
+  .suite-partner-copy {
+    max-width: 660px;
+  }
+
+  .suite-partner-logos {
+    max-width: 640px;
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-usa-badge {
+    margin-left: 11px;
+    margin-right: 11px;
+    max-width: calc(100% - 22px);
+    padding: 9px 12px;
+  }
+
+  .usa-badge {
+    font-size: 10px;
+  }
+
+  .suite-partner-strip {
+    gap: 25px;
+    padding: 31px 24px;
+  }
+
+  .suite-partner-copy h2 {
+    font-size: 2rem;
+  }
+
+  .suite-partner-logos {
+    gap: 8px;
+    grid-template-columns: 1fr;
+  }
+
+  .suite-partner-logo {
+    height: 68px;
+    padding: 13px 24px;
+  }
+
+  .suite-partner-logo--jewellink img {
+    max-height: 29px;
+    transform: scale(1.1);
+  }
+
+  .suite-partner-logo--countretail img {
+    max-height: 27px;
+    transform: scale(1);
+  }
+
+  .suite-partner-logo--linkd {
+    padding: 0;
+  }
+}
