@@ -46,8 +46,8 @@
   }
 
   .suite-partner-logo--jewellink img {
-    max-height: 29px;
-    transform: scale(1.1);
+    max-height: 27px;
+    transform: none;
   }
 
   .suite-partner-logo--countretail img {
