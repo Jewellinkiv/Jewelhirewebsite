@@ -1,3 +1,13 @@
+/* Keep the wide JewelLink source mark contained at every viewport. */
+.suite-partner-logo--jewellink img {
+  display: block;
+  height: auto;
+  max-height: none;
+  max-width: 100%;
+  transform: none !important;
+  width: min(100%, 180px);
+}
+
 @media (max-width: 800px) {
   .suite-partner-strip {
     grid-template-columns: 1fr;
