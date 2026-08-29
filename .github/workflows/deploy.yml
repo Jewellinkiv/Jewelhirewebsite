@@ -68,6 +68,7 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: npm run test:guided-demo-marketing
       - run: npm run test:release-controls
       - run: npm run test:deploy-migration-safety
       - run: npm run test:team-invite-gate
