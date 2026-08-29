@@ -10,6 +10,7 @@ test("marketing site makes the real store-owner demo prominent", () => {
   assert.match(html, /id="guided-demo"/);
   assert.match(html, /Interactive store-owner walkthrough/);
   assert.match(html, /Create your demo store/);
+  assert.match(html, /confirm the hire, launch onboarding/);
   assert.ok((html.match(/https:\/\/app\.jewelhire\.com\/guided-demo/g) || []).length >= 7);
   assert.match(styles, /\.guided-demo-band/);
   assert.match(styles, /\.guided-demo-flow/);
