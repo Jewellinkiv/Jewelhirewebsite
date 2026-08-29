@@ -495,7 +495,7 @@ async function main() {
   const prelimitedLoginResponse = await passwordSessionRoute.POST(prelimitedLoginRequest);
   assert.equal(prelimitedLoginResponse.status, 303);
   assert.equal(loginBodyAccesses, 0);
-  assert.match(prelimitedLoginResponse.headers.get("location") || "", /\/login\?next=%2F&error=too_many$/);
+  assert.match(prelimitedLoginResponse.headers.get("location") || "", /\/login\?next=%2Fdashboard&error=too_many$/);
   const oversizedLoginResponse = await passwordSessionRoute.POST(new Request(
     "https://app.jewelhire.test/api/auth/password/session",
     {
