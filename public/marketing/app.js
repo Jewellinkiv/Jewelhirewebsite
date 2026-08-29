@@ -2,17 +2,13 @@ const header = document.querySelector('.site-header');
 const menuToggle = document.querySelector('.menu-toggle');
 const modalBackdrop = document.querySelector('.modal-backdrop');
 const modal = document.querySelector('.modal');
-const demoPanel = document.querySelector('.modal-demo');
 const signupPanel = document.querySelector('.modal-signup');
-const thanksPanel = document.querySelector('.modal-thanks');
 const modalClose = document.querySelector('.modal-close');
 
-function showModal(kind) {
+function showModal() {
   modalBackdrop.hidden = false;
   document.body.style.overflow = 'hidden';
-  demoPanel.hidden = kind !== 'demo';
-  signupPanel.hidden = kind !== 'signup';
-  thanksPanel.hidden = true;
+  signupPanel.hidden = false;
   modalClose.hidden = false;
   modal.querySelector('input, button, select')?.focus();
 }
@@ -23,7 +19,7 @@ function closeModal() {
 }
 
 document.querySelectorAll('[data-open-modal]').forEach((button) => {
-  button.addEventListener('click', () => showModal(button.dataset.openModal));
+  button.addEventListener('click', showModal);
 });
 
 modalClose.addEventListener('click', closeModal);
@@ -33,17 +29,6 @@ modalBackdrop.addEventListener('click', (event) => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !modalBackdrop.hidden) closeModal();
 });
-
-document.querySelector('.lead-form').addEventListener('submit', (event) => {
-  event.preventDefault();
-  demoPanel.hidden = true;
-  signupPanel.hidden = true;
-  thanksPanel.hidden = false;
-  modalClose.hidden = false;
-  thanksPanel.querySelector('.modal-done').focus();
-});
-
-document.querySelector('.modal-done').addEventListener('click', closeModal);
 
 menuToggle.addEventListener('click', () => {
   const isOpen = header.classList.toggle('nav-open');
